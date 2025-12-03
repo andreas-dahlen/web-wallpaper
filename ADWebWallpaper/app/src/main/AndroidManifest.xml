@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.ad.webwallpaper">
 
     <application
         android:allowBackup="true"
@@ -14,9 +15,10 @@
 
         <!-- Live wallpaper service -->
         <service
-            android:name=".WebWallpaperService"
+            android:name="com.ad.webwallpaper.WebWallpaperService"
             android:label="Web Wallpaper"
-            android:permission="android.permission.BIND_WALLPAPER">
+            android:permission="android.permission.BIND_WALLPAPER"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.service.wallpaper.WallpaperService" />
             </intent-filter>
