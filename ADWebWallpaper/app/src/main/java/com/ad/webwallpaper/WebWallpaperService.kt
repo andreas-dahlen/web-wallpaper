@@ -19,26 +19,31 @@ class WebWallpaperService : WallpaperService() {
 
         private lateinit var webView: WebView
         private val handler = Handler(Looper.getMainLooper())
+        private val redrawRunnable = object : Runnable {
+            override fun run() {
+                webView.invalidate()
+                handler.postDelayed(this, 16) // ~60fps
+            }
+        }
 
         @SuppressLint("SetJavaScriptEnabled")
         override fun onCreate(surfaceHolder: SurfaceHolder) {
             super.onCreate(surfaceHolder)
 
-            // Create WebView
             webView = WebView(applicationContext)
             webView.settings.javaScriptEnabled = true
             webView.webViewClient = WebViewClient()
-            webView.setBackgroundColor(0) // transparent background
+            webView.setBackgroundColor(0)
 
-            // Connect JSBridge
+            // JSBridge
             webView.addJavascriptInterface(JSBridge(applicationContext), "Android")
 
-            // Delay loading HTML slightly to ensure surface is ready
+            // Load HTML after creation
             handler.post {
                 webView.loadUrl("file:///android_asset/index.html")
             }
 
-            // Initial layout
+            // Layout WebView to surface size
             val width = surfaceHolder.surfaceFrame.width()
             val height = surfaceHolder.surfaceFrame.height()
             webView.measure(
@@ -46,6 +51,9 @@ class WebWallpaperService : WallpaperService() {
                 View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY)
             )
             webView.layout(0, 0, width, height)
+
+            // Start redraw loop
+            handler.post(redrawRunnable)
         }
 
         override fun onVisibilityChanged(visible: Boolean) {
@@ -53,15 +61,8 @@ class WebWallpaperService : WallpaperService() {
             if (visible) webView.onResume() else webView.onPause()
         }
 
-        override fun onDestroy() {
-            super.onDestroy()
-            webView.destroy()
-        }
-
         override fun onSurfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
             super.onSurfaceChanged(holder, format, width, height)
-
-            // Re-measure layout on surface change
             webView.measure(
                 View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY)
@@ -76,6 +77,12 @@ class WebWallpaperService : WallpaperService() {
                 webView.draw(canvas)
                 it.unlockCanvasAndPost(canvas)
             }
+        }
+
+        override fun onDestroy() {
+            super.onDestroy()
+            handler.removeCallbacks(redrawRunnable)
+            webView.destroy()
         }
     }
 }
