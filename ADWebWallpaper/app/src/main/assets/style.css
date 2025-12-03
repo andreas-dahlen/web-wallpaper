@@ -1,19 +1,23 @@
 html, body {
-margin: 0;
-padding: 0;
-display: flex;
-flex-direction: center;
-align-items: center;
-height: 100vh;
-background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-color: white;
-font-family: sans-sarif;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: white;
+    font-family: sans-sarif;
 }
 
 #clock {
-font-size: 48px;
-margin-bottom: 20px;
-animation: pulse 2s infinite;
+    position: absolute;
+    top: 5vh;      /* 5% of viewport height from top */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 5vh;  /* scales with screen height */
+    font-size: 48px;
+    margin-bottom: 20px;
+    animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
@@ -23,7 +27,7 @@ animation: pulse 2s infinite;
 }
 
 button {
-padding: 10px 20px;
-font-size: 18px;
-cursor: pointer;
+    padding: 10px 20px;
+    font-size: 18px;
+    cursor: pointer;
 }
