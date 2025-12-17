@@ -1,11 +1,11 @@
 package com.ad.webwallpaper
 
 import android.annotation.SuppressLint
+import android.graphics.Canvas
 import android.os.Handler
 import android.os.Looper
 import android.service.wallpaper.WallpaperService
 import android.view.SurfaceHolder
-import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
 
@@ -18,70 +18,53 @@ class WebWallpaperService : WallpaperService() {
     inner class WebWallpaperEngine : Engine() {
 
         private lateinit var webView: WebView
-        private val handler = Handler(Looper.getMainLooper())
-        private val redrawRunnable = object : Runnable {
-            override fun run() {
-                webView.invalidate()
-                handler.postDelayed(this, 16) // ~60fps
-            }
-        }
+        private val handler = Handler(Looper.getMainLooper()) // ✅ Add this
 
         @SuppressLint("SetJavaScriptEnabled")
         override fun onCreate(surfaceHolder: SurfaceHolder) {
             super.onCreate(surfaceHolder)
 
-            webView = WebView(applicationContext)
-            webView.settings.javaScriptEnabled = true
-            webView.webViewClient = WebViewClient()
-            webView.setBackgroundColor(0)
-
-            // JSBridge
-            webView.addJavascriptInterface(JSBridge(applicationContext), "Android")
-
-            // Load HTML after creation
-            handler.post {
-                webView.loadUrl("file:///android_asset/index.html")
+            // Create offscreen WebView
+            webView = WebView(applicationContext).apply {
+                settings.javaScriptEnabled = true
+                webViewClient = WebViewClient()
+                setBackgroundColor(0)
+                addJavascriptInterface(JSBridge(applicationContext), "Android")
+                loadUrl("file:///android_asset/index.html")
             }
-
-            // Layout WebView to surface size
-            val width = surfaceHolder.surfaceFrame.width()
-            val height = surfaceHolder.surfaceFrame.height()
-            webView.measure(
-                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY)
-            )
-            webView.layout(0, 0, width, height)
-
-            // Start redraw loop
-            handler.post(redrawRunnable)
         }
 
         override fun onVisibilityChanged(visible: Boolean) {
             super.onVisibilityChanged(visible)
-            if (visible) webView.onResume() else webView.onPause()
+            if (visible) drawFrame() // Draw when visible
         }
 
-        override fun onSurfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
-            super.onSurfaceChanged(holder, format, width, height)
-            webView.measure(
-                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY)
-            )
-            webView.layout(0, 0, width, height)
-        }
+        private fun drawFrame() {
+            val holder = surfaceHolder ?: return
 
-        override fun onSurfaceRedrawNeeded(holder: SurfaceHolder?) {
-            super.onSurfaceRedrawNeeded(holder)
-            holder?.let {
-                val canvas = it.lockCanvas()
+            val canvas: Canvas? = holder.lockCanvas()
+            if (canvas != null) {
+                // Measure and layout WebView to match canvas
+                webView.measure(
+                    android.view.View.MeasureSpec.makeMeasureSpec(canvas.width, android.view.View.MeasureSpec.EXACTLY),
+                    android.view.View.MeasureSpec.makeMeasureSpec(canvas.height, android.view.View.MeasureSpec.EXACTLY)
+                )
+                webView.layout(0, 0, canvas.width, canvas.height)
+
+                // Draw WebView to canvas
                 webView.draw(canvas)
-                it.unlockCanvasAndPost(canvas)
+                holder.unlockCanvasAndPost(canvas)
+            }
+
+            // Keep redrawing every 16ms (~60fps) while visible
+            if (isVisible) {
+                handler.postDelayed({ drawFrame() }, 16)
             }
         }
 
         override fun onDestroy() {
             super.onDestroy()
-            handler.removeCallbacks(redrawRunnable)
+            handler.removeCallbacksAndMessages(null)
             webView.destroy()
         }
     }
