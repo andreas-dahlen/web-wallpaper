@@ -1,11 +1,12 @@
 <template>
-  <div id="app">
+  <!-- <div id="app">
     <div class="screen">
       <div class="module" @click="count++">
         Taps: {{ count }}
       </div>
     </div>
-  </div>
+  </div> -->
+  <div class="my-phone"></div>
 </template>
 
 <script setup>
@@ -19,20 +20,20 @@ html, body {
   padding: 0;
   width: 100%;
   height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #8b0d0d;
+  /* display: flex; */
+  /* justify-content: center;
+  align-items: center; */
+  background: #ffffff;
 }
 
-#app {
-  width: 100%;              /* fills available space */
-  max-width: 400px;         /* optional: scale down for desktop preview */
-}
+/* #app { */
+  /* width: 100%; */
+  /* max-width: 400px;         optional: scale down for desktop preview */
+/* } */
 
-.screen {
+/* .screen {
   width: 100%;
-  aspect-ratio: 1272 / 2800;  /* width / height */
+  aspect-ratio: 1272 / 2800;
   background: black;
   position: relative;
   color: white;
@@ -53,5 +54,12 @@ html, body {
   justify-content: center;
   align-items: center;
   cursor: pointer;
+} */
+
+.my-phone {
+    width: 320px;
+    height: 700px;
+    background-color: black;
+    border-radius: 40px;
 }
 </style>
