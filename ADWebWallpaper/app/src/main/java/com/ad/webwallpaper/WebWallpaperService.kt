@@ -8,6 +8,7 @@ import android.service.wallpaper.WallpaperService
 import android.view.SurfaceHolder
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.util.Log
 
 class WebWallpaperService : WallpaperService() {
 
@@ -24,9 +25,14 @@ class WebWallpaperService : WallpaperService() {
         override fun onCreate(surfaceHolder: SurfaceHolder) {
             super.onCreate(surfaceHolder)
 
+            setTouchEventsEnabled(true)
+
             // Create offscreen WebView
             webView = WebView(applicationContext).apply {
                 settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.allowFileAccess = true
+                settings.allowContentAccess = true
                 webViewClient = WebViewClient()
                 setBackgroundColor(0)
                 addJavascriptInterface(JSBridge(applicationContext), "Android")
@@ -60,6 +66,24 @@ class WebWallpaperService : WallpaperService() {
             if (isVisible) {
                 handler.postDelayed({ drawFrame() }, 16)
             }
+        }
+        override fun onTouchEvent(event: android.view.MotionEvent) {
+            super.onTouchEvent(event)
+
+            val x = event.x
+            val y = event.y
+
+            val type = when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> "down"
+                android.view.MotionEvent.ACTION_MOVE -> "move"
+                android.view.MotionEvent.ACTION_UP -> "up"
+                else -> return
+            }
+
+            webView.evaluateJavascript(
+                "handleTouch('$type', $x, $y)",
+                null
+            )
         }
 
         override fun onDestroy() {
