@@ -1,8 +1,7 @@
 import { onMounted } from 'vue'
-import { useInput } from './useInput'
+import { input } from './inputEngine'
 
 export function useButton(elRef, { onDown, onUp }) {
-  const input = useInput()
 
   onMounted(() => {
     if (!elRef.value) return

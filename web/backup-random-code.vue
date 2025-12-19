@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <div id="app">
     <div 
       class="phone" 
@@ -17,12 +17,11 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 
-// --- State ---
 const count = ref(0)
-const phoneColor = ref('black')  // initial phone color
-let lastX = null  // for swipe detection
+const phoneColor = ref('black') 
+let lastX = null  
 
-// --- Scaling ---
+
 function applyScale() {
   const scale = Math.min(
     window.innerWidth / 364,
@@ -39,7 +38,7 @@ onMounted(() => {
   window.addEventListener('resize', applyScale)
   document.addEventListener('DOMContentLoaded', applyScale)
 
-  // --- Kotlin touch bridge ---
+
   window.handleTouch = (type, x, y) => {
     if (type === 'down') phoneColor.value = 'orange'
     else if (type === 'move') {
@@ -59,9 +58,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('DOMContentLoaded', applyScale)
 })
 
-// --- Touch / swipe / click handlers ---
+
 function onTouchDown(e) {
-  phoneColor.value = 'orange'  // color for touch down
+  phoneColor.value = 'orange'  
   lastX = e.clientX
 }
 
@@ -69,25 +68,25 @@ function onTouchMove(e) {
   if (lastX === null) return
   const dx = e.clientX - lastX
   if (dx > 10) {
-    phoneColor.value = 'green'  // swipe right
+    phoneColor.value = 'green'
   } else if (dx < -10) {
-    phoneColor.value = 'red'    // swipe left
+    phoneColor.value = 'red'
   }
 }
 
 function onTouchUp(e) {
-  phoneColor.value = 'blue'     // color for touch up
+  phoneColor.value = 'blue'
   lastX = null
 }
 
 function onModuleClick() {
   count.value++
-  phoneColor.value = 'purple'   // color for module click
+  phoneColor.value = 'purple'
 }
 </script>
 
 <style>
-/* Reset */
+
 * {
   box-sizing: border-box;
 }
@@ -141,4 +140,4 @@ html, body {
 .module:active {
   background: rgba(255, 255, 255, 0.2);
 }
-</style>
+</style> -->

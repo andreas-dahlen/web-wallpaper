@@ -1,31 +1,33 @@
 <template>
-  <div class="phone">
-    <Button :onDown="onButtonDown" :onUp="onButtonUp">
+  <div class="phone" ref="phone" :style="{ backgroundColor: phoneColor }">
+    <Button  
+    :onDown="onButtonDown" 
+    :onUp="onButtonUp" 
+    class="test-button" 
+    >
       Click me!
     </Button>
-    <div>
-      Swipes change color
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useInput } from '../composables/useInput'
-import Button from './Button.vue'
+import { ref, onMounted } from 'vue'
+import { input } from '../composables/inputEngine'
+import Button from './Pressable.vue'
 
 const phoneColor = ref('black')
-const input = useInput()
+const phone = ref(null)
 
-function onButtonDown() {
-  phoneColor.value = 'purple'
-}
+function onButtonDown() { phoneColor.value = 'purple' }
+function onButtonUp() { phoneColor.value = 'black' }
 
-function onButtonUp() {
-  phoneColor.value = 'black'
-}
+// --- register the whole phone div for global swipe detection ---
+onMounted(() => {
+  if (!phone.value) return
+  input.registerElement(phone.value, {}) // we just want pointer events to reach it
+})
 
-// Subscribe to swipe events
+// --- global swipe callbacks ---
 input.onSwipe('left', () => (phoneColor.value = 'red'))
 input.onSwipe('right', () => (phoneColor.value = 'green'))
 input.onSwipe('up', () => (phoneColor.value = 'orange'))
@@ -43,6 +45,12 @@ input.onSwipe('down', () => (phoneColor.value = 'blue'))
   flex-direction: column;
   justify-content: center;
   align-items: center;
+}
+.test-button {
+  width: 200px;
+  height: 200px;
+  background-color: white;
+  border: 10px solid hotpink;
 }
 </style>
 

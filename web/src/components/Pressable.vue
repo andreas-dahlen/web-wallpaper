@@ -1,12 +1,12 @@
 <template>
-  <div ref="el">
+  <div ref="el" v-bind="$attrs">
     <slot></slot>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { useButton } from '../composables/useButton'
+import { useButton } from '../composables/registerPressable'
 
 // 1️⃣ Define props
 const props = defineProps({
