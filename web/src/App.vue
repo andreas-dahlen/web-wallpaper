@@ -5,7 +5,7 @@
 </template>
 
 <script setup>
-import WallpaperRoot from './components/WallpaperRoot.vue'
+import WallpaperRoot from './scenes/WallpaperRoot.vue'
 import { useScale } from './composables/useScale'
 
 useScale()

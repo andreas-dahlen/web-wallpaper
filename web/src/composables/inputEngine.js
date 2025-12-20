@@ -1,89 +1,139 @@
-// src/composables/useInput.js
 import { ref } from 'vue'
 
-const swipeThreshold = 40
+const SWIPE_THRESHOLD = 40
 
-const isDown = ref(false)
-const startX = ref(0)
-const startY = ref(0)
-const x = ref(0)
-const y = ref(0)
+// --- Reactive pointer state ---
+const isPressed = ref(false)
+const position = { x: ref(0), y: ref(0) }
+const start = { x: 0, y: 0 }
 
-const swipeCallbacks = { left: [], right: [], up: [], down: [] }
-const buttonDownCallbacks = []
-const buttonUpCallbacks = []
-const elementDownCallbacks = new Map()
-const elementUpCallbacks = new Map()
+// --- Element tracking ---
+const pressTargets = new Map()        // el -> [onPress callbacks]
+const releaseTargets = new Map()      // el -> [onRelease callbacks]
+const swipeTargets = new Set()        // elements registered for swipe
+const swipeHandlersMap = new WeakMap() // el -> { left, right, up, down }
 
-function onPointerDown(e) {
-  isDown.value = true
-  startX.value = e.clientX
-  startY.value = e.clientY
-  x.value = e.clientX
-  y.value = e.clientY
+// --- Current interaction ---
+let pressOwner = null   // element that will trigger press/release
+let swipeOwner = null   // element that will trigger swipe
+let isSwipe = false
 
-  buttonDownCallbacks.forEach(cb => cb(e))
-  elementDownCallbacks.forEach((cbs, el) => {
-    if (el.contains(e.target)) cbs.forEach(cb => cb(e))
-  })
-}
+// --- POINTER DOWN ---
+function handlePointerDown(e) {
+  isPressed.value = true
+  start.x = e.clientX
+  start.y = e.clientY
+  position.x.value = e.clientX
+  position.y.value = e.clientY
+  isSwipe = false
+  pressOwner = null
+  swipeOwner = null
 
-function onPointerMove(e) {
-  if (!isDown.value) return
-  const dx = e.clientX - startX.value
-  const dy = e.clientY - startY.value
-  x.value = e.clientX
-  y.value = e.clientY
+  // Find top-most pressable element under pointer
+  for (let [el] of pressTargets) {
+    if (el.contains(e.target)) {
+      pressOwner = el
 
-  let direction = null
-  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > swipeThreshold) {
-    direction = dx > 0 ? 'right' : 'left'
-  } else if (Math.abs(dy) > swipeThreshold) {
-    direction = dy > 0 ? 'down' : 'up'
-  }
+      // Immediately call onPress
+      if (pressTargets.has(pressOwner)) {
+        pressTargets.get(pressOwner).forEach(fn => fn(e))
+      }
 
-  if (direction) {
-    swipeCallbacks[direction].forEach(cb => cb({ dx, dy }))
-    startX.value = e.clientX
-    startY.value = e.clientY
+      break
+    }
   }
 }
 
-function onPointerUp(e) {
-  isDown.value = false
-  buttonUpCallbacks.forEach(cb => cb(e))
-  elementUpCallbacks.forEach((cbs, el) => {
-    if (el.contains(e.target)) cbs.forEach(cb => cb(e))
-  })
+// --- POINTER MOVE ---
+function handlePointerMove(e) {
+  if (!isPressed.value) return
+
+  const dx = e.clientX - start.x
+  const dy = e.clientY - start.y
+  position.x.value = e.clientX
+  position.y.value = e.clientY
+
+  // Detect start of swipe if threshold crossed
+  if (!isSwipe && (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD)) {
+    isSwipe = true
+
+    // Find top-most swipeable element under pointer
+    const elUnderPointer = document.elementFromPoint(e.clientX, e.clientY)
+    for (let el of swipeTargets) {
+      if (el.contains(elUnderPointer)) {
+        swipeOwner = el
+        break
+      }
+    }
+
+    // Cancel pressOwner once swipe starts
+    pressOwner = null
+
+    // Reset start for incremental swipe tracking
+    start.x = e.clientX
+    start.y = e.clientY
+  }
+
+  // Call swipe handlers if applicable
+  if (isSwipe && swipeOwner && swipeHandlersMap.has(swipeOwner)) {
+    const handlers = swipeHandlersMap.get(swipeOwner)
+    let direction = null
+    const absDx = Math.abs(dx)
+    const absDy = Math.abs(dy)
+
+    if (absDx > absDy && absDx > SWIPE_THRESHOLD) {
+      direction = dx > 0 ? 'right' : 'left'
+    } else if (absDy > SWIPE_THRESHOLD) {
+      direction = dy > 0 ? 'down' : 'up'
+    }
+
+    if (direction && typeof handlers[direction] === 'function') {
+      handlers[direction]({ dx, dy })
+      start.x = e.clientX
+      start.y = e.clientY
+    }
+  }
 }
 
-// register once
-window.addEventListener('pointerdown', onPointerDown)
-window.addEventListener('pointermove', onPointerMove)
-window.addEventListener('pointerup', onPointerUp)
+// --- POINTER UP ---
+function handlePointerUp(e) {
+  // Only trigger release if it was NOT a swipe
+  if (!isSwipe && pressOwner) {
+    if (releaseTargets.has(pressOwner)) {
+      releaseTargets.get(pressOwner).forEach(fn => fn(e))
+    }
+  }
 
-export const input = {
-  onSwipe(dir, cb) {
-    if (swipeCallbacks[dir]) swipeCallbacks[dir].push(cb)
-  },
-  onButtonDown(cb) {
-    buttonDownCallbacks.push(cb)
-  },
-  onButtonUp(cb) {
-    buttonUpCallbacks.push(cb)
-  },
-  registerElement(el, { onDown, onUp } = {}) {
-    if (onDown) {
-      if (!elementDownCallbacks.has(el)) elementDownCallbacks.set(el, [])
-      elementDownCallbacks.get(el).push(onDown)
-    }
-    if (onUp) {
-      if (!elementUpCallbacks.has(el)) elementUpCallbacks.set(el, [])
-      elementUpCallbacks.get(el).push(onUp)
-    }
-  },
-  isDown,
-  x,
-  y
+  // Reset state
+  isPressed.value = false
+  isSwipe = false
+  pressOwner = null
+  swipeOwner = null
 }
 
+// --- PUBLIC API ---
+export const inputEngine = {
+  // Register element with optional press/release/swipe callbacks
+  registerPressTarget(el, { onPress, onRelease, onSwipe } = {}) {
+    if (onPress) {
+      if (!pressTargets.has(el)) pressTargets.set(el, [])
+      pressTargets.get(el).push(onPress)
+    }
+    if (onRelease) {
+      if (!releaseTargets.has(el)) releaseTargets.set(el, [])
+      releaseTargets.get(el).push(onRelease)
+    }
+    if (onSwipe) {
+      swipeTargets.add(el)
+      swipeHandlersMap.set(el, onSwipe)
+    }
+  },
+
+  // Reactive pointer state for use in components
+  state: { isPressed, x: position.x, y: position.y }
+}
+
+// --- Global listeners ---
+window.addEventListener('pointerdown', handlePointerDown)
+window.addEventListener('pointermove', handlePointerMove)
+window.addEventListener('pointerup', handlePointerUp)
