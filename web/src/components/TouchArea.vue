@@ -6,7 +6,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { inputEngine } from '../composables/inputEngine'
+import { inputEngine } from '../input/inputEngine'
 
 defineOptions({ name: 'TouchArea' })
 

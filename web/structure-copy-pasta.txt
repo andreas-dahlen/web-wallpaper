@@ -1,0 +1,13 @@
+SRC > App.vue, main.js assets, components, composables, input, scenes, services, styles, utils
+
+assets > icons, images, sound
+
+components > DebugPanel.vue (EMPTY), TouchArea.vue (Touch component that bypasses needing to onmount, register touches and so on, built in)
+
+composables > useScale.js (handles scaling on #app), useWallpaperState.js (currently empty)
+
+input > inputEngine.js (main engine that registers swipes, button down and button up), nativeBridge.js (supposed to translate between kotlin and inputEngine) 
+
+scenes > WallpaperRoot.vue (one scene at the moment)
+
+

@@ -3,20 +3,20 @@ import { ref } from 'vue'
 const SWIPE_THRESHOLD = 40
 
 // --- Reactive pointer state ---
-const isPressed = ref(false)
-const position = { x: ref(0), y: ref(0) }
-const start = { x: 0, y: 0 }
+const isPressed = ref(false)          // Tracks if the pointer is currently down
+const position = { x: ref(0), y: ref(0) } // Current pointer coordinates
+const start = { x: 0, y: 0 }          // Starting coordinates of current interaction
 
 // --- Element tracking ---
-const pressTargets = new Map()        // el -> [onPress callbacks]
-const releaseTargets = new Map()      // el -> [onRelease callbacks]
-const swipeTargets = new Set()        // elements registered for swipe
-const swipeHandlersMap = new WeakMap() // el -> { left, right, up, down }
+const pressTargets = new Map()        // Map<HTMLElement, Array<onPress callbacks>>
+const releaseTargets = new Map()      // Map<HTMLElement, Array<onRelease callbacks>>
+const swipeTargets = new Set()        // Set<HTMLElement> of elements registered for swipe
+const swipeHandlersMap = new WeakMap()// WeakMap<HTMLElement, {left,right,up,down}>
 
 // --- Current interaction ---
-let pressOwner = null   // element that will trigger press/release
-let swipeOwner = null   // element that will trigger swipe
-let isSwipe = false
+let pressOwner = null   // Element that will trigger press/release
+let swipeOwner = null   // Element that will trigger swipe
+let isSwipe = false     // True once threshold for swipe is crossed
 
 // --- POINTER DOWN ---
 function handlePointerDown(e) {
@@ -29,12 +29,13 @@ function handlePointerDown(e) {
   pressOwner = null
   swipeOwner = null
 
-  // Find top-most pressable element under pointer
+  // Find the top-most pressable element under the pointer
+  const elUnderPointer = document.elementFromPoint(e.clientX, e.clientY)
   for (let [el] of pressTargets) {
-    if (el.contains(e.target)) {
+    if (el.contains(elUnderPointer)) {
       pressOwner = el
 
-      // Immediately call onPress
+      // Immediately trigger onPress for visual feedback
       if (pressTargets.has(pressOwner)) {
         pressTargets.get(pressOwner).forEach(fn => fn(e))
       }
@@ -53,7 +54,7 @@ function handlePointerMove(e) {
   position.x.value = e.clientX
   position.y.value = e.clientY
 
-  // Detect start of swipe if threshold crossed
+  // Detect swipe start if threshold crossed
   if (!isSwipe && (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD)) {
     isSwipe = true
 
@@ -72,6 +73,7 @@ function handlePointerMove(e) {
     // Reset start for incremental swipe tracking
     start.x = e.clientX
     start.y = e.clientY
+    return
   }
 
   // Call swipe handlers if applicable
@@ -81,14 +83,18 @@ function handlePointerMove(e) {
     const absDx = Math.abs(dx)
     const absDy = Math.abs(dy)
 
+    // Determine swipe direction
     if (absDx > absDy && absDx > SWIPE_THRESHOLD) {
       direction = dx > 0 ? 'right' : 'left'
     } else if (absDy > SWIPE_THRESHOLD) {
       direction = dy > 0 ? 'down' : 'up'
     }
 
+    // Trigger swipe callback if it exists
     if (direction && typeof handlers[direction] === 'function') {
       handlers[direction]({ dx, dy })
+
+      // Reset start for incremental swipe tracking
       start.x = e.clientX
       start.y = e.clientY
     }
@@ -97,14 +103,14 @@ function handlePointerMove(e) {
 
 // --- POINTER UP ---
 function handlePointerUp(e) {
-  // Only trigger release if it was NOT a swipe
+  // Only trigger onRelease if it was NOT a swipe
   if (!isSwipe && pressOwner) {
     if (releaseTargets.has(pressOwner)) {
       releaseTargets.get(pressOwner).forEach(fn => fn(e))
     }
   }
 
-  // Reset state
+  // Reset state for next interaction
   isPressed.value = false
   isSwipe = false
   pressOwner = null
@@ -113,7 +119,7 @@ function handlePointerUp(e) {
 
 // --- PUBLIC API ---
 export const inputEngine = {
-  // Register element with optional press/release/swipe callbacks
+  // Register an element with optional press, release, and swipe callbacks
   registerPressTarget(el, { onPress, onRelease, onSwipe } = {}) {
     if (onPress) {
       if (!pressTargets.has(el)) pressTargets.set(el, [])
@@ -129,11 +135,16 @@ export const inputEngine = {
     }
   },
 
-  // Reactive pointer state for use in components
-  state: { isPressed, x: position.x, y: position.y }
+  // Expose reactive pointer state for use in Vue components
+  state: { isPressed, x: position.x, y: position.y },
+
+  // Expose raw handlers for WebView integration
+  _handlePointerDown: handlePointerDown,
+  _handlePointerMove: handlePointerMove,
+  _handlePointerUp: handlePointerUp
 }
 
-// --- Global listeners ---
+// --- Global pointer listeners ---
 window.addEventListener('pointerdown', handlePointerDown)
 window.addEventListener('pointermove', handlePointerMove)
 window.addEventListener('pointerup', handlePointerUp)
