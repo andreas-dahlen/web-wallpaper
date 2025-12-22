@@ -2,7 +2,9 @@
   <div class="phone" ref="phone" :style="{ backgroundColor: phoneColor }">
     <TouchArea :onPress="onPhonePress" :onRelease="onPhoneRelease" class="test-button" ref="test"
       :style="{ backgroundColor: buttonColor }">
-      Click me!
+      <div class="center-test">
+        <div class="center-center"></div>
+      </div>
     </TouchArea>
   </div>
 </template>
@@ -15,19 +17,17 @@ import { inputEngine } from '../input/inputEngine'
 const phoneColor = ref('black')
 const phone = ref(null)
 
-const buttonColor = ref('black')
+const buttonColor = ref('gray')
 const test = ref(null)
 
 
 // --- touch handlers for the button ---
 function onPhonePress() {
-  console.log('phone pressed')
   buttonColor.value = 'purple',
     phoneColor.value = 'purple'
 }
 
 function onPhoneRelease() {
-  console.log('phone released')
   buttonColor.value = 'green',
     phoneColor.value = 'pink'
 }
@@ -36,10 +36,10 @@ function onPhoneRelease() {
 onMounted(() => {
   inputEngine.registerPressTarget(phone.value, {
     onSwipe: {
-      left: () => { console.log('SWIPE LEFT'); phoneColor.value = 'red' },
-      right: () => { console.log('SWIPE RIGHT'); phoneColor.value = 'green' },
-      up: () => { console.log('SWIPE UP'); phoneColor.value = 'orange' },
-      down: () => { console.log('SWIPE DOWN'); phoneColor.value = 'blue' }
+      left: () => phoneColor.value = 'red' ,
+      right: () => phoneColor.value = 'green' ,
+      up: () => phoneColor.value = 'orange' ,
+      down: () => phoneColor.value = 'blue' 
     }
 
   })
@@ -55,17 +55,37 @@ onMounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.test-button {
+  width: 352px;
+  height: 784px;
+  border-radius: 35px;
+  /* border-inline: 10px solid black; */
+  user-select: none;
+  cursor: pointer;
+  touch-action: none;
+  opacity: 50%;
+  display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.test-button {
-  width: 200px;
-  height: 200px;
-  /* background-color: white; */
-  border: 10px solid hotpink;
-  user-select: none;
-  cursor: pointer;
-  touch-action: none;
+.center-test {
+  width: 70px;
+  height: 70px;
+  border-radius: 50px;
+  border: 5px solid white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.center-center {
+  width: 10px;
+  height: 10px;
+  background-color: red;
 }
 </style>
