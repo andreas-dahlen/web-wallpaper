@@ -1,13 +1,16 @@
 // input/inputEngine.js
 import { ref } from 'vue'
 import { debugDown, debugMove, debugUp } from './debugInput'
+import { APP_SETTINGS } from '../config/appSettings'
 
-const SWIPE_THRESHOLD = 40
+const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold
 
 // --- reactive state (SCREEN PIXELS) ---
-const isPressed = ref(false)
-const x = ref(0)
-const y = ref(0)
+export const state = {
+  isPressed: ref(false),
+  x: ref(0),
+  y: ref(0)
+}
 
 // --- internal tracking ---
 const start = { x: 0, y: 0 }
@@ -20,51 +23,68 @@ const releaseTargets = new Map()
 const swipeTargets = new Set()
 const swipeHandlersMap = new WeakMap()
 
+function findNearestPressTarget(el) {
+  let node = el
+  while (node) {
+    if (pressTargets.has(node)) return node
+    node = node.parentElement
+  }
+  return null
+}
+
+function findNearestSwipeTarget(el) {
+  let node = el
+  while (node) {
+    if (swipeTargets.has(node)) return node
+    node = node.parentElement
+  }
+  return null
+}
+
 // --- handlers ---
+
 function pointerDown(e) {
-  isPressed.value = true
-  x.value = start.x = e.clientX
-  y.value = start.y = e.clientY
+  state.isPressed.value = true
+  state.x.value = start.x = e.clientX
+  state.y.value = start.y = e.clientY
   isSwipe = false
   pressOwner = swipeOwner = null
 
   // debug visual + logs
   debugDown(e.clientX, e.clientY)
 
-  // find top-most pressable element
   const el = document.elementFromPoint(e.clientX, e.clientY)
-  for (const [target] of pressTargets) {
-    if (target.contains(el)) {
-      pressOwner = target
-      pressTargets.get(target).forEach(fn => fn(e))
-      break
-    }
+  if (!el) return
+
+  // DOM-accurate press priority
+  const target = findNearestPressTarget(el)
+  if (target) {
+    pressOwner = target
+    pressTargets.get(target).forEach(fn => fn(e))
   }
 }
 
 function pointerMove(e) {
-  if (!isPressed.value) return
+  if (!state.isPressed.value) return
 
   const dx = e.clientX - start.x
   const dy = e.clientY - start.y
 
-  x.value = e.clientX
-  y.value = e.clientY
+  state.x.value = e.clientX
+  state.y.value = e.clientY
 
   debugMove(e.clientX, e.clientY)
 
   // detect swipe
   if (!isSwipe && (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD)) {
     isSwipe = true
-    pressOwner = null
+    pressOwner = null // 🔑 button loses ownership once swipe starts
+    //here i could remember old pressOwner incase i want to change back to press if i move my pointer back..? :)
 
     const el = document.elementFromPoint(e.clientX, e.clientY)
-    for (const target of swipeTargets) {
-      if (target.contains(el)) {
-        swipeOwner = target
-        break
-      }
-    }
+    if (!el) return
+
+    swipeOwner = findNearestSwipeTarget(el)
 
     start.x = e.clientX
     start.y = e.clientY
@@ -74,6 +94,7 @@ function pointerMove(e) {
   // incremental swipe tracking
   if (isSwipe && swipeOwner && swipeHandlersMap.has(swipeOwner)) {
     const handlers = swipeHandlersMap.get(swipeOwner)
+
     const absDx = Math.abs(dx)
     const absDy = Math.abs(dy)
 
@@ -95,11 +116,12 @@ function pointerMove(e) {
 function pointerUp(e) {
   debugUp(e.clientX, e.clientY)
 
+  // Only release if it was a press (not a swipe)
   if (!isSwipe && pressOwner && releaseTargets.has(pressOwner)) {
     releaseTargets.get(pressOwner).forEach(fn => fn(e))
   }
 
-  isPressed.value = false
+  state.isPressed.value = false
   isSwipe = false
   pressOwner = swipeOwner = null
 }
@@ -115,7 +137,7 @@ export const inputEngine = {
     }
   },
 
-  state: { isPressed, x, y },
+  state,
 
   _down: pointerDown,
   _move: pointerMove,

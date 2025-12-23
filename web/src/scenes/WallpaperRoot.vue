@@ -1,91 +1,176 @@
 <template>
-  <div class="phone" ref="phone" :style="{ backgroundColor: phoneColor }">
-    <TouchArea :onPress="onPhonePress" :onRelease="onPhoneRelease" class="test-button" ref="test"
-      :style="{ backgroundColor: buttonColor }">
-      <div class="center-test">
-        <div class="center-center"></div>
+
+  <div class="phone">
+
+    <div class="screen" ref="screen" :style="{ backgroundColor: screenColor }">
+
+      <div class="swipe-area-box">
+
+        <TouchArea class="swipe-area swipe-area-1" ref="swipeAreaOne" :style="{ backgroundColor: swipeColorOne }"
+          :onPress = "onSwipeAreaOnePress" 
+          :onRelease = "onSwipeAreaOneRelease"
+          :onSwipe="{
+            left: onSwipeAreaOneLeft,
+            right: onSwipeAreaOneRight,
+            up: onScreenUpSwipe,
+            down: onScreenDownSwipe
+          }">
+        </TouchArea>
+
+        <TouchArea class="swipe-area swipe-area-2" ref="swipeAreaTwo" :style="{ backgroundColor: swipeColorTwo }"
+          :onPress = "onSwipeAreaTwoPress"
+          :onRelease = "onSwipeAreaTwoRelease"
+          :onSwipe="{
+            left: onSwipeAreaTwoLeft,
+            right: onSwipeAreaTwoRight,
+            up: onScreenUpSwipe,
+            down: onScreenDownSwipe
+          }">
+        </TouchArea>
+
+        <TouchArea class="swipe-area swipe-area-3" ref="swipeAreaThree" :style="{ backgroundColor: swipeColorThree }"
+          :onPress = "onSwipeAreaThreePress"
+          :onRelease = "onSwipeAreaThreeRelease"
+          :onSwipe="{
+            left: onSwipeAreaThreeLeft,
+            right: onSwipeAreaThreeRight,
+            up: onScreenUpSwipe,
+            down: onScreenDownSwipe
+          }">
+        </TouchArea>
+
       </div>
-    </TouchArea>
+
+    </div>
+
   </div>
+
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import TouchArea from '../components/TouchArea.vue'
-import { inputEngine } from '../input/inputEngine'
 
-const phoneColor = ref('black')
-const phone = ref(null)
+const screenColor = ref('black')
+const swipeColorOne = ref('transparent')
+const swipeColorTwo = ref('transparent')
+const swipeColorThree = ref('transparent')
 
-const buttonColor = ref('gray')
-const test = ref(null)
+// --- touch handlers for the screen ---
+// function onScreenPress() {
+//   screenColor.value = 'purple'
+// }
 
+// function onScreenRelease() {
+//   screenColor.value = 'yellow'
+// }
 
-// --- touch handlers for the button ---
-function onPhonePress() {
-  buttonColor.value = 'purple',
-    phoneColor.value = 'purple'
+// const swipeHandlers = {
+//   up: () => screenColor.value = 'yellow',
+//   down: () => screenColor.value = 'black'
+// }
+
+// -- swipe areas for the swipe zones
+
+function onScreenUpSwipe() {
+  screenColor.value = 'blue'
 }
 
-function onPhoneRelease() {
-  buttonColor.value = 'green',
-    phoneColor.value = 'pink'
+function onScreenDownSwipe() {
+  screenColor.value = 'orange'
 }
 
-// --- register swipe on the whole phone ---
-onMounted(() => {
-  inputEngine.registerPressTarget(phone.value, {
-    onSwipe: {
-      left: () => phoneColor.value = 'red' ,
-      right: () => phoneColor.value = 'green' ,
-      up: () => phoneColor.value = 'orange' ,
-      down: () => phoneColor.value = 'blue' 
-    }
 
-  })
-})
+//AREA 1
+function onSwipeAreaOneLeft() {
+  flashSwipeColor(swipeColorOne, 'red', 500)
+}
+function onSwipeAreaOneRight() {
+  flashSwipeColor(swipeColorOne, 'green', 500)
+}
+function onSwipeAreaOnePress() {
+  flashSwipeColor(swipeColorOne, 'pink', 1000)
+}
+function onSwipeAreaOneRelease() {
+  flashSwipeColor(swipeColorOne, 'magenta', 500)
+}
+
+//AREA 2
+function onSwipeAreaTwoLeft() {
+  flashSwipeColor(swipeColorTwo, 'red', 500)
+}
+function onSwipeAreaTwoRight() {
+  flashSwipeColor(swipeColorTwo, 'green', 500)
+}
+function onSwipeAreaTwoPress() {
+  flashSwipeColor(swipeColorTwo, 'pink', 1000)
+}
+function onSwipeAreaTwoRelease() {
+  flashSwipeColor(swipeColorTwo, 'magenta', 500)
+}
+
+//AREA 3
+function onSwipeAreaThreeLeft() {
+  flashSwipeColor(swipeColorThree, 'red', 500)
+}
+function onSwipeAreaThreeRight() {
+  flashSwipeColor(swipeColorThree, 'green', 500)
+}
+function onSwipeAreaThreePress() {
+  flashSwipeColor(swipeColorThree, 'pink', 1000)
+}
+function onSwipeAreaThreeRelease() {
+  flashSwipeColor(swipeColorThree, 'magenta', 500)
+}
+
+function flashSwipeColor(areaRef, color, duration = 300) {
+  areaRef.value = color
+  setTimeout(() => {
+    areaRef.value = 'transparent' // fade back
+  }, duration)
+}
+
 </script>
 
 <style scoped>
 .phone {
   width: 364px;
   height: 800px;
-  border-radius: 40px;
   position: relative;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: flex-start;
 }
 
-.test-button {
+.screen {
   width: 352px;
   height: 784px;
-  border-radius: 35px;
-  /* border-inline: 10px solid black; */
-  user-select: none;
-  cursor: pointer;
-  touch-action: none;
-  opacity: 50%;
+
+  position: absolute;
+  left: 0;
+  top: 0;
+
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.center-test {
-  width: 70px;
-  height: 70px;
-  border-radius: 50px;
-  border: 5px solid white;
+.swipe-area-box {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
 }
 
-.center-center {
-  width: 10px;
-  height: 10px;
-  background-color: red;
+.swipe-area {
+  width: 364px;
+  height: 262px;
+  transition: background-color 0.3s ease;
 }
+
+/* .swipe-area-1 {
+  
+}
+.swipe-area-2 {
+
+}
+.swipe-area-3 {
+
+} */
 </style>

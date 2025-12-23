@@ -5,35 +5,56 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { inputEngine } from '../input/inputEngine'
 
 defineOptions({ name: 'TouchArea' })
 
-// --- Props for the component ---
 const props = defineProps({
   onPress: Function,
   onRelease: Function,
-  onSwipe: Object // { left: fn, right: fn, up: fn, down: fn }
+  onSwipe: [Object, Function] // either {left,right,...} OR single function
 })
 
-// --- DOM ref ---
 const el = ref(null)
+let registered = false
 
 onMounted(() => {
   if (!el.value) return
 
-  // Register element with inputEngine
+  let swipeHandlers
+
+  if (props.onSwipe) {
+    if (typeof props.onSwipe === 'function') {
+      swipeHandlers = {
+        left: () => props.onSwipe('left'),
+        right: () => props.onSwipe('right'),
+        up: () => props.onSwipe('up'),
+        down: () => props.onSwipe('down')
+      }
+    } else {
+      // props.onSwipe is already an object { left: fn, right: fn, ... }
+      swipeHandlers = props.onSwipe
+    }
+  }
+
   inputEngine.registerPressTarget(el.value, {
     onPress: props.onPress,
     onRelease: props.onRelease,
-    onSwipe: props.onSwipe
+    onSwipe: swipeHandlers
   })
+
+  registered = true
+})
+
+onUnmounted(() => {
+  if (!registered || !el.value) return
+  // Optional cleanup if inputEngine supports deregister
+  // inputEngine.deregisterPressTarget(el.value)
 })
 </script>
 
 <style scoped>
-/* optional: prevent text selection, etc. */
 div {
   user-select: none;
   touch-action: none;

@@ -1,0 +1,24 @@
+
+
+
+InputEngine {
+
+    Should make a override back when moving back into click territory 
+    need button down cancel to be its own thing when swipe happens or nah... just use a timer to reset stuff?
+
+    
+
+
+}
+
+makeAnimation.js
+
+move WallpaperRoot.vue stuff out with position absolute on wrapper
+
+make grid.vue for defult button placements..?
+
+start working on launch app logic?
+
+make unmount for buttons that aren't in view?
+
+OH PLEASE MAKE AN EASIER AUTO APK AUTOMISATION!!! npm run build, take file from dist into webWallpaper.android app.. save on github.. then termux for phone auto stuff?
