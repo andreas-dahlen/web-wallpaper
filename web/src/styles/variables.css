@@ -1,0 +1,14 @@
+:root {
+  /* Touch areas */
+  --touch-idle: rgba(0, 0, 0, 0.218);
+  --touch-pressed: #2ecc71;
+  --touch-release: #e74c3c;
+  --touch-swipe-left: #9b59b6;
+  --touch-swipe-right: #e67e22;
+  --touch-swipe-up: #9cb659;
+  --touch-swipe-down: #e622ae;
+
+  /* Motion */
+  --touch-transition-fast: 150ms;
+  --touch-transition-normal: 250ms;
+}

@@ -1,5 +1,9 @@
 <template>
-  <div ref="el" v-bind="$attrs">
+  <div
+    ref="el"
+    class="touch-area"
+    v-bind="$attrs"
+  >
     <slot></slot>
   </div>
 </template>
@@ -13,7 +17,8 @@ defineOptions({ name: 'TouchArea' })
 const props = defineProps({
   onPress: Function,
   onRelease: Function,
-  onSwipe: [Object, Function] // either {left,right,...} OR single function
+  onPressCancel: Function,    // called when swipe cancels press
+  onSwipe: [Object, Function] // {left,right,...} or single function
 })
 
 const el = ref(null)
@@ -23,24 +28,27 @@ onMounted(() => {
   if (!el.value) return
 
   let swipeHandlers
-
   if (props.onSwipe) {
     if (typeof props.onSwipe === 'function') {
       swipeHandlers = {
-        left: () => props.onSwipe('left'),
-        right: () => props.onSwipe('right'),
-        up: () => props.onSwipe('up'),
-        down: () => props.onSwipe('down')
+        left: () => props.onSwipe(el.value, 'left'),
+        right: () => props.onSwipe(el.value, 'right'),
+        up: () => props.onSwipe(el.value, 'up'),
+        down: () => props.onSwipe(el.value, 'down')
       }
     } else {
-      // props.onSwipe is already an object { left: fn, right: fn, ... }
-      swipeHandlers = props.onSwipe
+      swipeHandlers = {
+        left: () => props.onSwipe.left?.(el.value),
+        right: () => props.onSwipe.right?.(el.value),
+        up: () => props.onSwipe.up?.(el.value),
+        down: () => props.onSwipe.down?.(el.value)
+      }
     }
   }
-
   inputEngine.registerPressTarget(el.value, {
-    onPress: props.onPress,
-    onRelease: props.onRelease,
+    onPress: () => props.onPress?.(el.value),
+    onRelease: () => props.onRelease?.(el.value),
+    onPressCancel: () => props.onPressCancel?.(el.value),
     onSwipe: swipeHandlers
   })
 
@@ -49,8 +57,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (!registered || !el.value) return
-  // Optional cleanup if inputEngine supports deregister
-  // inputEngine.deregisterPressTarget(el.value)
+  // Optional: deregister if needed
 })
 </script>
 

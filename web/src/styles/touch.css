@@ -1,0 +1,9 @@
+.touch-area {
+  --touch-bg: var(--touch-idle);
+
+  background-color: var(--touch-bg);
+  transition: background-color var(--touch-transition-normal) ease;
+
+  user-select: none;
+  touch-action: none;
+}

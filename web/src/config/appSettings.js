@@ -10,11 +10,10 @@ export const APP_SETTINGS = {
   input: {
     swipeThreshold: 12,
     swipeHysteresis: 6,      // future
-    allowSwipeCancel: false,  // future
   },
 
   debug: {
-    input: false,
+    input: true,
     drawDots: false,
     logInput: false
   }

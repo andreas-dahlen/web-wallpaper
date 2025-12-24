@@ -5,143 +5,162 @@ import { APP_SETTINGS } from '../config/appSettings'
 
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold
 
-// --- reactive state (SCREEN PIXELS) ---
+// --- reactive state (screen pixels) ---
 export const state = {
   isPressed: ref(false),
   x: ref(0),
   y: ref(0)
 }
 
-// --- internal tracking ---
-const start = { x: 0, y: 0 }
-let isSwipe = false
+// --- FSM ---
+let fsmState = 'IDLE' // IDLE | PRESS | SWIPE
+
 let pressOwner = null
 let swipeOwner = null
 
+const start = { x: 0, y: 0 }
+
+// --- registries ---
 const pressTargets = new Map()
 const releaseTargets = new Map()
+const cancelTargets = new Map()
 const swipeTargets = new Set()
 const swipeHandlersMap = new WeakMap()
 
-function findNearestPressTarget(el) {
+// --- DOM helpers ---
+function findNearest(el, registry) {
   let node = el
   while (node) {
-    if (pressTargets.has(node)) return node
+    if (registry.has(node)) return node
     node = node.parentElement
   }
   return null
 }
 
-function findNearestSwipeTarget(el) {
-  let node = el
-  while (node) {
-    if (swipeTargets.has(node)) return node
-    node = node.parentElement
-  }
-  return null
-}
-
-// --- handlers ---
-
+// --- pointer handlers ---
 function pointerDown(e) {
-  state.isPressed.value = true
+  debugDown(e.clientX, e.clientY)
+
   state.x.value = start.x = e.clientX
   state.y.value = start.y = e.clientY
-  isSwipe = false
-  pressOwner = swipeOwner = null
-
-  // debug visual + logs
-  debugDown(e.clientX, e.clientY)
+  state.isPressed.value = false
 
   const el = document.elementFromPoint(e.clientX, e.clientY)
   if (!el) return
 
-  // DOM-accurate press priority
-  const target = findNearestPressTarget(el)
-  if (target) {
-    pressOwner = target
-    pressTargets.get(target).forEach(fn => fn(e))
-  }
+  const target = findNearest(el, pressTargets)
+  if (!target) return
+
+  pressOwner = target
+  state.isPressed.value = true
+  fsmState = 'PRESS'
+
+  pressTargets.get(target)?.forEach(fn => fn(e))
 }
 
 function pointerMove(e) {
-  if (!state.isPressed.value) return
-
-  const dx = e.clientX - start.x
-  const dy = e.clientY - start.y
+  debugMove(e.clientX, e.clientY)
 
   state.x.value = e.clientX
   state.y.value = e.clientY
 
-  debugMove(e.clientX, e.clientY)
+  const dx = e.clientX - start.x
+  const dy = e.clientY - start.y
+  const absDx = Math.abs(dx)
+  const absDy = Math.abs(dy)
 
-  // detect swipe
-  if (!isSwipe && (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD)) {
-    isSwipe = true
-    pressOwner = null // 🔑 button loses ownership once swipe starts
-    //here i could remember old pressOwner incase i want to change back to press if i move my pointer back..? :)
+  // --- PRESS → SWIPE ---
+  if (fsmState === 'PRESS') {
+    if (Math.max(absDx, absDy) > SWIPE_THRESHOLD) {
+      const pressHasSwipe = pressOwner && swipeHandlersMap.has(pressOwner)
 
-    const el = document.elementFromPoint(e.clientX, e.clientY)
-    if (!el) return
+      if (pressHasSwipe) {
+        // same element supports swipe → keep it as swipeOwner
+        swipeOwner = pressOwner
+      } else {
+        //Cancel the press
+        if (pressOwner) {
+          cancelTargets.get(pressOwner)?.forEach(fn => fn(pressOwner))
+        }
+        //trying to find swipe target underneath
+        const el = document.elementFromPoint(e.clientX, e.clientY)
+        swipeOwner = el ? findNearest(el, swipeTargets) : null
+      }
 
-    swipeOwner = findNearestSwipeTarget(el)
+      pressOwner = null
+      state.isPressed.value = false
+      fsmState = swipeOwner ? 'SWIPE' : 'IDLE'
 
-    start.x = e.clientX
-    start.y = e.clientY
-    return
-  }
-
-  // incremental swipe tracking
-  if (isSwipe && swipeOwner && swipeHandlersMap.has(swipeOwner)) {
-    const handlers = swipeHandlersMap.get(swipeOwner)
-
-    const absDx = Math.abs(dx)
-    const absDy = Math.abs(dy)
-
-    let dir = null
-    if (absDx > absDy && absDx > SWIPE_THRESHOLD) {
-      dir = dx > 0 ? 'right' : 'left'
-    } else if (absDy > SWIPE_THRESHOLD) {
-      dir = dy > 0 ? 'down' : 'up'
-    }
-
-    if (dir && handlers[dir]) {
-      handlers[dir]({ dx, dy })
       start.x = e.clientX
       start.y = e.clientY
     }
+    return
+  }
+
+   // --- SWIPE logic ---
+  if (fsmState !== 'SWIPE' || !swipeOwner) return
+
+  const handlers = swipeHandlersMap.get(swipeOwner)
+  if (!handlers) return
+
+  let dir = null
+
+  if (absDx > absDy && absDx > SWIPE_THRESHOLD) {
+    dir = dx > 0 ? 'right' : 'left'
+  } else if (absDy > SWIPE_THRESHOLD) {
+    dir = dy > 0 ? 'down' : 'up'
+  }
+
+  if (dir && handlers[dir]) {
+    handlers[dir]({ dx, dy })
+    start.x = e.clientX
+    start.y = e.clientY
   }
 }
 
 function pointerUp(e) {
   debugUp(e.clientX, e.clientY)
 
-  // Only release if it was a press (not a swipe)
-  if (!isSwipe && pressOwner && releaseTargets.has(pressOwner)) {
-    releaseTargets.get(pressOwner).forEach(fn => fn(e))
+  // Fire release if still in PRESS
+  if (fsmState === 'PRESS' && pressOwner) {
+    releaseTargets.get(pressOwner)?.forEach(fn => fn(e))
   }
 
+  // Fire swipe end if in SWIPE
+  if (fsmState === 'SWIPE' && swipeOwner) {
+    const handlers = swipeHandlersMap.get(swipeOwner)
+    if (handlers?.onSwipeEnd) {
+      handlers.onSwipeEnd(swipeOwner)
+    }
+  }
+
+
+  // --- full reset ---
+  fsmState = 'IDLE'
+  pressOwner = null
+  swipeOwner = null
   state.isPressed.value = false
-  isSwipe = false
-  pressOwner = swipeOwner = null
 }
 
 // --- public API ---
 export const inputEngine = {
-  registerPressTarget(el, { onPress, onRelease, onSwipe } = {}) {
-    if (onPress) pressTargets.set(el, [...(pressTargets.get(el) || []), onPress])
-    if (onRelease) releaseTargets.set(el, [...(releaseTargets.get(el) || []), onRelease])
+  registerPressTarget(el, { onPress, onRelease, onPressCancel, onSwipe } = {}) {
+    if (onPress) {
+      pressTargets.set(el, [...(pressTargets.get(el) || []), onPress])
+    }
+    if (onRelease) {
+      releaseTargets.set(el, [...(releaseTargets.get(el) || []), onRelease])
+    }
+    if (onPressCancel) {
+      cancelTargets.set(el, [...(cancelTargets.get(el) || []), onPressCancel])
+    }
     if (onSwipe) {
       swipeTargets.add(el)
       swipeHandlersMap.set(el, onSwipe)
     }
   },
 
-  state,
-
-  _down: pointerDown,
-  _move: pointerMove,
-  _up: pointerUp
+  state
 }
 
 // --- browser input ---
