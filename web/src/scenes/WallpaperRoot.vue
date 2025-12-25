@@ -2,27 +2,50 @@
 
   <div class="phone">
 
-    <div class="screen" ref="screen" :style="{ backgroundColor: screenColor }">
+    <TouchArea class="screen" ref="screen" :onSwipe="{
+      down: onSwipeDown,
+      up: onSwipeUp
+    }" :onSwipeRelease="swipeRelease">
 
-      <SwipeZone @screen-swipe="onScreenSwipe"/>
+      <SwipeZone/>
 
-    </div>
-
+      <TouchArea class="test-button" :onPress="onPressBtn" :onRelease="onReleaseBtn"/>
+      
+    </TouchArea>
+    
   </div>
 
 </template>
 
 <script setup>
-import { ref } from 'vue'
+  import TouchArea from '../components/TouchArea.vue'
 import SwipeZone from '../components/SwipeZones.vue'
+import { release, swipe, press } from '../animations/touchVisuals'
 
-function onScreenSwipe(dir) {
-  if (dir === 'up') screenColor.value = 'blue'
-  if (dir === 'down') screenColor.value = 'yellow'
-  // optional: reset or other logic
+function onSwipeDown(el, dir) {
+  console.log("inside wallpaperroot: DOWN")
+  swipe(el, dir)
 }
-const screenColor = ref('white')
 
+function onSwipeUp(el, dir) {
+    console.log("inside wallpaperroot: UP")
+  swipe(el, dir)
+}
+
+function swipeRelease(el) {
+    console.log("inside wallpaperroot: RELEASE")
+  release(el)
+}
+
+function onPressBtn (el) {
+  console.log('WORKING ROOT PRESS')
+  press(el)
+}
+
+function onReleaseBtn(el) {
+  release(el)
+    console.log('WORKING ROOT RELEASE')
+}
 </script>
 
 <style scoped>
@@ -48,4 +71,11 @@ const screenColor = ref('white')
   transition: background-color 0.3s ease;
 }
 
+.test-button {
+  width: 100px;
+  height: 100px;
+  background-color: rgba(49, 50, 113, 0.743);
+  border-radius: 100px;
+  z-index: 10;
+}
 </style>

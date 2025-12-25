@@ -1,29 +1,45 @@
 <template>
     <div class="swipe-area-box">
 
-        <TouchArea class="swipe-area swipe-area-1" :onPress="onPress" :onRelease="onRelease" :onPressCancel="onCancel"
-            :onSwipe="onSwipe">
-        </TouchArea>
+        <TouchArea class="swipe-area swipe-area-1" 
+        :onPress="onPress" 
+        :onRelease="onRelease" 
+        :onPressCancel="onCancel"
+        :onSwipeRelease="onSwipeRelease"
+        :onSwipe="{ 
+            left: onSwipeLeft, 
+            right: onSwipeRight 
+            }"
+        />
 
-        <TouchArea class="swipe-area swipe-area-2" :onPress="onPress" :onRelease="onRelease" :onPressCancel="onCancel"
-            :onSwipe="onSwipe">
-        </TouchArea>
+        <TouchArea class="swipe-area swipe-area-2" 
+        :onPressCancel="onCancel"
+        :onSwipeRelease="onSwipeRelease"
+        :onSwipe="{ 
+            left: onSwipeLeft, 
+            right: onSwipeRight 
+            }"
+        />
 
-        <TouchArea class="swipe-area swipe-area-3" :onPress="onPress" :onRelease="onRelease" :onPressCancel="onCancel"
-            :onSwipe="onSwipe">
-        </TouchArea>
+        <TouchArea class="swipe-area swipe-area-3" 
+        :onPress="onPress" 
+        :onRelease="onRelease" 
+        :onPressCancel="onCancel"
+        :onSwipeRelease="onSwipeRelease"
+        :onSwipe="{ 
+            left: onSwipeLeft, 
+            right: onSwipeRight 
+            }"
+        />
 
     </div>
 </template>
 
 <script setup>
 import TouchArea from './TouchArea.vue'
-import { press, release, cancel, swipe } from '../animations/touchVisuals';
+import { press, release, cancel, swipe, swipeEnd } from '../animations/touchVisuals';
 
 defineOptions({ name: 'SwipeZone' })
-
-
-const emit = defineEmits(['screen-swipe'])
 
 function onPress(el) {
     press(el)
@@ -37,15 +53,19 @@ function onCancel(el) {
     cancel(el)
     console.log('cancel')
 }
-function onSwipe(el, dir) {
-        console.log('onSwipe: ', dir)
-    if (dir === 'up' || dir === 'down') {
-        emit('screen-swipe', dir)
-        return
-    } else {
-        swipe(el, dir)
-        // console.log(el, dir)
-    }
+function onSwipeRelease(el) {
+    swipeEnd(el)
+    console.log('swipe ENDED: SwipeZones')
+}
+
+function onSwipeLeft(el, dir) {
+    console.log(dir)
+    swipe(el, dir)
+}
+
+function onSwipeRight(el, dir) {
+    console.log(dir)
+    swipe(el, dir)
 }
 
 </script>
@@ -62,6 +82,7 @@ function onSwipe(el, dir) {
 .swipe-area {
     width: 352px;
     height: 262px;
+    /* pointer-events:none; */
     transition: background-color 0.3s ease;
 }
 </style>

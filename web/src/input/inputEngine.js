@@ -1,61 +1,72 @@
-// input/inputEngine.js
 import { ref } from 'vue'
 import { debugDown, debugMove, debugUp } from './debugInput'
 import { APP_SETTINGS } from '../config/appSettings'
 
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold
 
-// --- reactive state (screen pixels) ---
+// -----------------------------------------------------------------------------
+// Reactive public state (screen pixels)
+// -----------------------------------------------------------------------------
 export const state = {
   isPressed: ref(false),
   x: ref(0),
   y: ref(0)
 }
 
-// --- FSM ---
+// -----------------------------------------------------------------------------
+// FSM: Finite State Machine
+// -----------------------------------------------------------------------------
 let fsmState = 'IDLE' // IDLE | PRESS | SWIPE
 
-let pressOwner = null
-let swipeOwner = null
+let pressOwner = null     // element handling press
+let swipeOwner = null     // element handling swipe
+
+let swipeAxis = null      // 'horizontal' | 'vertical'
+let swipeDir = null       // 'left' | 'right' | 'up' | 'down'
 
 const start = { x: 0, y: 0 }
 
-// --- registries ---
+// -----------------------------------------------------------------------------
+// Registries
+// -----------------------------------------------------------------------------
 const pressTargets = new Map()
 const releaseTargets = new Map()
 const cancelTargets = new Map()
-const swipeTargets = new Set()
 const swipeHandlersMap = new WeakMap()
 
-// --- DOM helpers ---
-function findNearest(el, registry) {
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+function findNearestSwipeOwner(el, axis) {
   let node = el
   while (node) {
-    if (registry.has(node)) return node
+    const cfg = swipeHandlersMap.get(node)
+    if (cfg && (cfg.axis === axis || cfg.axis === 'both')) return node
     node = node.parentElement
   }
   return null
 }
 
-// --- pointer handlers ---
+// -----------------------------------------------------------------------------
+// Pointer Handlers
+// -----------------------------------------------------------------------------
 function pointerDown(e) {
   debugDown(e.clientX, e.clientY)
 
-  state.x.value = start.x = e.clientX
-  state.y.value = start.y = e.clientY
+  start.x = state.x.value = e.clientX
+  start.y = state.y.value = e.clientY
   state.isPressed.value = false
+  swipeAxis = swipeDir = null
 
-  const el = document.elementFromPoint(e.clientX, e.clientY)
-  if (!el) return
+  // --- Pick topmost press target under pointer ---
+  const elements = document.elementsFromPoint(e.clientX, e.clientY)
+  pressOwner = elements.find(el => pressTargets.has(el))
+  if (!pressOwner) return
 
-  const target = findNearest(el, pressTargets)
-  if (!target) return
-
-  pressOwner = target
-  state.isPressed.value = true
   fsmState = 'PRESS'
+  state.isPressed.value = true
 
-  pressTargets.get(target)?.forEach(fn => fn(e))
+  pressTargets.get(pressOwner)?.forEach(fn => fn(e))
 }
 
 function pointerMove(e) {
@@ -69,50 +80,49 @@ function pointerMove(e) {
   const absDx = Math.abs(dx)
   const absDy = Math.abs(dy)
 
-  // --- PRESS → SWIPE ---
+  // ---------------------------------------------------------------------------
+  // PRESS → SWIPE (intent detection)
+  // ---------------------------------------------------------------------------
   if (fsmState === 'PRESS') {
-    if (Math.max(absDx, absDy) > SWIPE_THRESHOLD) {
-      const pressHasSwipe = pressOwner && swipeHandlersMap.has(pressOwner)
+    if (Math.max(absDx, absDy) < SWIPE_THRESHOLD) return
 
-      if (pressHasSwipe) {
-        // same element supports swipe → keep it as swipeOwner
-        swipeOwner = pressOwner
-      } else {
-        //Cancel the press
-        if (pressOwner) {
-          cancelTargets.get(pressOwner)?.forEach(fn => fn(pressOwner))
-        }
-        //trying to find swipe target underneath
-        const el = document.elementFromPoint(e.clientX, e.clientY)
-        swipeOwner = el ? findNearest(el, swipeTargets) : null
-      }
+    swipeAxis = absDx > absDy ? 'horizontal' : 'vertical'
 
-      pressOwner = null
-      state.isPressed.value = false
-      fsmState = swipeOwner ? 'SWIPE' : 'IDLE'
+    const pressSwipe = pressOwner ? swipeHandlersMap.get(pressOwner) : null
+    const pressSupportsAxis = pressSwipe && (pressSwipe.axis === swipeAxis || pressSwipe.axis === 'both')
 
-      start.x = e.clientX
-      start.y = e.clientY
+    if (pressSupportsAxis) {
+      swipeOwner = pressOwner
+    } else {
+      if (pressOwner) cancelTargets.get(pressOwner)?.forEach(fn => fn())
+
+      const elUnderStart = document.elementFromPoint(start.x, start.y)
+      swipeOwner = findNearestSwipeOwner(elUnderStart, swipeAxis)
     }
+
+    fsmState = swipeOwner ? 'SWIPE' : 'IDLE'
+    state.isPressed.value = !swipeOwner
+    pressOwner = null
     return
   }
 
-   // --- SWIPE logic ---
+  // ---------------------------------------------------------------------------
+  // SWIPE handling
+  // ---------------------------------------------------------------------------
   if (fsmState !== 'SWIPE' || !swipeOwner) return
 
-  const handlers = swipeHandlersMap.get(swipeOwner)
-  if (!handlers) return
+  const cfg = swipeHandlersMap.get(swipeOwner)
+  if (!cfg) return
 
-  let dir = null
+  const deltaX = e.clientX - start.x
+  const deltaY = e.clientY - start.y
 
-  if (absDx > absDy && absDx > SWIPE_THRESHOLD) {
-    dir = dx > 0 ? 'right' : 'left'
-  } else if (absDy > SWIPE_THRESHOLD) {
-    dir = dy > 0 ? 'down' : 'up'
-  }
+  if (swipeAxis === 'horizontal' && Math.abs(deltaX) > 0) swipeDir = deltaX > 0 ? 'right' : 'left'
+  if (swipeAxis === 'vertical' && Math.abs(deltaY) > 0) swipeDir = deltaY > 0 ? 'down' : 'up'
 
-  if (dir && handlers[dir]) {
-    handlers[dir]({ dx, dy })
+  if (swipeDir && cfg.handlers[swipeDir]) {
+    cfg.handlers[swipeDir]({ dx: deltaX, dy: deltaY })
+    // reset origin for smooth continuous swipe
     start.x = e.clientX
     start.y = e.clientY
   }
@@ -121,49 +131,53 @@ function pointerMove(e) {
 function pointerUp(e) {
   debugUp(e.clientX, e.clientY)
 
-  // Fire release if still in PRESS
   if (fsmState === 'PRESS' && pressOwner) {
     releaseTargets.get(pressOwner)?.forEach(fn => fn(e))
   }
 
-  // Fire swipe end if in SWIPE
   if (fsmState === 'SWIPE' && swipeOwner) {
-    const handlers = swipeHandlersMap.get(swipeOwner)
-    if (handlers?.onSwipeEnd) {
-      handlers.onSwipeEnd(swipeOwner)
-    }
+    const cfg = swipeHandlersMap.get(swipeOwner)
+    cfg?.handlers?.onSwipeEnd?.({ el: swipeOwner, axis: swipeAxis, dir: swipeDir })
   }
 
-
-  // --- full reset ---
   fsmState = 'IDLE'
-  pressOwner = null
-  swipeOwner = null
+  pressOwner = swipeOwner = swipeAxis = swipeDir = null
   state.isPressed.value = false
 }
 
-// --- public API ---
+// -----------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------
 export const inputEngine = {
   registerPressTarget(el, { onPress, onRelease, onPressCancel, onSwipe } = {}) {
-    if (onPress) {
-      pressTargets.set(el, [...(pressTargets.get(el) || []), onPress])
-    }
-    if (onRelease) {
-      releaseTargets.set(el, [...(releaseTargets.get(el) || []), onRelease])
-    }
-    if (onPressCancel) {
-      cancelTargets.set(el, [...(cancelTargets.get(el) || []), onPressCancel])
-    }
-    if (onSwipe) {
-      swipeTargets.add(el)
-      swipeHandlersMap.set(el, onSwipe)
-    }
-  },
+    if (onPress) pressTargets.set(el, [...(pressTargets.get(el) || []), onPress])
+    if (onRelease) releaseTargets.set(el, [...(releaseTargets.get(el) || []), onRelease])
+    if (onPressCancel) cancelTargets.set(el, [...(cancelTargets.get(el) || []), onPressCancel])
 
+    if (!onSwipe) return
+
+    if (onSwipe.handlers && onSwipe.axis) {
+      swipeHandlersMap.set(el, onSwipe)
+      return
+    }
+
+    const handlers = typeof onSwipe === 'function'
+      ? { left: onSwipe, right: onSwipe, up: onSwipe, down: onSwipe }
+      : onSwipe
+
+    const hasH = handlers.left || handlers.right
+    const hasV = handlers.up || handlers.down
+    const axis = hasH && hasV ? 'both' : hasH ? 'horizontal' : hasV ? 'vertical' : null
+    if (!axis) return
+
+    swipeHandlersMap.set(el, { axis, handlers })
+  },
   state
 }
 
-// --- browser input ---
+// -----------------------------------------------------------------------------
+// Browser listeners
+// -----------------------------------------------------------------------------
 window.addEventListener('pointerdown', pointerDown)
 window.addEventListener('pointermove', pointerMove)
 window.addEventListener('pointerup', pointerUp)

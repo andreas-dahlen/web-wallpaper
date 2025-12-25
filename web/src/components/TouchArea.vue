@@ -1,15 +1,11 @@
 <template>
-  <div
-    ref="el"
-    class="touch-area"
-    v-bind="$attrs"
-  >
+  <div ref="el" class="touch-area" v-bind="$attrs">
     <slot></slot>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { inputEngine } from '../input/inputEngine'
 
 defineOptions({ name: 'TouchArea' })
@@ -17,49 +13,57 @@ defineOptions({ name: 'TouchArea' })
 const props = defineProps({
   onPress: Function,
   onRelease: Function,
-  onPressCancel: Function,    // called when swipe cancels press
-  onSwipe: [Object, Function] // {left,right,...} or single function
+  onPressCancel: Function,
+  onSwipeRelease: Function,
+  onSwipe: [Object, Function] // function(el, dir) OR { axis, left, right, ... }
 })
 
 const el = ref(null)
-let registered = false
 
 onMounted(() => {
   if (!el.value) return
 
-  let swipeHandlers
+  let handlers = {}
   if (props.onSwipe) {
+    // ---------------------------------------------
+    // FUNCTION form: onSwipe(el, dir)
+    // ---------------------------------------------
     if (typeof props.onSwipe === 'function') {
-      swipeHandlers = {
+      handlers = {
         left: () => props.onSwipe(el.value, 'left'),
         right: () => props.onSwipe(el.value, 'right'),
         up: () => props.onSwipe(el.value, 'up'),
         down: () => props.onSwipe(el.value, 'down')
       }
-    } else {
-      swipeHandlers = {
-        left: () => props.onSwipe.left?.(el.value),
-        right: () => props.onSwipe.right?.(el.value),
-        up: () => props.onSwipe.up?.(el.value),
-        down: () => props.onSwipe.down?.(el.value)
+    }
+
+    // ---------------------------------------------
+    // OBJECT form: { onSwipe="{left:onLeft}" }
+    // ---------------------------------------------
+    else {
+      handlers = {
+        left: props.onSwipe.left && (() => props.onSwipe.left(el.value, 'left')),
+        right: props.onSwipe.right && (() => props.onSwipe.right(el.value, 'right')),
+        up: props.onSwipe.up && (() => props.onSwipe.up(el.value, 'up')),
+        down: props.onSwipe.down && (() => props.onSwipe.down(el.value, 'down'))
       }
     }
+
+    // Swipe end
+    handlers.onSwipeEnd = () => {
+      props.onSwipeRelease?.(el.value)
+    }
   }
+
   inputEngine.registerPressTarget(el.value, {
     onPress: () => props.onPress?.(el.value),
     onRelease: () => props.onRelease?.(el.value),
     onPressCancel: () => props.onPressCancel?.(el.value),
-    onSwipe: swipeHandlers
+    onSwipe: handlers
   })
-
-  registered = true
-})
-
-onUnmounted(() => {
-  if (!registered || !el.value) return
-  // Optional: deregister if needed
 })
 </script>
+
 
 <style scoped>
 div {
