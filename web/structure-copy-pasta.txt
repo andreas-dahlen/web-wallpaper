@@ -1,13 +1,34 @@
-SRC > App.vue, main.js assets, components, composables, input, scenes, services, styles, utils
+list from top layer= SRC > animations, assets, components, composables, config, data, input, scenes, styles, backups, app.vue, main.js, TODO.txt
+
+animations > tochVisuals.js (was used to handel CSS logic using el.style.setProperty... currently unused...
 
 assets > icons, images, sound
 
-components > DebugPanel.vue (EMPTY), TouchArea.vue (Touch component that bypasses needing to onmount, register touches and so on, built in)
+components > SwipeCarousel.vue (template for lanes), swipeZones.vue (positioned absolute input layer), TouchArea.vue (i use this everywhere... if i need a touch i use it :P)
 
-composables > useScale.js (handles scaling on #app), useWallpaperState.js (currently empty)
+composables > useScale.js (handles scaling on #app), swipeEngine.js (handels some swipe logic or whatever xD)
 
-input > inputEngine.js (main engine that registers swipes, button down and button up), nativeBridge.js (supposed to translate between kotlin and inputEngine) 
+config > appSettings.js
 
-scenes > WallpaperRoot.vue (one scene at the moment)
+data > SwipeState.js
 
+input > inputEngine.js (main engine that registers swipes, button down and button up etc), nativeBridge.js (translate between kotlin and inputEngine), debugInput.js (debug functions that can be called... currently fairly defective... )
+
+scenes > lanes > top, bottom, middle (these contain a,b,c for all current lanezones..
+
+
+scenes > WallpaperRoot.vue (the one file that is responsible for the whole layout), ZoneLayout.vue (suppose to be responsible for how the lanes should be ported into WallpaperRoot... currently does nothing)
+
+styles > (all my CSS that isn't vue file specific) 
+
+xBACKUPS
+
+app.vue only calls WallpaperRoot and useScale
+
+main.js = import { createApp } from 'vue'
+import App from './App.vue'
+import './input/nativeBridge'
+import './styles/main.css'
+
+createApp(App).mount('#app')
 

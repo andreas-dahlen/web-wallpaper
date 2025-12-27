@@ -14,6 +14,3 @@ OH PLEASE MAKE AN EASIER AUTO APK AUTOMISATION!!! npm run build, take file from 
 12 - 24 GOD JUL! -- onCancel is never triggered :p Canceltarget is never used might be the reason why its never triggered
 Lock swipes to swipe direction picked?
 Set the state of if it should be locked or not? any point to this?
-
-
-FIX PRIORITY MAYBE WITH A PRIORITY LIST OR CLASS OR SOMETHING...!? 

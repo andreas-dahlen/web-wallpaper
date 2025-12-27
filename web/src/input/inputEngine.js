@@ -5,7 +5,7 @@ import { APP_SETTINGS } from '../config/appSettings'
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold
 
 // -----------------------------------------------------------------------------
-// Reactive public state (screen pixels)
+// Reactive state (for UI binding / debugging)
 // -----------------------------------------------------------------------------
 export const state = {
   isPressed: ref(false),
@@ -14,134 +14,138 @@ export const state = {
 }
 
 // -----------------------------------------------------------------------------
-// FSM: Finite State Machine
+// FSM & gesture state
 // -----------------------------------------------------------------------------
-let fsmState = 'IDLE' // IDLE | PRESS | SWIPE
+let fsmState = 'IDLE'        // 'IDLE' | 'PRESS' | 'SWIPE'
+let pressElement = null      // element handling press
+let swipeElement = null      // element handling swipe
+let swipeAxis = null         // 'horizontal' | 'vertical'
+let swipeDir = null          // 'left' | 'right' | 'up' | 'down'
 
-let pressOwner = null     // element handling press
-let swipeOwner = null     // element handling swipe
-
-let swipeAxis = null      // 'horizontal' | 'vertical'
-let swipeDir = null       // 'left' | 'right' | 'up' | 'down'
-
-const start = { x: 0, y: 0 }
-
-// -----------------------------------------------------------------------------
-// Registries
-// -----------------------------------------------------------------------------
-const pressTargets = new Map()
-const releaseTargets = new Map()
-const cancelTargets = new Map()
-const swipeHandlersMap = new WeakMap()
+const start = { x: 0, y: 0 } // origin of current gesture
+let swipeStarted = false
+let swipeAccum = 0
 
 // -----------------------------------------------------------------------------
-// Helpers
+// Callback registries
 // -----------------------------------------------------------------------------
-function findNearestSwipeOwner(el, axis) {
-  let node = el
-  while (node) {
-    const cfg = swipeHandlersMap.get(node)
-    if (cfg && (cfg.axis === axis || cfg.axis === 'both')) return node
-    node = node.parentElement
-  }
-  return null
-}
+const pressCallbacks = new Map()
+const releaseCallbacks = new Map()
+const cancelCallbacks = new Map()
+const swipeCallbacks = new WeakMap()
 
 // -----------------------------------------------------------------------------
-// Pointer Handlers
+// Pointer event handlers
 // -----------------------------------------------------------------------------
-function pointerDown(e) {
-  debugDown(e.clientX, e.clientY)
+function pointerDown(event) {
+  debugDown(event.clientX, event.clientY)
 
-  start.x = state.x.value = e.clientX
-  start.y = state.y.value = e.clientY
+  start.x = state.x.value = event.clientX
+  start.y = state.y.value = event.clientY
   state.isPressed.value = false
   swipeAxis = swipeDir = null
+  swipeAccum = 0
+  swipeStarted = false
 
-  // --- Pick topmost press target under pointer ---
-  const elements = document.elementsFromPoint(e.clientX, e.clientY)
-  pressOwner = elements.find(el => pressTargets.has(el))
-  if (!pressOwner) return
+  const elements = document.elementsFromPoint(event.clientX, event.clientY)
+  pressElement = elements.find(el => pressCallbacks.has(el))
+  if (!pressElement) return
 
   fsmState = 'PRESS'
   state.isPressed.value = true
-
-  pressTargets.get(pressOwner)?.forEach(fn => fn(e))
+  pressCallbacks.get(pressElement)?.forEach(fn => fn(event))
 }
 
-function pointerMove(e) {
-  debugMove(e.clientX, e.clientY)
+function pointerMove(event) {
+  debugMove(event.clientX, event.clientY)
 
-  state.x.value = e.clientX
-  state.y.value = e.clientY
+  state.x.value = event.clientX
+  state.y.value = event.clientY
 
-  const dx = e.clientX - start.x
-  const dy = e.clientY - start.y
+  const dx = event.clientX - start.x
+  const dy = event.clientY - start.y
   const absDx = Math.abs(dx)
   const absDy = Math.abs(dy)
 
-  // ---------------------------------------------------------------------------
-  // PRESS → SWIPE (intent detection)
-  // ---------------------------------------------------------------------------
+  // ---- PRESS → SWIPE detection ----
   if (fsmState === 'PRESS') {
     if (Math.max(absDx, absDy) < SWIPE_THRESHOLD) return
 
     swipeAxis = absDx > absDy ? 'horizontal' : 'vertical'
+    const pressSwipeConfig = pressElement ? swipeCallbacks.get(pressElement) : null
+    const supportsAxis = pressSwipeConfig && (pressSwipeConfig.axis === swipeAxis || pressSwipeConfig.axis === 'both')
 
-    const pressSwipe = pressOwner ? swipeHandlersMap.get(pressOwner) : null
-    const pressSupportsAxis = pressSwipe && (pressSwipe.axis === swipeAxis || pressSwipe.axis === 'both')
-
-    if (pressSupportsAxis) {
-      swipeOwner = pressOwner
+    if (supportsAxis) {
+      swipeElement = pressElement
     } else {
-      if (pressOwner) cancelTargets.get(pressOwner)?.forEach(fn => fn())
-
-      const elUnderStart = document.elementFromPoint(start.x, start.y)
-      swipeOwner = findNearestSwipeOwner(elUnderStart, swipeAxis)
+      if (pressElement) cancelCallbacks.get(pressElement)?.forEach(fn => fn())
+      const elementsAtOrigin = document.elementsFromPoint(start.x, start.y)
+      swipeElement = elementsAtOrigin.find(el => {
+        const config = swipeCallbacks.get(el)
+        return config && (config.axis === swipeAxis || config.axis === 'both')
+      })
     }
 
-    fsmState = swipeOwner ? 'SWIPE' : 'IDLE'
-    state.isPressed.value = !swipeOwner
-    pressOwner = null
+    fsmState = swipeElement ? 'SWIPE' : 'IDLE'
+    state.isPressed.value = !swipeElement
+    pressElement = null
     return
   }
 
-  // ---------------------------------------------------------------------------
-  // SWIPE handling
-  // ---------------------------------------------------------------------------
-  if (fsmState !== 'SWIPE' || !swipeOwner) return
+  // ---- SWIPE handling ----
+  if (fsmState !== 'SWIPE' || !swipeElement) return
+  const swipeConfig = swipeCallbacks.get(swipeElement)
+  if (!swipeConfig) return
 
-  const cfg = swipeHandlersMap.get(swipeOwner)
-  if (!cfg) return
-
-  const deltaX = e.clientX - start.x
-  const deltaY = e.clientY - start.y
-
-  if (swipeAxis === 'horizontal' && Math.abs(deltaX) > 0) swipeDir = deltaX > 0 ? 'right' : 'left'
-  if (swipeAxis === 'vertical' && Math.abs(deltaY) > 0) swipeDir = deltaY > 0 ? 'down' : 'up'
-
-  if (swipeDir && cfg.handlers[swipeDir]) {
-    cfg.handlers[swipeDir]({ dx: deltaX, dy: deltaY })
-    // reset origin for smooth continuous swipe
-    start.x = e.clientX
-    start.y = e.clientY
+  if (!swipeStarted) {
+    swipeConfig.handlers?.onSwipeStart?.({ el: swipeElement, axis: swipeAxis })
+    swipeStarted = true
   }
+
+  // compute delta along main axis
+  const delta = swipeAxis === 'horizontal' ? dx : dy
+  swipeAccum += delta
+
+  // determine direction
+  swipeDir = swipeAxis === 'horizontal'
+    ? (delta > 0 ? 'right' : 'left')
+    : (delta > 0 ? 'down' : 'up')
+
+  // call directional handler if exists
+  swipeConfig.handlers[swipeDir]?.({
+    el: swipeElement,
+    dir: swipeDir,
+    delta,
+    total: swipeAccum
+  })
+
+  // reset origin for smooth continuous swipe
+  start.x = event.clientX
+  start.y = event.clientY
 }
 
-function pointerUp(e) {
-  debugUp(e.clientX, e.clientY)
+function pointerUp(event) {
+  debugUp(event.clientX, event.clientY)
 
-  if (fsmState === 'PRESS' && pressOwner) {
-    releaseTargets.get(pressOwner)?.forEach(fn => fn(e))
+  // PRESS: call release
+  if (fsmState === 'PRESS' && pressElement) {
+    releaseCallbacks.get(pressElement)?.forEach(fn => fn(event))
   }
 
-  if (fsmState === 'SWIPE' && swipeOwner) {
-    const cfg = swipeHandlersMap.get(swipeOwner)
-    cfg?.handlers?.onSwipeEnd?.({ el: swipeOwner, axis: swipeAxis, dir: swipeDir })
+  // SWIPE: call onSwipeRelease
+  if (fsmState === 'SWIPE' && swipeElement && swipeDir) {
+    const swipeConfig = swipeCallbacks.get(swipeElement)
+    swipeConfig?.handlers?.onSwipeRelease?.({
+      el: swipeElement,
+      dir: swipeDir,
+      total: swipeAccum
+    })
   }
 
+  // reset FSM
   fsmState = 'IDLE'
-  pressOwner = swipeOwner = swipeAxis = swipeDir = null
+  pressElement = swipeElement = swipeAxis = swipeDir = null
+  swipeAccum = 0
   state.isPressed.value = false
 }
 
@@ -149,34 +153,52 @@ function pointerUp(e) {
 // Public API
 // -----------------------------------------------------------------------------
 export const inputEngine = {
-  registerPressTarget(el, { onPress, onRelease, onPressCancel, onSwipe } = {}) {
-    if (onPress) pressTargets.set(el, [...(pressTargets.get(el) || []), onPress])
-    if (onRelease) releaseTargets.set(el, [...(releaseTargets.get(el) || []), onRelease])
-    if (onPressCancel) cancelTargets.set(el, [...(cancelTargets.get(el) || []), onPressCancel])
+  state,
 
-    if (!onSwipe) return
+  /**
+   * Register an element for touch/swipe events
+   * onPress(el)
+   * onRelease(el)
+   * onPressCancel(el)
+   * onSwipe{left,right,up,down}({el, dir, delta, total})
+   * onSwipeStart({el, axis})
+   * onSwipeRelease({el, dir, total})
+   */
+  registerPressTarget(el, {
+    onPress, // el
+    onRelease, // el
+    onPressCancel, // el
+    onSwipeStart,        // { el, axis } optional
+    onSwipeRelease,       // { el, dir, total } optional
+    onSwipe = {}        // { left, right, up, down }
+  } = {}) {
+    if (onPress) pressCallbacks.set(el, [...(pressCallbacks.get(el) || []), onPress])
+    if (onRelease) releaseCallbacks.set(el, [...(releaseCallbacks.get(el) || []), onRelease])
+    if (onPressCancel) cancelCallbacks.set(el, [...(cancelCallbacks.get(el) || []), onPressCancel])
 
-    if (onSwipe.handlers && onSwipe.axis) {
-      swipeHandlersMap.set(el, onSwipe)
-      return
-    }
+    if (!onSwipe && !onSwipeRelease && !onSwipeStart) return
 
-    const handlers = typeof onSwipe === 'function'
-      ? { left: onSwipe, right: onSwipe, up: onSwipe, down: onSwipe }
-      : onSwipe
+    const handlers = { ...onSwipe }
+    if (onSwipeStart) handlers.onSwipeStart = onSwipeStart
+    if (onSwipeRelease) handlers.onSwipeRelease = onSwipeRelease
 
-    const hasH = handlers.left || handlers.right
-    const hasV = handlers.up || handlers.down
-    const axis = hasH && hasV ? 'both' : hasH ? 'horizontal' : hasV ? 'vertical' : null
-    if (!axis) return
+    const hasHorizontal = handlers.left || handlers.right
+    const hasVertical = handlers.up || handlers.down
+    const axis = hasHorizontal && hasVertical
+      ? 'both'
+      : hasHorizontal
+        ? 'horizontal'
+        : hasVertical
+          ? 'vertical'
+          : null
+    if (!axis && !onSwipeStart && !onSwipeRelease) return
 
-    swipeHandlersMap.set(el, { axis, handlers })
-  },
-  state
+    swipeCallbacks.set(el, { axis, handlers })
+  }
 }
 
 // -----------------------------------------------------------------------------
-// Browser listeners
+// Attach global listeners
 // -----------------------------------------------------------------------------
 window.addEventListener('pointerdown', pointerDown)
 window.addEventListener('pointermove', pointerMove)

@@ -2,72 +2,90 @@
     <div class="swipe-area-box">
 
         <TouchArea class="swipe-area swipe-area-1" 
-        :onPress="onPress" 
-        :onRelease="onRelease" 
-        :onPressCancel="onCancel"
+        :onSwipeStart="onSwipeStart1"
         :onSwipeRelease="onSwipeRelease"
-        :onSwipe="{ 
+        :onSwipe="{
             left: onSwipeLeft, 
             right: onSwipeRight 
             }"
         />
 
         <TouchArea class="swipe-area swipe-area-2" 
-        :onPressCancel="onCancel"
+        :onSwipeStart="onSwipeStart2"
         :onSwipeRelease="onSwipeRelease"
         :onSwipe="{ 
-            left: onSwipeLeft, 
-            right: onSwipeRight 
+            left: onSwipeLeft,
+            right: onSwipeRight
             }"
         />
 
         <TouchArea class="swipe-area swipe-area-3" 
-        :onPress="onPress" 
-        :onRelease="onRelease" 
-        :onPressCancel="onCancel"
+        :onSwipeStart="onSwipeStart3"
         :onSwipeRelease="onSwipeRelease"
         :onSwipe="{ 
             left: onSwipeLeft, 
             right: onSwipeRight 
             }"
         />
-
     </div>
 </template>
 
 <script setup>
 import TouchArea from './TouchArea.vue'
-import { press, release, cancel, swipe, swipeEnd } from '../animations/touchVisuals';
+import { swipeEngine } from '../input/swipeEngine'
+// import { swipeEnd } from '../../animations/touchVisuals';
+// import {swipeNext, swipePrev } from './lanes/SwipeState'
 
 defineOptions({ name: 'SwipeZone' })
 
-function onPress(el) {
-    press(el)
-    console.log('press')
-}
-function onRelease(el) {
-    release(el)
-    console.log('release')
-}
-function onCancel(el) {
-    cancel(el)
-    console.log('cancel')
-}
-function onSwipeRelease(el) {
-    swipeEnd(el)
-    console.log('swipe ENDED: SwipeZones')
-}
+function onSwipeStart1(data) {swipeEngine.handleSwipeStart(data, 'top')}
+function onSwipeStart2(data) {swipeEngine.handleSwipeStart(data, 'mid')}
+function onSwipeStart3(data) {swipeEngine.handleSwipeStart(data, 'bottom')}
 
-function onSwipeLeft(el, dir) {
-    console.log(dir)
-    swipe(el, dir)
-}
+function onSwipeLeft(data) {swipeEngine.handleSwipeMove(data)}
+function onSwipeRight(data) {swipeEngine.handleSwipeMove(data)}
 
-function onSwipeRight(el, dir) {
-    console.log(dir)
-    swipe(el, dir)
-}
+function onSwipeRelease(data) {swipeEngine.handleSwipeRelease(data)}
 
+// function onSwipeLeft1(dir) {
+//     console.log('i will call swipe left')
+
+
+// function onSwipeRight1(dir) {
+//     console.log('i will call wipe right')
+
+// }
+
+// function onSwipeLeft2(dir) {
+//     console.log('i will call swipe left')
+
+// }
+
+// function onSwipeRight2(dir) {
+//     console.log('i will call wipe right')
+
+// }
+// function onSwipeLeft3(dir) {
+//     console.log('i will call swipe left')
+
+// }
+
+// function onSwipeRight3(dir) {
+//     console.log('i will call wipe right')
+
+// }
+// function onPress() {
+    // press(el)
+    // console.log('SWIPEZONE: press')
+// }
+// function onRelease() {
+    // release(el)
+    // console.log('SWIPEZONE: release')
+// }
+// function onCancel(el) {
+//     cancel(el)
+//     console.log('SWIPEZONE: cancel')
+// }
 </script>
 
 <style scoped>

@@ -5,12 +5,12 @@
     <TouchArea class="screen" ref="screen" :onSwipe="{
       down: onSwipeDown,
       up: onSwipeUp
-    }" :onSwipeRelease="swipeRelease">
-
+    }"
+    :onSwipeRelease="onSwipeRelease"
+    >
       <SwipeZone/>
 
-      <TouchArea class="test-button" :onPress="onPressBtn" :onRelease="onReleaseBtn"/>
-      
+      <ZoneLayout/>
     </TouchArea>
     
   </div>
@@ -20,32 +20,46 @@
 <script setup>
   import TouchArea from '../components/TouchArea.vue'
 import SwipeZone from '../components/SwipeZones.vue'
-import { release, swipe, press } from '../animations/touchVisuals'
+import ZoneLayout from './ZoneLayout.vue'
 
-function onSwipeDown(el, dir) {
-  console.log("inside wallpaperroot: DOWN")
-  swipe(el, dir)
+function onSwipeDown(data) {
+    // console.log('SCREEN swipe!, dir = ', data.dir, 'DELTA = ', data.delta, 'TOTAL = ', data.total)
+    console.log('|')
+  // swipe(el, dir)
 }
 
-function onSwipeUp(el, dir) {
-    console.log("inside wallpaperroot: UP")
-  swipe(el, dir)
+function onSwipeUp(data) {
+
+  // console.log('!SCREEN swipe!, dir = ', data.dir, ' DELTA = ', data.delta, 'TOTAL = ', data.total)
+  // swipe(el, dir)
+  console.log('|')
 }
 
-function swipeRelease(el) {
-    console.log("inside wallpaperroot: RELEASE")
-  release(el)
+function onSwipeRelease(data) {
+    // swipeEnd(el)
+    // console.log('SCREEN swipe: swipe ended, dir = ', data.dir, 'total = ', data.total)
 }
 
-function onPressBtn (el) {
-  console.log('WORKING ROOT PRESS')
-  press(el)
-}
 
-function onReleaseBtn(el) {
-  release(el)
-    console.log('WORKING ROOT RELEASE')
-}
+// function swipeRelease(el) {
+//     console.log('SCREEN: swipe ended')
+//   release(el)
+// }
+
+// function onPressBtn (el) {
+//   console.log('BUTTON: press')
+//   press(el)
+// }
+
+// function onReleaseBtn(el) {
+//   release(el)
+//     console.log('BUTTON: release')
+// }
+
+// function onCancel(el) {
+//   cancel(el)
+//   console.log('BUTTON: cancel')
+// }
 </script>
 
 <style scoped>
@@ -74,8 +88,8 @@ function onReleaseBtn(el) {
 .test-button {
   width: 100px;
   height: 100px;
-  background-color: rgba(49, 50, 113, 0.743);
   border-radius: 100px;
   z-index: 10;
+  transition: background-color 0.3s ease;
 }
 </style>

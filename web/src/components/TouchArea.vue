@@ -11,11 +11,12 @@ import { inputEngine } from '../input/inputEngine'
 defineOptions({ name: 'TouchArea' })
 
 const props = defineProps({
-  onPress: Function,
-  onRelease: Function,
-  onPressCancel: Function,
-  onSwipeRelease: Function,
-  onSwipe: [Object, Function] // function(el, dir) OR { axis, left, right, ... }
+  onPress: Function,        // el
+  onRelease: Function,      // el
+  onPressCancel: Function,  // el
+  onSwipeStart: Function,   // { el, axis }
+  onSwipeRelease: Function, // { el, dir, total }
+  onSwipe: Object           // { left, right, up, down } each receives { el, dir, delta, total }
 })
 
 const el = ref(null)
@@ -23,37 +24,19 @@ const el = ref(null)
 onMounted(() => {
   if (!el.value) return
 
-  let handlers = {}
+  // Wrap directional swipe handlers to always pass a single object
+  const handlers = {}
   if (props.onSwipe) {
-    // ---------------------------------------------
-    // FUNCTION form: onSwipe(el, dir)
-    // ---------------------------------------------
-    if (typeof props.onSwipe === 'function') {
-      handlers = {
-        left: () => props.onSwipe(el.value, 'left'),
-        right: () => props.onSwipe(el.value, 'right'),
-        up: () => props.onSwipe(el.value, 'up'),
-        down: () => props.onSwipe(el.value, 'down')
+    for (const dir of ['left', 'right', 'up', 'down']) {
+      if (props.onSwipe[dir]) {
+        handlers[dir] = (data) => props.onSwipe[dir](data)
       }
-    }
-
-    // ---------------------------------------------
-    // OBJECT form: { onSwipe="{left:onLeft}" }
-    // ---------------------------------------------
-    else {
-      handlers = {
-        left: props.onSwipe.left && (() => props.onSwipe.left(el.value, 'left')),
-        right: props.onSwipe.right && (() => props.onSwipe.right(el.value, 'right')),
-        up: props.onSwipe.up && (() => props.onSwipe.up(el.value, 'up')),
-        down: props.onSwipe.down && (() => props.onSwipe.down(el.value, 'down'))
-      }
-    }
-
-    // Swipe end
-    handlers.onSwipeEnd = () => {
-      props.onSwipeRelease?.(el.value)
     }
   }
+
+  // Include swipe start and release hooks
+  if (props.onSwipeStart) handlers.onSwipeStart = (data) => props.onSwipeStart(data)
+  if (props.onSwipeRelease) handlers.onSwipeRelease = (data) => props.onSwipeRelease(data)
 
   inputEngine.registerPressTarget(el.value, {
     onPress: () => props.onPress?.(el.value),
@@ -63,7 +46,6 @@ onMounted(() => {
   })
 })
 </script>
-
 
 <style scoped>
 div {
