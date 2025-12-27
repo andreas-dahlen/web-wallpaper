@@ -1,113 +1,155 @@
 <template>
-  <div class="lane" :style="laneStyle">
-
-    <!-- Current scene -->
+  <div class="carousel" :style="carouselStyle">
+    <!-- PREVIOUS SCENE -->
     <component
-      v-if="currentIndex !== null"
-      :is="scenes[currentIndex]"
+      v-if="total > 0"
+      :is="prevScene"
+      class="scene"
+      :style="prevStyle"
+    />
+
+    <!-- CURRENT SCENE -->
+    <component
+      v-if="total > 0"
+      :is="currentScene"
       class="scene"
       :style="currentStyle"
+      @transitionend="onTransitionEnd"
     />
 
-    <!-- Preview scene (incoming) -->
+    <!-- NEXT SCENE -->
     <component
-      v-if="previewIndex !== null"
-      :is="scenes[previewIndex]"
+      v-if="total > 0"
+      :is="nextScene"
       class="scene"
-      :style="incomingStyle"
+      :style="nextStyle"
     />
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed, onMounted, markRaw } from 'vue'
 import { swipeEngine } from '../input/swipeEngine'
-import { swipeState } from '../scenes/state/SwipeState'
+import { APP_SETTINGS } from '../config/appSettings'
 
-defineOptions({ name: 'SwipeCarousel' })
-
-/* ------------------------------------------------------------------
-   PROPS
------------------------------------------------------------------- */
 const props = defineProps({
   lane: { type: String, required: true },
   scenes: { type: Array, required: true },
+  direction: { type: String, default: 'horizontal' },
   width: { type: Number, required: true },
   height: { type: Number, required: true }
 })
 
-/* ------------------------------------------------------------------
-   STATE
------------------------------------------------------------------- */
-const currentIndex = ref(swipeState[props.lane] ?? 0)
+// --- Lane state ---
+const laneState = computed(() => swipeEngine.state.lanes[props.lane])
+const isHorizontal = computed(() => props.direction === 'horizontal')
 
-// Watch swipeState to update currentIndex when swipe completes
-watch(
-  () => swipeState[props.lane],
-  i => {
-    currentIndex.value = Number.isInteger(i) ? i : 0
-  }
+// --- Assign scenes to engine on mount ---
+onMounted(() => {
+  const safeScenes = props.scenes.map(c => markRaw(c))
+  swipeEngine.setLaneScenes(props.lane, safeScenes)
+})
+
+// --- Indices ---
+const total = computed(() => laneState.value.scenes?.length || 0)
+const currentIndex = computed(() => laneState.value.currentIndex)
+
+const prevIndex = computed(() =>
+  total.value > 0 ? (currentIndex.value - 1 + total.value) % total.value : 0
+)
+const nextIndex = computed(() =>
+  total.value > 0 ? (currentIndex.value + 1) % total.value : 0
 )
 
-/* ------------------------------------------------------------------
-   SWIPE STATE
------------------------------------------------------------------- */
-const isActive = computed(() => swipeEngine.state.activeLane === props.lane)
-const delta = computed(() => (isActive.value ? swipeEngine.state.delta : 0))
-const dir = computed(() => (isActive.value ? swipeEngine.state.dir : null))
+// --- Scenes ---
+const currentScene = computed(() => laneState.value.scenes[currentIndex.value] || null)
+const prevScene = computed(() => laneState.value.scenes[prevIndex.value] || null)
+const nextScene = computed(() => laneState.value.scenes[nextIndex.value] || null)
 
-/* ------------------------------------------------------------------
-   PREVIEW INDEX LOGIC (infinite loop)
------------------------------------------------------------------- */
-const previewIndex = computed(() => {
-  if (!dir.value) return null
-
-  const len = props.scenes.length
-  const i = currentIndex.value
-
-  if (dir.value === 'left') return (i - 1 + len) % len
-  if (dir.value === 'right') return (i + 1) % len
-  return null
+// --- Delta & transition ---
+const delta = computed(() => {
+  if (laneState.value.phase === 'settling') return laneState.value.targetDelta
+  if (laneState.value.phase === 'dragging') return laneState.value.delta
+  return 0
 })
 
-/* ------------------------------------------------------------------
-   STYLES
------------------------------------------------------------------- */
+const transition = computed(() =>
+  laneState.value.phase === 'dragging'
+    ? 'none'
+    : `transform ${APP_SETTINGS.ui.swipeAnimationMs}ms ease`
+)
+
+// --- Transform helpers ---
+function translate(value) {
+  return isHorizontal.value
+    ? `translateX(${value}px)`
+    : `translateY(${value}px)`
+}
+
+function offset(amount) {
+  return translate(delta.value + amount)
+}
+
+// --- Styles ---
+const baseSceneStyle = {
+  position: 'absolute',
+  inset: 0,
+  willChange: 'transform',
+  pointerEvents: 'none'
+}
+
 const currentStyle = computed(() => ({
-  transform: `translateX(${delta.value}px)`,
-  transition: isActive.value ? 'none' : 'transform 300ms ease'
+  ...baseSceneStyle,
+  transform: translate(delta.value),
+  transition: transition.value
 }))
 
-const incomingStyle = computed(() => {
-  if (!dir.value) return {}
+const prevStyle = computed(() => ({
+  ...baseSceneStyle,
+  transform: offset(isHorizontal.value ? -props.width : -props.height),
+  transition: transition.value
+}))
 
-  const offset =
-    dir.value === 'left' ? props.width :
-    dir.value === 'right' ? -props.width :
-    0
+const nextStyle = computed(() => ({
+  ...baseSceneStyle,
+  transform: offset(isHorizontal.value ? props.width : props.height),
+  transition: transition.value
+}))
 
-  return {
-    transform: `translateX(${delta.value + offset}px)`,
-    transition: isActive.value ? 'none' : 'transform 300ms ease'
-  }
-})
-
-const laneStyle = computed(() => ({
+const carouselStyle = computed(() => ({
   width: `${props.width}px`,
-  height: `${props.height}px`
+  height: `${props.height}px`,
+  position: 'relative',
+  overflow: 'hidden',
+  touchAction: 'none'
 }))
+
+// --- Transition end ---
+let transitionHandled = false
+function onTransitionEnd(e) {
+  if (e.propertyName !== 'transform') return
+  const lane = laneState.value
+  if (lane.phase !== 'settling') return
+
+  lane.currentIndex = swipeEngine.getNextIndex(
+    lane.currentIndex,
+    props.lane,
+    lane.outcome
+  )
+
+  // reset delta/phase after index update so next swipe works
+  lane.delta = 0
+  lane.targetDelta = 0
+  lane.phase = 'idle'
+  lane.outcome = null
+}
 </script>
 
 <style scoped>
-.lane {
-  position: relative;
-  overflow: hidden;
+.carousel {
+  touch-action: none;
 }
-
 .scene {
-  position: absolute;
-  inset: 0;
-  will-change: transform;
+  user-select: none;
 }
 </style>

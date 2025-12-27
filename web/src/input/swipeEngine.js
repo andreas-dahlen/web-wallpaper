@@ -1,55 +1,85 @@
 // swipeEngine.js
 import { reactive } from 'vue'
 import { APP_SETTINGS } from '../config/appSettings'
-import { swipeNext, swipePrev } from '../scenes/state/SwipeState'
 
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeViewChangeThreshold
 
 export const swipeEngine = {
   state: reactive({
-    activeLane: null,
-    delta: 0,
-    dir: null
+    lanes: {
+      top: createLaneState(),
+      mid: createLaneState(),
+      bottom: createLaneState()
+    }
   }),
 
+  // --- assign scenes to a lane
+  setLaneScenes(lane, scenes) {
+    const s = this.state.lanes[lane]
+    if (!s) return
+    s.scenes = scenes
+    s.currentIndex = 0
+  },
+
   handleSwipeStart(data, lane) {
-    this.state.activeLane = lane
-    this.state.delta = 0
-    this.state.dir = null
-    // console.log(`[SwipeEngine] Start lane=${lane}, axis=${data.axis}`)
-    console.log('_')
+    const s = this.state.lanes[lane]
+    if (!s) return
+    s.active = true
+    s.phase = 'dragging'
+    s.delta = 0
+    s.dir = null
+    s.outcome = null
+    s.targetDelta = 0
   },
 
-  handleSwipeMove(data) {
-    if (!this.state.activeLane) return
-    this.state.delta = data.total
-    this.state.dir = data.dir
-    // console.log(`[SwipeEngine] Move lane=${this.state.activeLane}, dir=${data.dir}, delta=${data.total}`)
-    console.log('_')
-    // Optional: here you could emit a reactive delta to animate lane in real-time
+  handleSwipeMove(data, lane) {
+    const s = this.state.lanes[lane]
+    if (!s || s.phase !== 'dragging') return
+    s.delta = data.total
+    s.dir = data.dir
   },
 
-  handleSwipeRelease(data) {
-    if (!this.state.activeLane) return
+handleSwipeRelease(data, lane, laneSize) {
+  const s = this.state.lanes[lane]
+  if (!s || s.phase !== 'dragging') return
 
-    const lane = this.state.activeLane
-    const total = data.total
-    const dir = data.dir
+  const distance = Math.abs(data.total)
+  if (distance >= SWIPE_THRESHOLD) {
+    s.outcome = data.total < 0 ? 'next' : 'prev'
+    s.targetDelta = data.total < 0 ? -laneSize : laneSize
+  } else {
+    s.outcome = 'revert'
+    s.targetDelta = 0
+  }
 
-    console.log('_')
-    // console.log(`[SwipeEngine] Release lane=${lane}, dir=${dir}, total=${total}`)
+  // settle phase triggers the animation
+  s.phase = 'settling'
+  s.active = false
+},
 
-    if (Math.abs(total) >= SWIPE_THRESHOLD) {
-      if (dir === 'left') swipePrev(lane)
-      if (dir === 'right') swipeNext(lane)
-    } else {
-      console.log(`[SwipeEngine] Swipe too short, revert lane=${lane}`)
-      // Optional: trigger revert animation here
-    }
+  reset(lane) {
+    const s = this.state.lanes[lane]
+    if (!s) return
+    Object.assign(s, createLaneState())
+  },
 
-    // Reset
-    this.state.activeLane = null
-    this.state.delta = 0
-    this.state.dir = null
+  getNextIndex(currentIndex, lane, outcome) {
+    const length = this.state.lanes[lane]?.scenes?.length || 1
+    if (outcome === 'next') return (currentIndex + 1) % length
+    if (outcome === 'prev') return (currentIndex - 1 + length) % length
+    return currentIndex
+  }
+}
+
+function createLaneState() {
+  return {
+    active: false,
+    delta: 0,
+    dir: null,
+    phase: 'idle',
+    outcome: null,
+    targetDelta: 0,
+    currentIndex: 0,
+    scenes: []
   }
 }

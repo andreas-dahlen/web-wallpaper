@@ -1,91 +1,74 @@
 <template>
     <div class="swipe-area-box">
 
-        <TouchArea class="swipe-area swipe-area-1" 
-        :onSwipeStart="onSwipeStart1"
-        :onSwipeRelease="onSwipeRelease"
-        :onSwipe="{
-            left: onSwipeLeft, 
-            right: onSwipeRight 
-            }"
-        />
+        <TouchArea class="swipe-area swipe-area-1" id="topLane" 
+            :onSwipeStart="onSwipeStart"
+            :onSwipeRelease="onSwipeRelease" 
+            :onSwipe="{
+                left: onSwipeLeft,
+                right: onSwipeRight
+            }" />
 
-        <TouchArea class="swipe-area swipe-area-2" 
-        :onSwipeStart="onSwipeStart2"
-        :onSwipeRelease="onSwipeRelease"
-        :onSwipe="{ 
-            left: onSwipeLeft,
-            right: onSwipeRight
-            }"
-        />
+        <TouchArea class="swipe-area swipe-area-2" id="midLane" 
+            :onSwipeStart="onSwipeStart"
+            :onSwipeRelease="onSwipeRelease" 
+            :onSwipe="{
+                left: onSwipeLeft,
+                right: onSwipeRight
+            }" />
 
-        <TouchArea class="swipe-area swipe-area-3" 
-        :onSwipeStart="onSwipeStart3"
-        :onSwipeRelease="onSwipeRelease"
-        :onSwipe="{ 
-            left: onSwipeLeft, 
-            right: onSwipeRight 
-            }"
-        />
+        <TouchArea class="swipe-area swipe-area-3" id="bottomLane" 
+            :onSwipeStart="onSwipeStart"
+            :onSwipeRelease="onSwipeRelease" 
+            :onSwipe="{
+                left: onSwipeLeft,
+                right: onSwipeRight
+            }" />
     </div>
 </template>
 
 <script setup>
 import TouchArea from './TouchArea.vue'
 import { swipeEngine } from '../input/swipeEngine'
-// import { swipeEnd } from '../../animations/touchVisuals';
-// import {swipeNext, swipePrev } from './lanes/SwipeState'
+import { APP_SETTINGS } from '../config/appSettings'
 
 defineOptions({ name: 'SwipeZone' })
 
-function onSwipeStart1(data) {swipeEngine.handleSwipeStart(data, 'top')}
-function onSwipeStart2(data) {swipeEngine.handleSwipeStart(data, 'mid')}
-function onSwipeStart3(data) {swipeEngine.handleSwipeStart(data, 'bottom')}
+const laneWidth = APP_SETTINGS.ui.laneWidth
 
-function onSwipeLeft(data) {swipeEngine.handleSwipeMove(data)}
-function onSwipeRight(data) {swipeEngine.handleSwipeMove(data)}
+const elToLane = {
+    topLane: 'top',
+    midLane: 'mid',
+    bottomLane: 'bottom'
+}
 
-function onSwipeRelease(data) {swipeEngine.handleSwipeRelease(data)}
+function getLaneFromEl(el) {
+    return elToLane[el.id] ?? null
+}
 
-// function onSwipeLeft1(dir) {
-//     console.log('i will call swipe left')
+function onSwipeStart(data) {
+    const lane = getLaneFromEl(data.el)
+    console.log(lane)
+    swipeEngine.handleSwipeStart(data, lane)
+}
 
+function onSwipeLeft(data) {
+    const lane = getLaneFromEl(data.el)
+    console.log(lane)
+    swipeEngine.handleSwipeMove(data, lane)
+}
 
-// function onSwipeRight1(dir) {
-//     console.log('i will call wipe right')
+function onSwipeRight(data) {
+    const lane = getLaneFromEl(data.el)
+    console.log(lane)
+    swipeEngine.handleSwipeMove(data, lane)
+}
 
-// }
-
-// function onSwipeLeft2(dir) {
-//     console.log('i will call swipe left')
-
-// }
-
-// function onSwipeRight2(dir) {
-//     console.log('i will call wipe right')
-
-// }
-// function onSwipeLeft3(dir) {
-//     console.log('i will call swipe left')
-
-// }
-
-// function onSwipeRight3(dir) {
-//     console.log('i will call wipe right')
-
-// }
-// function onPress() {
-    // press(el)
-    // console.log('SWIPEZONE: press')
-// }
-// function onRelease() {
-    // release(el)
-    // console.log('SWIPEZONE: release')
-// }
-// function onCancel(el) {
-//     cancel(el)
-//     console.log('SWIPEZONE: cancel')
-// }
+function onSwipeRelease(data) {
+    const lane = getLaneFromEl(data.el)
+    console.log(lane)
+    swipeEngine.handleSwipeRelease(data, lane, laneWidth)
+}
 </script>
 
 <style scoped>
@@ -100,6 +83,7 @@ function onSwipeRelease(data) {swipeEngine.handleSwipeRelease(data)}
 .swipe-area {
     width: 352px;
     height: 262px;
+    
     /* pointer-events:none; */
     transition: background-color 0.3s ease;
 }
