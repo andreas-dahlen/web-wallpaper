@@ -138,6 +138,23 @@ function reset() {
 // -----------------------------------------------------------------------------
 // Public API
 // -----------------------------------------------------------------------------
+// Helper functions
+function addCallback(map, el, fn) {
+  if (!el || !fn) return
+  if (!map.has(el)) map.set(el, new Set())
+  map.get(el).add(fn)
+}
+
+// function removeCallback(map, el, fn) {
+//   if (!el || !map.has(el)) return
+//   const set = map.get(el)
+//   set.delete(fn)
+//   if (!set.size) map.delete(el)
+// }
+
+// -----------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------
 export const inputEngine = {
   state,
 
@@ -149,10 +166,12 @@ export const inputEngine = {
     onSwipeRelease,
     onSwipe = {}
   } = {}) {
-    if (onPress) pressCallbacks.set(el, [onPress])
-    if (onRelease) releaseCallbacks.set(el, [onRelease])
-    if (onPressCancel) cancelCallbacks.set(el, [onPressCancel])
+    // Safely add callbacks (no overwriting)
+    addCallback(pressCallbacks, el, onPress)
+    addCallback(releaseCallbacks, el, onRelease)
+    addCallback(cancelCallbacks, el, onPressCancel)
 
+    // Swipe handlers
     const handlers = { ...onSwipe }
     if (onSwipeStart) handlers.onSwipeStart = onSwipeStart
     if (onSwipeRelease) handlers.onSwipeRelease = onSwipeRelease
@@ -161,10 +180,16 @@ export const inputEngine = {
     const hasV = handlers.up || handlers.down
     const axis = hasH && hasV ? 'both' : hasH ? 'horizontal' : hasV ? 'vertical' : null
 
-    if (axis) swipeCallbacks.set(el, { axis, handlers })
+    if (axis) {
+      // Only set once per element, don’t overwrite
+      if (!swipeCallbacks.has(el)) swipeCallbacks.set(el, { axis, handlers })
+    }
   },
 
   unregisterPressTarget(el) {
+    if (!el) return
+
+    // Delete all callback sets safely
     pressCallbacks.delete(el)
     releaseCallbacks.delete(el)
     cancelCallbacks.delete(el)

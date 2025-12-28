@@ -23,12 +23,6 @@ export const APP_SETTINGS = {
       bottom:3
     }
   },
-
-  debug: {
-    input: false,
-    drawDots: false,
-    logInput: false
-  }
 }
 
 import A1 from '../scenes/lanes/top/1A.vue'

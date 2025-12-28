@@ -39,6 +39,8 @@ const props = defineProps({
   width: { type: Number, required: true },
   height: { type: Number, required: true }
 })
+
+console.log('SwipeCarousel mounted:', props.lane, props.scenes)
 // --- Lane state & swipe direction ---
 const lane = computed(() => swipeEngine.state.lanes[props.lane] ?? {
   scenes: [],

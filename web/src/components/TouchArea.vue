@@ -15,7 +15,7 @@ const props = defineProps({
   onRelease: Function,      // el, action
   onPressCancel: Function,  // el, action
   onSwipeStart: Function,   // { el, axis }
-  onSwipeRelease: Function, // { el, dir, total }
+  onSwipeRelease: Function, // { el, total }
   onSwipe: Object,           // { left, right, up, down } each receives { el, dir, delta, total }
   action: Object
 })
@@ -23,7 +23,6 @@ const props = defineProps({
 const el = ref(null)
 
 onMounted(() => {
-  // console.log('TouchArea mounted', el.value)
   if (!el.value) return
 
   // Wrap directional swipe handlers to always pass a single object
@@ -38,7 +37,10 @@ onMounted(() => {
 
   // Include swipe start and release hooks
   if (props.onSwipeStart) handlers.onSwipeStart = (data) => props.onSwipeStart(data)
-  if (props.onSwipeRelease) handlers.onSwipeRelease = (data) => props.onSwipeRelease(data)
+  if (props.onSwipeRelease) handlers.onSwipeRelease = (data) => {
+    // Remove dir, only pass el and total
+    props.onSwipeRelease({ el: data.el, total: data.total })
+  }
 
   inputEngine.registerPressTarget(el.value, {
     onPress: () => props.onPress?.(el.value, props.action),
@@ -46,13 +48,11 @@ onMounted(() => {
     onPressCancel: () => props.onPressCancel?.(el.value, props.action),
     onSwipe: handlers
   })
-  console.log('TouchArea mounted', el.value, props.action, 'slide', props.slideId)
 })
 
 onBeforeUnmount(() => {
   if (!el.value) return
   inputEngine.unregisterPressTarget(el.value)
-  console.log('TouchArea unmounted', el.value, props.action, 'slide', props.slideId)
 })
 </script>
 
