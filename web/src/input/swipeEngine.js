@@ -2,84 +2,133 @@
 import { reactive } from 'vue'
 import { APP_SETTINGS } from '../config/appSettings'
 
+// Minimum swipe distance to trigger a view change
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeViewChangeThreshold
 
 export const swipeEngine = {
+  // --- Reactive state for all lanes ---
   state: reactive({
     lanes: {
       top: createLaneState(),
       mid: createLaneState(),
-      bottom: createLaneState()
+      bottom: createLaneState(),
+      wallpaper: createLaneState()
     }
   }),
 
-  // --- assign scenes to a lane
+  /** 
+   * Assigns scenes/components to a lane
+   * @param {string} lane - 'top' | 'mid' | 'bottom'
+   * @param {Array} scenes - array of Vue components for this lane
+   */
   setLaneScenes(lane, scenes) {
-    const s = this.state.lanes[lane]
-    if (!s) return
-    s.scenes = scenes
-    s.currentIndex = 0
+    const laneData = this.state.lanes[lane]
+    if (!laneData) return
+    laneData.scenes = scenes
+    laneData.currentIndex = 0
   },
 
+  /**
+   * Called when a swipe gesture starts
+   * @param {Object} data - { el, axis, etc. }
+   * @param {string} lane
+   */
   handleSwipeStart(data, lane) {
-    const s = this.state.lanes[lane]
-    if (!s) return
-    s.active = true
-    s.phase = 'dragging'
-    s.delta = 0
-    s.dir = null
-    s.outcome = null
-    s.targetDelta = 0
+    const laneData = this.state.lanes[lane]
+    if (!laneData) return
+
+    laneData.active = true
+    laneData.phase = 'dragging'
+    laneData.delta = 0
+    laneData.dir = null
+    laneData.outcome = null
+    laneData.targetDelta = 0
   },
 
+  /**
+   * Called when a swipe is in progress
+   * @param {Object} data - { total: number, dir: string }
+   * @param {string} lane
+   */
   handleSwipeMove(data, lane) {
-    const s = this.state.lanes[lane]
-    if (!s || s.phase !== 'dragging') return
-    s.delta = data.total
-    s.dir = data.dir
+    const laneData = this.state.lanes[lane]
+    if (!laneData || laneData.phase !== 'dragging') return
+
+    laneData.delta = data.total
+    laneData.dir = data.dir
   },
 
-handleSwipeRelease(data, lane, laneSize) {
-  const s = this.state.lanes[lane]
-  if (!s || s.phase !== 'dragging') return
+  /**
+   * Called when a swipe is released
+   * Determines whether to move to next/prev/revert based on swipe distance
+   * @param {Object} data - { total: number, dir: string }
+   * @param {string} lane
+   * @param {number} laneSize - width or height of lane for animation offset
+   */
+  handleSwipeRelease(data, lane, laneSize) {
+    const laneData = this.state.lanes[lane]
+    if (!laneData || laneData.phase !== 'dragging') return
 
-  const distance = Math.abs(data.total)
-  if (distance >= SWIPE_THRESHOLD) {
-    s.outcome = data.total < 0 ? 'next' : 'prev'
-    s.targetDelta = data.total < 0 ? -laneSize : laneSize
-  } else {
-    s.outcome = 'revert'
-    s.targetDelta = 0
-  }
+    const distance = Math.abs(data.total)
+    if (distance >= SWIPE_THRESHOLD) {
+      laneData.outcome = data.total < 0 ? 'next' : 'prev'
+      laneData.targetDelta = data.total < 0 ? -laneSize : laneSize
+    } else {
+      laneData.outcome = 'revert'
+      laneData.targetDelta = 0
+    }
 
-  // settle phase triggers the animation
-  s.phase = 'settling'
-  s.active = false
-},
-
-  reset(lane) {
-    const s = this.state.lanes[lane]
-    if (!s) return
-    Object.assign(s, createLaneState())
+    // Switch to settling phase to trigger transition animation
+    laneData.phase = 'settling'
+    laneData.active = false
   },
 
+  /**
+   * Calculates the next index based on the swipe outcome
+   * @param {number} currentIndex
+   * @param {string} lane
+   * @param {string} outcome - 'next' | 'prev' | 'revert'
+   * @returns {number} new index
+   */
   getNextIndex(currentIndex, lane, outcome) {
-    const length = this.state.lanes[lane]?.scenes?.length || 1
-    if (outcome === 'next') return (currentIndex + 1) % length
-    if (outcome === 'prev') return (currentIndex - 1 + length) % length
+    const laneData = this.state.lanes[lane]
+    const totalScenes = laneData?.scenes?.length || 1
+
+    if (outcome === 'next') return (currentIndex + 1) % totalScenes
+    if (outcome === 'prev') return (currentIndex - 1 + totalScenes) % totalScenes
     return currentIndex
+  },
+
+  /**
+   * Resets a lane's swipe state after animation
+   * Keeps scenes and currentIndex intact
+   * @param {string} lane
+   */
+  reset(lane) {
+    const laneData = this.state.lanes[lane]
+    if (!laneData) return
+
+    laneData.active = false
+    laneData.delta = 0
+    laneData.dir = null
+    laneData.phase = 'idle'
+    laneData.outcome = null
+    laneData.targetDelta = 0
   }
 }
 
+/**
+ * Factory for initial lane state
+ */
 function createLaneState() {
   return {
-    active: false,
-    delta: 0,
-    dir: null,
-    phase: 'idle',
-    outcome: null,
-    targetDelta: 0,
-    currentIndex: 0,
-    scenes: []
+    active: false,      // is user currently interacting
+    delta: 0,           // current swipe delta (px)
+    dir: null,          // swipe direction ('left'/'right'/'up'/'down')
+    phase: 'idle',      // 'idle' | 'dragging' | 'settling'
+    outcome: null,      // 'next' | 'prev' | 'revert'
+    targetDelta: 0,     // final delta for animation
+    currentIndex: 0,    // current scene index
+    scenes: []          // list of Vue components in this lane
   }
 }

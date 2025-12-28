@@ -1,28 +1,28 @@
 <template>
   <div class="carousel" :style="carouselStyle">
-    <!-- PREVIOUS SCENE -->
+    <!-- Previous Scene -->
     <component
-      v-if="total > 0"
+      v-if="totalScenes > 0"
       :is="prevScene"
       class="scene"
-      :style="prevStyle"
+      :style="prevSceneStyle"
     />
 
-    <!-- CURRENT SCENE -->
+    <!-- Current Scene -->
     <component
-      v-if="total > 0"
+      v-if="totalScenes > 0"
       :is="currentScene"
       class="scene"
-      :style="currentStyle"
-      @transitionend="onTransitionEnd"
+      :style="currentSceneStyle"
+      @transitionend="handleTransitionEnd"
     />
 
-    <!-- NEXT SCENE -->
+    <!-- Next Scene -->
     <component
-      v-if="total > 0"
+      v-if="totalScenes > 0"
       :is="nextScene"
       class="scene"
-      :style="nextStyle"
+      :style="nextSceneStyle"
     />
   </div>
 </template>
@@ -40,9 +40,18 @@ const props = defineProps({
   height: { type: Number, required: true }
 })
 
-// --- Lane state ---
-const laneState = computed(() => swipeEngine.state.lanes[props.lane])
-const isHorizontal = computed(() => props.direction === 'horizontal')
+console.log('SwipeCarousel mounted:', props.lane, props.scenes)
+// --- Lane state & swipe direction ---
+const lane = computed(() => swipeEngine.state.lanes[props.lane] ?? {
+  scenes: [],
+  currentIndex: 0,
+  phase: 'idle',
+  delta: 0,
+  targetDelta: 0,
+  outcome: null
+})
+
+const horizontal = computed(() => props.direction === 'horizontal')
 
 // --- Assign scenes to engine on mount ---
 onMounted(() => {
@@ -50,72 +59,74 @@ onMounted(() => {
   swipeEngine.setLaneScenes(props.lane, safeScenes)
 })
 
-// --- Indices ---
-const total = computed(() => laneState.value.scenes?.length || 0)
-const currentIndex = computed(() => laneState.value.currentIndex)
-
+// --- Scene indices ---
+const totalScenes = computed(() => lane.value.scenes?.length || 0)
+const currentIndex = computed(() => lane.value.currentIndex)
 const prevIndex = computed(() =>
-  total.value > 0 ? (currentIndex.value - 1 + total.value) % total.value : 0
+  totalScenes.value > 0
+    ? (currentIndex.value - 1 + totalScenes.value) % totalScenes.value
+    : 0
 )
 const nextIndex = computed(() =>
-  total.value > 0 ? (currentIndex.value + 1) % total.value : 0
+  totalScenes.value > 0
+    ? (currentIndex.value + 1) % totalScenes.value
+    : 0
 )
 
-// --- Scenes ---
-const currentScene = computed(() => laneState.value.scenes[currentIndex.value] || null)
-const prevScene = computed(() => laneState.value.scenes[prevIndex.value] || null)
-const nextScene = computed(() => laneState.value.scenes[nextIndex.value] || null)
+// --- Scene references ---
+const currentScene = computed(() => lane.value.scenes[currentIndex.value] || null)
+const prevScene = computed(() => lane.value.scenes[prevIndex.value] || null)
+const nextScene = computed(() => lane.value.scenes[nextIndex.value] || null)
 
-// --- Delta & transition ---
+// --- Swipe delta & transition ---
 const delta = computed(() => {
-  if (laneState.value.phase === 'settling') return laneState.value.targetDelta
-  if (laneState.value.phase === 'dragging') return laneState.value.delta
+  if (lane.value.phase === 'dragging') return lane.value.delta * APP_SETTINGS.ui.swipeSpeedMultiplier
+  if (lane.value.phase === 'settling') return lane.value.targetDelta
   return 0
 })
 
 const transition = computed(() =>
-  laneState.value.phase === 'dragging'
+  lane.value.phase === 'dragging'
     ? 'none'
     : `transform ${APP_SETTINGS.ui.swipeAnimationMs}ms ease`
 )
 
 // --- Transform helpers ---
-function translate(value) {
-  return isHorizontal.value
-    ? `translateX(${value}px)`
-    : `translateY(${value}px)`
-}
+const translate = value =>
+  horizontal.value ? `translateX(${value}px)` : `translateY(${value}px)`
 
-function offset(amount) {
-  return translate(delta.value + amount)
-}
-
-// --- Styles ---
-const baseSceneStyle = {
+// --- Scene styles ---
+// Current slide follows the finger exactly
+const currentSceneStyle = computed(() => ({
   position: 'absolute',
   inset: 0,
   willChange: 'transform',
-  pointerEvents: 'none'
-}
-
-const currentStyle = computed(() => ({
-  ...baseSceneStyle,
+  pointerEvents: 'none',
   transform: translate(delta.value),
   transition: transition.value
 }))
 
-const prevStyle = computed(() => ({
-  ...baseSceneStyle,
-  transform: offset(isHorizontal.value ? -props.width : -props.height),
+// Previous slide sits left/top + delta
+const prevSceneStyle = computed(() => ({
+  position: 'absolute',
+  inset: 0,
+  willChange: 'transform',
+  pointerEvents: 'none',
+  transform: translate((horizontal.value ? -props.width : -props.height) + delta.value),
   transition: transition.value
 }))
 
-const nextStyle = computed(() => ({
-  ...baseSceneStyle,
-  transform: offset(isHorizontal.value ? props.width : props.height),
+// Next slide sits right/bottom + delta
+const nextSceneStyle = computed(() => ({
+  position: 'absolute',
+  inset: 0,
+  willChange: 'transform',
+  pointerEvents: 'none',
+  transform: translate((horizontal.value ? props.width : props.height) + delta.value),
   transition: transition.value
 }))
 
+// --- Carousel container style ---
 const carouselStyle = computed(() => ({
   width: `${props.width}px`,
   height: `${props.height}px`,
@@ -124,24 +135,25 @@ const carouselStyle = computed(() => ({
   touchAction: 'none'
 }))
 
-// --- Transition end ---
-let transitionHandled = false
-function onTransitionEnd(e) {
+/**
+ * Called when swipe animation completes.
+ * Updates the current index and resets the lane state.
+ */
+function handleTransitionEnd(e) {
   if (e.propertyName !== 'transform') return
-  const lane = laneState.value
-  if (lane.phase !== 'settling') return
+  if (lane.value.phase !== 'settling') return
 
-  lane.currentIndex = swipeEngine.getNextIndex(
-    lane.currentIndex,
+  lane.value.currentIndex = swipeEngine.getNextIndex(
+    lane.value.currentIndex,
     props.lane,
-    lane.outcome
+    lane.value.outcome
   )
 
-  // reset delta/phase after index update so next swipe works
-  lane.delta = 0
-  lane.targetDelta = 0
-  lane.phase = 'idle'
-  lane.outcome = null
+  // Reset delta/phase so next swipe works
+  lane.value.delta = 0
+  lane.value.targetDelta = 0
+  lane.value.phase = 'idle'
+  lane.value.outcome = null
 }
 </script>
 
