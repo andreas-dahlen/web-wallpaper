@@ -101,7 +101,7 @@ const currentSceneStyle = computed(() => ({
   position: 'absolute',
   inset: 0,
   willChange: 'transform',
-  pointerEvents: 'none',
+  pointerEvents: 'auto',
   transform: translate(delta.value),
   transition: transition.value
 }))

@@ -1,9 +1,16 @@
 <template>
     <div class="button-area-grid">
-        <div v-for="item in buttons" :key="item">
-        <TouchArea :key="item" :onPress="onPress(item)"
-            :onRelease="onRelease(item)" :onPressCancel="onCancel(item)" />
-        </div>
+        <!-- <div v-for="item in buttons" :key="item"> -->
+            <TouchArea 
+                v-for="item in buttons"
+                :key="item.id"
+                class="button"
+                :action="item"
+                :onPress="onPress"
+                :onRelease="onRelease" 
+                :onPressCancel="onCancel" 
+            />
+        <!-- </div> -->
     </div>
 </template>
 
@@ -13,11 +20,15 @@ import { APP_SETTINGS } from '../config/appSettings'
 
 defineOptions({ name: 'ButtonZone' })
 
-const buttons = [1, 2, 3]
+const buttons = [
+  { id: 1, label: 'one', type: 'spotify' },
+  { id: 2, label: 'two', type: 'youtube' },
+  { id: 3, label: 'three', type: 'custom' }
+]
 
-function onPress(item) { console.log('pressed', item) }
-function onRelease(item) { console.log('released', item) }
-function onCancel(item) { console.log('cancel', item) }
+function onPress(el, action) { console.log('pressed', action) }
+function onRelease(el, action) { console.log('released', action) }
+function onCancel(el, action) { console.log('cancel', action) }
 </script>
 
 <style scoped>
@@ -26,15 +37,19 @@ function onCancel(item) { console.log('cancel', item) }
     top: 0;
     left: 0;
     display: grid;
-    grid-template-rows: 1fr 1fr 1fr;
-    background-color: pink;
-    width: 200px;
-    height: 100px;
+    grid-template-columns: 1fr 1fr 1fr;
+    background-color: rgba(255, 192, 203, 0.424);
+    width: 310px;
+    height: 230px;
+    gap: 10px;
+    margin: 20px;
+    justify-content: center;
+    align-items: center;
 }
 
 .button {
     width: 50px;
     height: 50px;
-    background-color: blanchedalmond;
+    background-color: rgb(0, 0, 0);
 }
 </style>

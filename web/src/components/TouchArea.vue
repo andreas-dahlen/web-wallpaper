@@ -5,23 +5,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { inputEngine } from '../input/inputEngine'
 
 defineOptions({ name: 'TouchArea' })
 
 const props = defineProps({
-  onPress: Function,        // el
-  onRelease: Function,      // el
-  onPressCancel: Function,  // el
+  onPress: Function,        // el, action
+  onRelease: Function,      // el, action
+  onPressCancel: Function,  // el, action
   onSwipeStart: Function,   // { el, axis }
   onSwipeRelease: Function, // { el, dir, total }
-  onSwipe: Object           // { left, right, up, down } each receives { el, dir, delta, total }
+  onSwipe: Object,           // { left, right, up, down } each receives { el, dir, delta, total }
+  action: Object
 })
 
 const el = ref(null)
 
 onMounted(() => {
+  // console.log('TouchArea mounted', el.value)
   if (!el.value) return
 
   // Wrap directional swipe handlers to always pass a single object
@@ -39,11 +41,18 @@ onMounted(() => {
   if (props.onSwipeRelease) handlers.onSwipeRelease = (data) => props.onSwipeRelease(data)
 
   inputEngine.registerPressTarget(el.value, {
-    onPress: () => props.onPress?.(el.value),
-    onRelease: () => props.onRelease?.(el.value),
-    onPressCancel: () => props.onPressCancel?.(el.value),
+    onPress: () => props.onPress?.(el.value, props.action),
+    onRelease: () => props.onRelease?.(el.value, props.action),
+    onPressCancel: () => props.onPressCancel?.(el.value, props.action),
     onSwipe: handlers
   })
+  console.log('TouchArea mounted', el.value, props.action, 'slide', props.slideId)
+})
+
+onBeforeUnmount(() => {
+  if (!el.value) return
+  inputEngine.unregisterPressTarget(el.value)
+  console.log('TouchArea unmounted', el.value, props.action, 'slide', props.slideId)
 })
 </script>
 
