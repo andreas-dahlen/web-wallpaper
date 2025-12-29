@@ -12,8 +12,8 @@ export function log(group, key, ...args) {
 }
 
 // Draw using raw SCREEN PIXELS ONLY
-function drawDot(x, y, color = 'red') {
-    if (debugOn('input', 'dots') === true) {
+export function drawDot(x, y, color = 'red') {
+    if (debugOn('input', 'drawDots') === true) {
         const dot = document.createElement('div')
         dot.style.position = 'fixed'
         dot.style.left = `${x - 6}px`
@@ -28,19 +28,4 @@ function drawDot(x, y, color = 'red') {
         document.body.appendChild(dot)
         setTimeout(() => dot.remove(), 500)
     }
-}
-
-export function debugDown(x, y) {
-    if (debugOn('input', 'dots')) drawDot(x, y, 'red')
-    if (debugOn('input', 'logDots')) log('input', 'logDots', 'DOWN', x, y)
-}
-
-export function debugMove(x, y) {
-    if (debugOn('input', 'dots')) drawDot(x, y, 'orange')
-    if (debugOn('input', 'logDots')) log('input', 'logDots', 'MOVE', x, y)
-}
-
-export function debugUp(x, y) {
-    if (debugOn('input', 'dots')) drawDot(x, y, 'lime')
-    if (debugOn('input', 'logDots')) log('input', 'logDots', 'UP', x, y)
 }

@@ -30,12 +30,11 @@ export const DEBUG = {
 
   input: {
     enabled: true,
-    log: false,
-    logNative: true,
-    logDots: false,
-    dots: true,
-    FSM: true,
-    elTest: true,
+    logNative: false,
+    drawDots: true,
+    FSMDown: true,
+    FSMMove: true,
+    elTest: false,
   },
 
   ui: {
