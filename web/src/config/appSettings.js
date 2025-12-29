@@ -20,9 +20,31 @@ export const APP_SETTINGS = {
     laneLenghts: {
       top: 3,
       mid: 3,
-      bottom:3
+      bottom: 3
     }
   },
+}
+
+export const DEBUG = {
+  enabled: true, // master kill switch
+
+  input: {
+    enabled: true,
+    log: false,
+    logNative: true,
+    logDots: false,
+    dots: true,
+    FSM: true,
+    elTest: true,
+  },
+
+  ui: {
+    enabled: false,
+  },
+
+  perf: {
+    enabled: false,
+  }
 }
 
 import A1 from '../scenes/lanes/top/1A.vue'

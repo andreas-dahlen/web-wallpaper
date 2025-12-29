@@ -1,5 +1,7 @@
+// input/inputEngine.js
 import { ref } from 'vue'
 import { APP_SETTINGS } from '../config/appSettings'
+import { log } from './debugInput'
 
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold
 
@@ -10,16 +12,14 @@ export const state = {
 }
 
 // FSM
-let fsmState = 'IDLE' // IDLE | PRESS_PENDING | SWIPING
-
+let fsmState = 'IDLE'
 let pressCandidate = null
 let swipeCandidate = null
 let swipeAxis = null
-let swipeDir = null
+let swipeStarted = false
+let swipeAccum = 0
 
 const start = { x: 0, y: 0 }
-let swipeAccum = 0
-let swipeStarted = false
 
 // Registries
 const pressCallbacks = new Map()
@@ -31,19 +31,26 @@ const swipeCallbacks = new WeakMap()
 // Pointer handlers
 // -----------------------------------------------------------------------------
 function pointerDown(event) {
+
+  log('input', 'FSM', 'DOWN → IDLE')
+
   start.x = state.x.value = event.clientX
   start.y = state.y.value = event.clientY
 
-  swipeAxis = swipeDir = null
+  swipeAxis = null
   swipeAccum = 0
   swipeStarted = false
+  swipeCandidate = null
 
   const elements = document.elementsFromPoint(event.clientX, event.clientY)
   pressCandidate = elements.find(el => pressCallbacks.has(el)) || null
-
-  if (!pressCandidate) return
+  if (!pressCandidate) {
+    log('input', 'elTest', 'No press candidate')
+    return
+  }
 
   fsmState = 'PRESS_PENDING'
+  log('input', 'FSM', '→ PRESS_PENDING', pressCandidate)
   state.isPressed.value = true
   pressCallbacks.get(pressCandidate)?.forEach(fn => fn(event))
 }
@@ -56,26 +63,27 @@ function pointerMove(event) {
 
   const dx = event.clientX - start.x
   const dy = event.clientY - start.y
-  const absDx = Math.abs(dx)
-  const absDy = Math.abs(dy)
-
-  if (Math.max(absDx, absDy) < SWIPE_THRESHOLD) return
-
-  swipeAxis = absDx > absDy ? 'horizontal' : 'vertical'
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) {
+    log('input', 'FSM', 'Below threshold')
+    return
+  }
+  swipeAxis = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical'
+  log('input', 'FSM', 'Axis decided:', swipeAxis)
 
   const originElements = document.elementsFromPoint(start.x, start.y)
   swipeCandidate = originElements.find(el => {
     const cfg = swipeCallbacks.get(el)
     return cfg && (cfg.axis === swipeAxis || cfg.axis === 'both')
   })
-
-  if (!swipeCandidate) return
-
-  // Swipe wins → cancel press
+  if (!swipeCandidate) {
+    log('input', 'elTest', 'No swipe candidate for axis', swipeAxis)
+    return
+  }
+  // Cancel press
   cancelCallbacks.get(pressCandidate)?.forEach(fn => fn())
   pressCandidate = null
-
   fsmState = 'SWIPING'
+  log('input', 'FSM', '→ SWIPING', swipeCandidate)
 }
 
 function pointerMoveSwipe(event) {
@@ -84,30 +92,37 @@ function pointerMoveSwipe(event) {
   const cfg = swipeCallbacks.get(swipeCandidate)
   if (!cfg) return
 
-  const dx = event.clientX - start.x
-  const dy = event.clientY - start.y
-  const delta = swipeAxis === 'horizontal' ? dx : dy
+  const delta = swipeAxis === 'horizontal'
+    ? event.clientX - start.x
+    : event.clientY - start.y
 
   swipeAccum += delta
 
-  swipeDir = swipeAxis === 'horizontal'
-    ? (delta > 0 ? 'right' : 'left')
-    : (delta > 0 ? 'down' : 'up')
+    log(
+    'input',
+    'FSM',
+    'MOVE',
+    'delta:', delta,
+    'total:', swipeAccum
+  )
 
   if (!swipeStarted) {
     cfg.handlers?.onSwipeStart?.({ el: swipeCandidate, axis: swipeAxis })
     swipeStarted = true
+    log('input', 'FSM', 'SWIPE START', swipeAxis)
   }
 
-  cfg.handlers[swipeDir]?.({
-    el: swipeCandidate,
-    dir: swipeDir,
-    delta,
-    total: swipeAccum
-  })
+  // Call directional handler if exists
+  const dirMap = {
+    horizontal: delta > 0 ? 'right' : 'left',
+    vertical: delta > 0 ? 'down' : 'up'
+  }
+  const dir = dirMap[swipeAxis]
+  cfg.handlers[dir]?.({ el: swipeCandidate, delta, total: swipeAccum })
 
   start.x = event.clientX
   start.y = event.clientY
+
 }
 
 function pointerUp(event) {
@@ -115,13 +130,15 @@ function pointerUp(event) {
     releaseCallbacks.get(pressCandidate)?.forEach(fn => fn(event))
   }
 
-  if (fsmState === 'SWIPING' && swipeCandidate && swipeDir) {
+  if (fsmState === 'SWIPING' && swipeCandidate) {
+    log(
+      'input',
+      'FSM',
+      'SWIPE END',
+      'total:', swipeAccum
+    )
     const cfg = swipeCallbacks.get(swipeCandidate)
-    cfg?.handlers?.onSwipeRelease?.({
-      el: swipeCandidate,
-      dir: swipeDir,
-      total: swipeAccum
-    })
+    cfg?.handlers?.onSwipeRelease?.({ el: swipeCandidate, total: swipeAccum })
   }
 
   reset()
@@ -130,27 +147,20 @@ function pointerUp(event) {
 function reset() {
   fsmState = 'IDLE'
   pressCandidate = swipeCandidate = null
-  swipeAxis = swipeDir = null
+  swipeAxis = null
   swipeAccum = 0
+  swipeStarted = false
   state.isPressed.value = false
 }
 
 // -----------------------------------------------------------------------------
-// Public API
+// Helpers
 // -----------------------------------------------------------------------------
-// Helper functions
 function addCallback(map, el, fn) {
   if (!el || !fn) return
   if (!map.has(el)) map.set(el, new Set())
   map.get(el).add(fn)
 }
-
-// function removeCallback(map, el, fn) {
-//   if (!el || !map.has(el)) return
-//   const set = map.get(el)
-//   set.delete(fn)
-//   if (!set.size) map.delete(el)
-// }
 
 // -----------------------------------------------------------------------------
 // Public API
@@ -158,20 +168,16 @@ function addCallback(map, el, fn) {
 export const inputEngine = {
   state,
 
-  registerPressTarget(el, {
-    onPress,
-    onRelease,
-    onPressCancel,
-    onSwipeStart,
-    onSwipeRelease,
-    onSwipe = {}
-  } = {}) {
-    // Safely add callbacks (no overwriting)
+  // Expose internal handlers for nativeBridge
+  _down: pointerDown,
+  _move: pointerMove,
+  _up: pointerUp,
+
+  registerPressTarget(el, { onPress, onRelease, onPressCancel, onSwipeStart, onSwipeRelease, onSwipe = {} } = {}) {
     addCallback(pressCallbacks, el, onPress)
     addCallback(releaseCallbacks, el, onRelease)
     addCallback(cancelCallbacks, el, onPressCancel)
 
-    // Swipe handlers
     const handlers = { ...onSwipe }
     if (onSwipeStart) handlers.onSwipeStart = onSwipeStart
     if (onSwipeRelease) handlers.onSwipeRelease = onSwipeRelease
@@ -180,16 +186,11 @@ export const inputEngine = {
     const hasV = handlers.up || handlers.down
     const axis = hasH && hasV ? 'both' : hasH ? 'horizontal' : hasV ? 'vertical' : null
 
-    if (axis) {
-      // Only set once per element, don’t overwrite
-      if (!swipeCallbacks.has(el)) swipeCallbacks.set(el, { axis, handlers })
-    }
+    if (axis && !swipeCallbacks.has(el)) swipeCallbacks.set(el, { axis, handlers })
   },
 
   unregisterPressTarget(el) {
     if (!el) return
-
-    // Delete all callback sets safely
     pressCallbacks.delete(el)
     releaseCallbacks.delete(el)
     cancelCallbacks.delete(el)
@@ -197,10 +198,8 @@ export const inputEngine = {
   }
 }
 
-// Global listeners
+// -----------------------------------------------------------------------------
+// Global listeners for browser (still works!)
 window.addEventListener('pointerdown', pointerDown)
-window.addEventListener('pointermove', e => {
-  if (fsmState === 'SWIPING') pointerMoveSwipe(e)
-  else pointerMove(e)
-})
+window.addEventListener('pointermove', e => (fsmState === 'SWIPING' ? pointerMoveSwipe(e) : pointerMove(e)))
 window.addEventListener('pointerup', pointerUp)
