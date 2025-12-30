@@ -4,8 +4,6 @@ import { APP_SETTINGS } from '../config/appSettings'
 import { log } from './debugInput'
 
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold
-const SWIPE_THROTTLE = APP_SETTINGS.input.swipeThrottle
-const MOVE_THRESHOLD = APP_SETTINGS.input.moveThreshold
 
 export const state = {
   isPressed: ref(false),
@@ -22,9 +20,7 @@ let swipeStarted = false
 let swipeAccum = 0
 
 const start = { x: 0, y: 0 }
-const last = { x: 0, y: 0 }
-
-let lastSwipeTime = 0
+const last = { x: 0, y: 0 } // persistent last coordinates for stepDelta
 
 // Registries
 const pressCallbacks = new Map()
@@ -36,7 +32,9 @@ const swipeCallbacks = new WeakMap()
 // Pointer handlers
 // -----------------------------------------------------------------------------
 function pointerDown(event) {
-  log('input', 'FSMDown', '↓ DOWN', 'x=', event.clientX.toFixed(1), 'y=', event.clientY.toFixed(1))
+  log('input', 'FSMDown', '↓ DOWN',
+    'x=', event.clientX.toFixed(1),
+    'y=', event.clientY.toFixed(1))
 
   start.x = state.x.value = event.clientX
   start.y = state.y.value = event.clientY
@@ -50,7 +48,10 @@ function pointerDown(event) {
 
   const elements = document.elementsFromPoint(event.clientX, event.clientY)
   pressCandidate = elements.find(el => pressCallbacks.has(el)) || null
-  if (!pressCandidate) return
+  if (!pressCandidate) {
+    log('input', 'elTest', '⛔ No press candidate at down')
+    return
+  }
 
   fsmState = 'PRESS_PENDING'
   log('input', 'FSMDown', '→ PRESS_PENDING', pressCandidate)
@@ -59,24 +60,28 @@ function pointerDown(event) {
 }
 
 function pointerMove(event) {
-  // Only update Vue state if moved enough
-  if (Math.abs(state.x.value - event.clientX) > MOVE_THRESHOLD) state.x.value = event.clientX
-  if (Math.abs(state.y.value - event.clientY) > MOVE_THRESHOLD) state.y.value = event.clientY
+  state.x.value = event.clientX
+  state.y.value = event.clientY
 
   if (fsmState !== 'PRESS_PENDING') return
 
   const dx = event.clientX - start.x
   const dy = event.clientY - start.y
 
-  log('input', 'FSMMove', '↔ MOVE (pending)', 'dx=', dx.toFixed(1), 'dy=', dy.toFixed(1), 'threshold=', SWIPE_THRESHOLD)
+  // Always update last coords (defensive)
+  last.x = event.clientX
+  last.y = event.clientY
 
   if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return
 
-  swipeAxis = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical'
-  log('input', 'FSMMove', '✅ Axis decided:', swipeAxis)
+  if (!swipeAxis) { // only decide once
+    swipeAxis = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical'
+    log('input', 'FSMMove', '✅ Axis decided:', swipeAxis)
 
-  if (swipeAxis === 'horizontal') last.x = start.x
-  else last.y = start.y
+    // Initialize last for the swipe axis
+    if (swipeAxis === 'horizontal') last.x = start.x
+    else last.y = start.y
+  }
 
   const originElements = document.elementsFromPoint(start.x, start.y)
   swipeCandidate = originElements.find(el => {
@@ -85,18 +90,14 @@ function pointerMove(event) {
   })
   if (!swipeCandidate) return
 
-  // Cancel press
   cancelCallbacks.get(pressCandidate)?.forEach(fn => fn())
   pressCandidate = null
   fsmState = 'SWIPING'
-  log('input', 'elTest', '🏁 → SWIPING', swipeCandidate)
+
+  pointerMoveSwipe(event) // immediately handle first move
 }
 
 function pointerMoveSwipe(event) {
-  const now = performance.now()
-  if (now - lastSwipeTime < SWIPE_THROTTLE) return
-  lastSwipeTime = now
-
   if (fsmState !== 'SWIPING' || !swipeCandidate) return
 
   const cfg = swipeCallbacks.get(swipeCandidate)
@@ -106,11 +107,19 @@ function pointerMoveSwipe(event) {
     ? event.clientX - last.x
     : event.clientY - last.y
 
-  if (!isNaN(stepDelta)) swipeAccum += stepDelta
+  if (isNaN(stepDelta) || stepDelta === 0) {
+    // Defensive: skip but keep swipe active
+    if (swipeAxis === 'horizontal') last.x = event.clientX
+    else last.y = event.clientY
+    return
+  }
+
+  swipeAccum += stepDelta
 
   if (!swipeStarted) {
     cfg.handlers?.onSwipeStart?.({ el: swipeCandidate, axis: swipeAxis })
     swipeStarted = true
+    log('input', 'FSMMove', '🌟 SWIPE START', swipeAxis)
   }
 
   const dirMap = {
@@ -118,19 +127,35 @@ function pointerMoveSwipe(event) {
     vertical: stepDelta > 0 ? 'down' : 'up'
   }
   const dir = dirMap[swipeAxis]
-
   cfg.handlers[dir]?.({ el: swipeCandidate, delta: stepDelta, total: swipeAccum })
 
+  // Update last for axis
   if (swipeAxis === 'horizontal') last.x = event.clientX
   else last.y = event.clientY
+
+  log('input', 'FSMMove', '➡ SWIPE MOVE',
+    'stepDelta=', stepDelta.toFixed(1),
+    'accum(before)=', (swipeAccum - stepDelta).toFixed(1),
+    'accum(after)=', swipeAccum.toFixed(1),
+    'candidate=', swipeCandidate)
 }
 
 function pointerUp(event) {
+  log('input', 'FSMDown', '↑ UP',
+    'x=', event.clientX.toFixed(1),
+    'y=', event.clientY.toFixed(1))
+
   if (fsmState === 'PRESS_PENDING' && pressCandidate) {
     releaseCallbacks.get(pressCandidate)?.forEach(fn => fn(event))
   }
 
   if (fsmState === 'SWIPING' && swipeCandidate) {
+    log('input', 'FSMMove', '🏁 SWIPE END',
+      'axis=', swipeAxis,
+      'totalAccum=', swipeAccum.toFixed(1),
+      'lastX=', last.x.toFixed(1),
+      'lastY=', last.y.toFixed(1))
+
     const cfg = swipeCallbacks.get(swipeCandidate)
     cfg?.handlers?.onSwipeRelease?.({ el: swipeCandidate, total: swipeAccum })
   }
@@ -138,7 +163,10 @@ function pointerUp(event) {
   reset()
 }
 
-function pointerCancel(event) { reset() }
+function pointerCancel(event) {
+  log('input', 'FSM', '❌ CANCEL → IDLE')
+  reset()
+}
 
 function reset() {
   fsmState = 'IDLE'
@@ -164,6 +192,8 @@ function addCallback(map, el, fn) {
 // -----------------------------------------------------------------------------
 export const inputEngine = {
   state,
+
+  // Expose internal handlers for nativeBridge
   _down: pointerDown,
   _move: pointerMove,
   _up: pointerUp,
@@ -194,7 +224,7 @@ export const inputEngine = {
 }
 
 // -----------------------------------------------------------------------------
-// Global listeners
+// Global listeners for browser
 window.addEventListener('pointerdown', pointerDown)
 window.addEventListener('pointermove', e => (fsmState === 'SWIPING' ? pointerMoveSwipe(e) : pointerMove(e)))
 window.addEventListener('pointerup', pointerUp)

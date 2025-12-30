@@ -23,7 +23,10 @@ defineOptions({ name: 'ButtonZone' })
 const buttons = [
   { id: 1, label: 'one', type: 'spotify' },
   { id: 2, label: 'two', type: 'youtube' },
-  { id: 3, label: 'three', type: 'custom' }
+  { id: 3, label: 'three', type: 'custom' },
+  { id: 4, label: 'four', type: 'cus' },
+  { id: 5, label: 'five', type: 'cust' },
+  { id: 6, label: 'six', type: 'custo' }
 ]
 
 function onPress(el, action) { console.log('pressed', action) }

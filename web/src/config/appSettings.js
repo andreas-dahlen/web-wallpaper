@@ -8,8 +8,6 @@ export const APP_SETTINGS = {
   input: {
     swipeThreshold: 8, //distance before swipe is declared
     swipeViewChangeThreshold: 40, //distance before view is changed
-    swipeThrottle: 16, //throttle for evalutating inputs
-    moveThreshold: 5 //only evaluate movement if above threshold
   },
 
   ui: {
@@ -34,8 +32,8 @@ export const DEBUG = {
     enabled: false,
     logNative: false,
     drawDots: true,
-    FSMDown: true,
-    FSMMove: true,
+    FSMDown: false,
+    FSMMove: false,
     elTest: false,
   },
 
