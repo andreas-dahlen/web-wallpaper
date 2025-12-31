@@ -1,8 +1,9 @@
 import { DEBUG } from '../config/appSettings'
+import { gestureBus } from './gestureBus'
 
 function debugOn(group, key) {
-  if (!DEBUG.enabled) return false
-  return Boolean(DEBUG[group]?.enabled && DEBUG[group]?.[key])
+    if (!DEBUG.enabled) return false
+    return Boolean(DEBUG[group]?.enabled && DEBUG[group]?.[key])
 }
 
 export function log(group, key, ...args) {
@@ -24,8 +25,17 @@ export function drawDot(x, y, color = 'red') {
         dot.style.background = color
         dot.style.pointerEvents = 'none'
         dot.style.zIndex = '99999'
-    
+
         document.body.appendChild(dot)
         setTimeout(() => dot.remove(), 500)
+    }
+}
+
+export function gestureBusLog() {
+    if (debugOn('input', 'bus') === true) {
+        gestureBus.subscribe(event => {
+            window.__lastGesture = event
+            console.log('[GESTURE]', event)
+        })
     }
 }

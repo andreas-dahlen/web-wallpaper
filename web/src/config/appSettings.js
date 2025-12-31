@@ -26,15 +26,16 @@ export const APP_SETTINGS = {
 }
 
 export const DEBUG = {
-  enabled: false, // master kill switch
+  enabled: true, // master kill switch
 
   input: {
-    enabled: false,
+    enabled: true,
     logNative: false,
     drawDots: true,
     FSMDown: false,
     FSMMove: false,
     elTest: false,
+    bus: true
   },
 
   ui: {

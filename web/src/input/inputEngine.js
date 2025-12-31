@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { APP_SETTINGS } from '../config/appSettings'
 import { log } from './debugInput'
+import { gestureBus } from './gestureBus'
 
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold
 
@@ -40,6 +41,8 @@ function pointerDown(event) {
   start.y = state.y.value = event.clientY
   last.x = start.x
   last.y = start.y
+
+  gestureBus.emit({ type: 'pressStart', x: start.x, y: start.y })
 
   swipeAxis = null
   swipeAccum = 0
@@ -119,6 +122,12 @@ function pointerMoveSwipe(event) {
   if (!swipeStarted) {
     cfg.handlers?.onSwipeStart?.({ el: swipeCandidate, axis: swipeAxis })
     swipeStarted = true
+
+    gestureBus.emit({
+      type: 'swipeStart',
+      axis: swipeAxis,
+      el: swipeCandidate
+    })
     log('input', 'FSMMove', '🌟 SWIPE START', swipeAxis)
   }
 
@@ -128,6 +137,13 @@ function pointerMoveSwipe(event) {
   }
   const dir = dirMap[swipeAxis]
   cfg.handlers[dir]?.({ el: swipeCandidate, delta: stepDelta, total: swipeAccum })
+
+  gestureBus.emit({
+    type: 'swipeMove',
+    axis: swipeAxis,
+    delta: stepDelta,
+    total: swipeAccum
+  })
 
   // Update last for axis
   if (swipeAxis === 'horizontal') last.x = event.clientX
@@ -145,6 +161,8 @@ function pointerUp(event) {
     'x=', event.clientX.toFixed(1),
     'y=', event.clientY.toFixed(1))
 
+    gestureBus.emit({ type: 'pressEnd', x: event.clientX, y: event.clientY })
+
   if (fsmState === 'PRESS_PENDING' && pressCandidate) {
     releaseCallbacks.get(pressCandidate)?.forEach(fn => fn(event))
   }
@@ -158,6 +176,11 @@ function pointerUp(event) {
 
     const cfg = swipeCallbacks.get(swipeCandidate)
     cfg?.handlers?.onSwipeRelease?.({ el: swipeCandidate, total: swipeAccum })
+    gestureBus.emit({
+      type: 'swipeEnd',
+      axis: swipeAxis,
+      total: swipeAccum
+    })
   }
 
   reset()
