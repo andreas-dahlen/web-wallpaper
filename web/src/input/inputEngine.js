@@ -1,7 +1,7 @@
 // input/inputEngine.js
 import { ref } from 'vue'
 import { APP_SETTINGS } from '../config/appSettings'
-import { log } from './debugInput'
+import { log, debugLagTime } from './debugInput'
 import { gestureBus } from './gestureBus'
 
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold
@@ -33,6 +33,7 @@ const swipeCallbacks = new WeakMap()
 // Pointer handlers
 // -----------------------------------------------------------------------------
 function pointerDown(event) {
+  debugLagTime('down')
   log('input', 'FSMDown', '↓ DOWN',
     'x=', event.clientX.toFixed(1),
     'y=', event.clientY.toFixed(1))
@@ -78,6 +79,7 @@ function pointerMove(event) {
   if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return
 
   if (!swipeAxis) { // only decide once
+    debugLagTime('axisDecided')
     swipeAxis = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical'
     log('input', 'FSMMove', '✅ Axis decided:', swipeAxis)
 
@@ -101,6 +103,7 @@ function pointerMove(event) {
 }
 
 function pointerMoveSwipe(event) {
+  debugLagTime('moveStart')
   if (fsmState !== 'SWIPING' || !swipeCandidate) return
 
   const cfg = swipeCallbacks.get(swipeCandidate)
@@ -120,6 +123,7 @@ function pointerMoveSwipe(event) {
   swipeAccum += stepDelta
 
   if (!swipeStarted) {
+    debugLagTime('swipeStart')
     cfg.handlers?.onSwipeStart?.({ el: swipeCandidate, axis: swipeAxis })
     swipeStarted = true
 
@@ -154,14 +158,19 @@ function pointerMoveSwipe(event) {
     'accum(before)=', (swipeAccum - stepDelta).toFixed(1),
     'accum(after)=', swipeAccum.toFixed(1),
     'candidate=', swipeCandidate)
+
+     debugLagTime('moveEnd')
 }
 
 function pointerUp(event) {
+  debugLagTime('pointerUp')
   log('input', 'FSMDown', '↑ UP',
     'x=', event.clientX.toFixed(1),
     'y=', event.clientY.toFixed(1))
 
-    gestureBus.emit({ type: 'pressEnd', x: event.clientX, y: event.clientY })
+  gestureBus.emit({ type: 'pressEnd', x: event.clientX, y: event.clientY })
+
+  debugLagTime('log')
 
   if (fsmState === 'PRESS_PENDING' && pressCandidate) {
     releaseCallbacks.get(pressCandidate)?.forEach(fn => fn(event))

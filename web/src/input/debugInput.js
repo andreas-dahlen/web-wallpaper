@@ -39,3 +39,21 @@ export function gestureBusLog() {
         })
     }
 }
+let timeList = []
+
+export function debugLagTime(label) {
+    if (!debugOn('input', 'inputLag')) return
+
+    if (label === 'log') {
+        for (let i = 0; i < timeList.length - 1; i++) {
+            const a = timeList[i]
+            const b = timeList[i + 1]
+            console.log(
+                `[LAG] ${a.label} → ${b.label}: ${(b.t - a.t).toFixed(2)} ms`
+            )
+        }
+        timeList = []
+    } else {
+        timeList.push({ label, t: performance.now() })
+    }
+}
