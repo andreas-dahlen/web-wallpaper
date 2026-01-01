@@ -1,3 +1,4 @@
+<!-- scenes/BKGimage.vue -->
 <template>
   <div class="layout">
     <SwipeCarousel
@@ -13,7 +14,8 @@
 
 <script setup>
 import SwipeCarousel from '../components/SwipeCarousel.vue'
-import { APP_SETTINGS, LANES } from '../config/appSettings'
+import { APP_SETTINGS } from '../config/appSettings'
+import { LANES } from './lanes/laneIndex'
 
 // --- layout config ---
 // const { laneWidth, laneHeight } = APP_SETTINGS.ui

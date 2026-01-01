@@ -1,20 +1,23 @@
-import { DEBUG } from '../config/appSettings'
-import { gestureBus } from './gestureBus'
+import { DEBUG } from '../../config/appSettings'
 
-function debugOn(group, key) {
-    if (!DEBUG.enabled) return false
-    return Boolean(DEBUG[group]?.enabled && DEBUG[group]?.[key])
-}
+export function log(key, ...args) {
+    if (!DEBUG.enabled) return
 
-export function log(group, key, ...args) {
-    if (debugOn(group, key)) {
-        console.log(`[${group}:${key}]`, ...args)
+    // doubleTrubble override: logs both android and js inputs
+    if (DEBUG.doubleTrubble && (key === 'androidInputs' || key === 'jsInputs')) {
+        if (DEBUG.androidInputs) console.log('[DEBUG:ANDROID]', ...args)
+        if (DEBUG.jsInputs) console.log('[DEBUG:JS]', ...args)
+        return
+    }
+    // normal key logging
+    if (DEBUG[key]) {
+        console.log(`[DEBUG:${key}]`, ...args)
     }
 }
 
 // Draw using raw SCREEN PIXELS ONLY
 export function drawDot(x, y, color = 'red') {
-    if (debugOn('input', 'drawDots') === true) {
+    if (DEBUG.enabled && DEBUG['drawDots']) {
         const dot = document.createElement('div')
         dot.style.position = 'fixed'
         dot.style.left = `${x - 6}px`
@@ -31,18 +34,10 @@ export function drawDot(x, y, color = 'red') {
     }
 }
 
-export function gestureBusLog() {
-    if (debugOn('input', 'bus') === true) {
-        gestureBus.subscribe(event => {
-            window.__lastGesture = event
-            console.log('[GESTURE]', event)
-        })
-    }
-}
 let timeList = []
 
 export function debugLagTime(label) {
-    if (!debugOn('input', 'inputLag')) return
+    if (!DEBUG.enabled || !DEBUG['debugLagTime']) return
 
     if (label === 'log') {
         for (let i = 0; i < timeList.length - 1; i++) {

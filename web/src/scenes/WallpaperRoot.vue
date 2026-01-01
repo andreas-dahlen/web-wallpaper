@@ -1,3 +1,4 @@
+<!-- scenes/WallpaperRoot.vue -->
 <template>
   <div class="phone">
     <div class="screen" ref="screen">
@@ -10,7 +11,6 @@
 </template>
 
 <script setup>
-import ButtonZone from '../components/buttonGrid.vue';
 import SwipeZone from '../components/SwipeZones.vue'
 import BKGimage from './BKGimage.vue';
 import ZoneLayout from './ZoneLayout.vue'

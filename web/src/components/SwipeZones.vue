@@ -1,112 +1,35 @@
 <template>
-    <div class="swipe-area-box">
-        <TouchArea class="swipe-area swipe-area-1" id="topLane" 
-            :onSwipeStart="onSwipeStart"
-            :onSwipeRelease="onSwipeRelease" 
-            :onSwipe="{
-                left: onSwipeLeft,
-                right: onSwipeRight
-            }" />
-        <TouchArea class="swipe-area swipe-area-2" id="midLane"
-            :onSwipeStart="onSwipeStart"
-            :onSwipeRelease="onSwipeRelease" 
-            :onSwipe="{
-                left: onSwipeLeft,
-                right: onSwipeRight
-            }" />
-        <TouchArea class="swipe-area swipe-area-3" id="bottomLane" 
-            :onSwipeStart="onSwipeStart"
-            :onSwipeRelease="onSwipeRelease" 
-            :onSwipe="{
-                left: onSwipeLeft,
-                right: onSwipeRight
-            }" />
-    </div>
-    <div class="swipe-area-box">
-        <TouchArea class="swipe-area-wallpaper" id="wallpaperLane" 
-            :onSwipeStart="onSwipeStart"
-            :onSwipeRelease="onSwipeRelease" 
-            :onSwipe="{
-                up: onSwipeMove,
-                down: onSwipeMove
-            }" />
-    </div>
-
+  <div class="swipe-area-box">
+    <TouchArea v-for="lane in lanes" 
+      :key="lane.id"
+      class="swipe-area"
+      :id="lane.id"
+      :onSwipeStart="onSwipeStart"
+      :onSwipeRelease="onSwipeRelease"
+      :onSwipe="lane.swipeDirs"
+      :data-lane="lane.lane"
+    />
+  </div>
 </template>
 
 <script setup>
 import TouchArea from './TouchArea.vue'
-import { swipeEngine } from '../input/swipeEngine'
-import { APP_SETTINGS } from '../config/appSettings'
+import { gestureBus } from '../input/bus/gestureBus'
 
-defineOptions({ name: 'SwipeZone' })
+const lanes = [
+  { id: 'topLane', lane: 'top', swipeDirs: { left: onSwipeMove, right: onSwipeMove } },
+  { id: 'midLane', lane: 'mid', swipeDirs: { left: onSwipeMove, right: onSwipeMove } },
+  { id: 'bottomLane', lane: 'bottom', swipeDirs: { left: onSwipeMove, right: onSwipeMove } },
+  { id: 'wallpaperLane', lane: 'wallpaper', swipeDirs: { up: onSwipeMove, down: onSwipeMove } }
+]
 
-const laneWidth = APP_SETTINGS.ui.laneWidth
-const laneHeight = APP_SETTINGS.ui.wallpaperHeight
-
-const elToLane = {
-    topLane: 'top',
-    midLane: 'mid',
-    bottomLane: 'bottom',
-    wallpaperLane: 'wallpaper'
-}
-
-function getLaneFromEl(el) {
-    return elToLane[el.id] ?? null
-}
-
-function onSwipeStart(data) {
-    const lane = getLaneFromEl(data.el)
-    swipeEngine.handleSwipeStart(data, lane)
-}
-
-function onSwipeLeft(data) {
-    const lane = getLaneFromEl(data.el)
-    swipeEngine.handleSwipeMove(data, lane)
-}
-
-function onSwipeRight(data) {
-    const lane = getLaneFromEl(data.el)
-    swipeEngine.handleSwipeMove(data, lane)
-}
-
-function onSwipeMove(data) {
-    swipeEngine.handleSwipeMove(data, 'wallpaper')
-}
-
-function onSwipeRelease(data) {
-    const lane = getLaneFromEl(data.el)
-    if (lane === 'wallpaper') {
-        swipeEngine.handleSwipeRelease(data, lane, laneHeight)
-    } else {
-        swipeEngine.handleSwipeRelease(data, lane, laneWidth)
-    }
-}
-
+function onSwipeStart(data) { gestureBus.emit('swipeStart', data) }
+function onSwipeMove(data) { gestureBus.emit('swipeMove', data) }
+function onSwipeRelease(data) { gestureBus.emit('swipeEnd', data) }
 </script>
 
 <style scoped>
-.swipe-area-box {
-    position: absolute;
-    top: 0;
-    left: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.swipe-area {
-    width: 352px;
-    height: 265px;
-    opacity: 0%;
-    /* pointer-events:none; */
-    transition: background-color 0.3s ease;
-}
-
-.swipe-area-wallpaper {
-    width: 352px;
-    height: 784px;
-    opacity: 0%;
-    /* pointer-events:none; */
-    transition: background-color 0.3s ease;
-}
+.swipe-area-box { position: absolute; top: 0; left: 0; display: flex; flex-direction: column; }
+.swipe-area { width: 352px; height: 265px; opacity: 0;}
+.swipe-area-wallpaper { width: 352px; height: 784px; opacity: 0%; }
 </style>

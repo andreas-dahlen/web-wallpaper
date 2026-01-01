@@ -1,3 +1,4 @@
+//composables/useScale.js
 import { onMounted, onBeforeUnmount } from 'vue'
 import { APP_SETTINGS } from '../config/appSettings'
 

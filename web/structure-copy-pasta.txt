@@ -1,34 +1,64 @@
-list from top layer= SRC > animations, assets, components, composables, config, data, input, scenes, styles, backups, app.vue, main.js, TODO.txt
+list from top layer= SRC > animations, assets, components, composables, config, input, reactiveStates, scenes, styles, backups, app.vue, main.js, TODO.txt
 
-animations > tochVisuals.js (was used to handel CSS logic using el.style.setProperty... currently unused...
+animations > touchVisuals.js (currently unused animation delegation)
 
-assets > icons, images, sound
+assets > icons, images, sounds (currently unused)
 
-components > SwipeCarousel.vue (template for lanes), swipeZones.vue (positioned absolute input layer), TouchArea.vue (i use this everywhere... if i need a touch i use it :P)
+components >
+	buttonGrid.vue (grid of buttons using v-for calling TouchArea components)
+	DebugPanel.vue (new thing... currently not implemented)
+	SwipeCarousel.vue (how i used to make Carousel components)
+	SwipeZones.vue (invisible zone containing TouchArea components that only handels the input and registered it)
+	TouchArea.vue (a component i use everywhere i want to register touch/swipes whatever)
 
-composables > useScale.js (handles scaling on #app), swipeEngine.js (handels some swipe logic or whatever xD)
+composables > useScale.js (scale config apply)
 
-config > appSettings.js
+config > appSettings.js (handels all types of configs... exports mainly APP_SETTINGS and DEBUG objects)
 
-data > SwipeState.js
+this is the current reworked part and im not completly used to how/what files do :p ===
+input > bus, core, debug, drivers, gestures
+	
+	bus > gestureBus.js (subscribed and unsubscribes listeners to a set)
+		gestureTypes.js (contract between JS and kotlin)
 
-input > inputEngine.js (main engine that registers swipes, button down and button up etc), nativeBridge.js (translate between kotlin and inputEngine), debugInput.js (debug functions that can be called... currently fairly defective... )
+	core > inputRegistry.js (replaced inputEngine registraction)
+		inputRouter.js (handels the mode if im running on JS or Android from app_settings.inputMode js or android)
 
-scenes > lanes > top, bottom, middle (these contain a,b,c for all current lanezones..
+	debug > inputDebug.js (exports log function, drawdot, gestureBusLog and debugLagTime that can be called to track different stuff in console and drawdot is to visually track input during tests)
+
+	drivers > (this is what used to be called engine)
+		androidInputDriver.js ( Expose global handleTouch for Android WebView bridge)
+		jsInputDriver.js (JS-only input driver... used for debuging i guess)
+
+	gestures > pressGesture.js (not sure... handels FSMstates and emits stuff)
+		swipeGestures.js (same thing i guess for swipes)
+
+	reactiveStates > SwipeState.js (an old file that exported a reactive const for swipe places)
+	
+scenes > lanes > bottom > a.vue, b.vue, c.vue 
+		mid > ....
+		top > ....
+		wallpaper ....
+		(decides what shows in different types of carousels)
 
 
-scenes > WallpaperRoot.vue (the one file that is responsible for the whole layout), ZoneLayout.vue (suppose to be responsible for how the lanes should be ported into WallpaperRoot... currently does nothing)
+	BKGimage.vue (positioning for the wallpaper carousel)
+	ZoneLayout.vue (positioning and stuff for the top, mid, bottom carousels)
+	WallpaperRoot.vue (this is where almost everything is being mounted)
 
-styles > (all my CSS that isn't vue file specific) 
+backups (contains deletable files tbf.. already have git branch backups)
 
-xBACKUPS
+App.vue (wallpaperRoot.vue is mounted here)
 
-app.vue only calls WallpaperRoot and useScale
+main.js (main JS stuff :p)
 
-main.js = import { createApp } from 'vue'
-import App from './App.vue'
-import './input/nativeBridge'
-import './styles/main.css'
+TODO.txt (a list of stuff that needs to be done.. currently old and unused)
 
-createApp(App).mount('#app')
+
+kotlin has files aswell they are JSBridge.kt, WallpaperService.kt, engine.kt and debug.kt basically... 
+
+
+
+
+
 

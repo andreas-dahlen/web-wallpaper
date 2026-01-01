@@ -1,24 +1,19 @@
 <template>
     <div class="button-area-grid">
-        <!-- <div v-for="item in buttons" :key="item"> -->
-            <TouchArea 
-                v-for="item in buttons"
-                :key="item.id"
-                class="button"
-                :action="item"
-                :onPress="onPress"
-                :onRelease="onRelease" 
-                :onPressCancel="onCancel" 
-            />
-        <!-- </div> -->
+        <TouchArea 
+            v-for="item in buttons"
+            :key="item.id"
+            class="button"
+            :action="item"
+            :onPress="onPress"
+            :onRelease="onRelease" 
+            :onPressCancel="onCancel" 
+        />
     </div>
 </template>
 
 <script setup>
 import TouchArea from './TouchArea.vue'
-import { APP_SETTINGS } from '../config/appSettings'
-
-defineOptions({ name: 'ButtonZone' })
 
 const buttons = [
   { id: 1, label: 'one', type: 'spotify' },

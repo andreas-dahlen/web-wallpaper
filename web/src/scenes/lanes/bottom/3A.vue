@@ -6,7 +6,7 @@
 </template>
 
 <script setup>
-  import ButtonZone from '../../../components/buttonGrid.vue';
+  import ButtonZone from '../../../components/ButtonGrid.vue';
   defineOptions({ name: 'BottomA' })
 </script>
 
