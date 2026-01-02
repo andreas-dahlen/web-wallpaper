@@ -40,7 +40,7 @@ export const DEBUG = {
 
   FSMDown: false,
   FSMMove: false,
-  elTest: false,
+  elTest: true,
 
   swipeFSM: true,      // for FSM state transitions
   swipeMoves: true,    // for swipe delta logs
