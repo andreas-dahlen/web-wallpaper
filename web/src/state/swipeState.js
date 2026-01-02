@@ -1,29 +1,7 @@
-// src/state/swipeState.js
 import { reactive } from 'vue'
 
 export const swipeState = reactive({
   lanes: {}
-//     [top]: {
-//       index: 0,
-//       offset: 0,   // drag offset in px or normalized units
-//       count: 0     // number of items in lane
-//     },
-//     [mid]: {
-//       index: 0,
-//       offset: 0,   // drag offset in px or normalized units
-//       count: 0     // number of items in lane
-//     },
-//     [bottom]: {
-//       index: 0,
-//       offset: 0,   // drag offset in px or normalized units
-//       count: 0     // number of items in lane
-//     },
-//     [wallpaper]: {
-//       index: 0,
-//       offset: 0,   // drag offset in px or normalized units
-//       count: 0     // number of items in lane
-//     }
-//   }
 })
 
 /* -------------------------
@@ -35,7 +13,10 @@ export function ensureLane(laneId) {
     swipeState.lanes[laneId] = {
       index: 0,
       offset: 0,
-      count: 0
+      count: 0,
+      pendingDir: null,
+      dragging: false,
+      size: 0 // width or height of lane
     }
   }
   return swipeState.lanes[laneId]
@@ -51,19 +32,36 @@ export function setLaneIndex(laneId, index) {
   const lane = ensureLane(laneId)
   lane.index = clamp(index, 0, lane.count - 1)
   lane.offset = 0
+  lane.pendingDir = null
+}
+
+export function setLaneSize(laneId, size) {
+  ensureLane(laneId).size = size
+}
+
+export function setLaneDragging(laneId, dragging) {
+  ensureLane(laneId).dragging = dragging
 }
 
 export function applyLaneOffset(laneId, offset) {
-  const lane = ensureLane(laneId)
-  lane.offset = offset
+  ensureLane(laneId).offset = offset
 }
 
-export function commitLaneSwipe(laneId, direction) {
+/* -------------------------
+   Swipe commit (animation start)
+-------------------------- */
+
+export function commitLaneSwipe(laneId, dir) {
   const lane = ensureLane(laneId)
-  if (direction === 'left') lane.index++
-  if (direction === 'right') lane.index--
-  lane.index = clamp(lane.index, 0, lane.count - 1)
-  lane.offset = 0
+  if (!lane.count || !lane.size) return
+
+  lane.pendingDir = dir
+  lane.dragging = false
+
+  // set offset to full swipe distance (animation will handle transition)
+  lane.offset =
+    dir === 'right' || dir === 'down' ? lane.size :
+    dir === 'left' || dir === 'up'   ? -lane.size : 0
 }
 
 /* -------------------------

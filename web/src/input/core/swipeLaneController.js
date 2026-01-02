@@ -1,11 +1,6 @@
-// src/input/core/swipeLaneController.js
 import { gestureBus } from '../bus/gestureBus'
 import { GestureType } from '../bus/gestureTypes'
-import {
-  ensureLane,
-  applyLaneOffset,
-  commitLaneSwipe
-} from '../../state/swipeState'
+import { ensureLane, applyLaneOffset, commitLaneSwipe } from '../../state/swipeState'
 import { APP_SETTINGS } from '../../config/appSettings'
 
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeViewChangeThreshold || 40
@@ -21,7 +16,6 @@ export function initSwipeLaneController() {
 }
 
 function onSwipeStart({ el, axis }) {
-  // TouchArea must define which lane it belongs to
   const laneId = el?.dataset?.lane
   if (!laneId) return
 
@@ -29,31 +23,41 @@ function onSwipeStart({ el, axis }) {
   activeAxis = axis
   totalDelta = 0
 
-  ensureLane(laneId)
+  const lane = ensureLane(laneId)
+  lane.dragging = true
+  lane.pendingDir = null
 }
 
 function onSwipeMove({ delta }) {
   if (!activeLane) return
+  const lane = ensureLane(activeLane)
+  if (!lane.dragging || lane.pendingDir) return
 
   totalDelta += delta
   applyLaneOffset(activeLane, totalDelta)
 }
 
 function onSwipeEnd() {
-  if (!activeLane) return
+  if (!activeLane || !activeAxis) return
 
+  const lane = ensureLane(activeLane)
+
+  // Commit swipe only if past threshold
   if (Math.abs(totalDelta) > SWIPE_THRESHOLD) {
-    const dir = totalDelta > 0 ? 'right' : 'left'
+    const dir =
+      activeAxis === 'horizontal'
+        ? totalDelta > 0 ? 'right' : 'left'
+        : totalDelta > 0 ? 'down'  : 'up'
+
     commitLaneSwipe(activeLane, dir)
   } else {
-    // snap back
-    applyLaneOffset(activeLane, 0)
+    // Snap back if threshold not reached
+    lane.offset = 0
+    lane.pendingDir = null
+    lane.dragging = false
   }
 
-  reset()
-}
-
-function reset() {
+  // Reset local controller state
   activeLane = null
   activeAxis = null
   totalDelta = 0

@@ -33,15 +33,15 @@ export const DEBUG = {
 
   doubleTrubble: false,
   androidInputs: false,
-  jsInputs: true,
+  jsInputs: false,
 
-  debugLagTime: true,
+  debugLagTime: false,
   drawDots: false,
 
   FSMDown: false,
   FSMMove: false,
-  elTest: true,
+  elTest: false,
 
-  swipeFSM: true,      // for FSM state transitions
-  swipeMoves: true,    // for swipe delta logs
+  swipeFSM: false,      // for FSM state transitions
+  swipeMoves: false,    // for swipe delta logs
 }
