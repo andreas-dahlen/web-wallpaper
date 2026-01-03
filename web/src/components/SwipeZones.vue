@@ -57,6 +57,7 @@ const wallpaper = {
   position: absolute;
   left: 0;
   top: 0;
+  z-index: 10; /* Above visual layers */
 }
 
 /* horizontal lanes */

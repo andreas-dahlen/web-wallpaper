@@ -86,11 +86,11 @@ Update `src/bootstrap/initInputSystem.js`:
 ```javascript
 import { initInputRouter } from '../input/core/inputRouter'
 import { initSwipeLaneController } from '../input/core/swipeLaneController'
-import { kotlinPositionHandler } from '../input/core/kotlinPositionHandler'  // NEW
+import { androidGestureAdapter } from '../input/core/androidGestureAdapter'  // NEW
 
 export function initInputSystem() {
   // NEW: Attach the Kotlin bridge
-  window.GestureCallback = kotlinPositionHandler
+  window.GestureCallback = androidGestureAdapter
 
   // Existing: Initialize input routing
   initInputRouter('js', document.body)
@@ -124,7 +124,7 @@ If carousel moved → 🎉 Integration successful!
 
 ## 📞 File Locations
 
-- **JS Handler:** `src/input/core/kotlinPositionHandler.js` ← Ready to use!
+- **JS Handler:** `src/input/core/androidGestureAdapter.js` ← Ready to use!
 - **Kotlin Bridge:** Your `SwipeEngine.onDown/onMove/onUp` ← Add calls
 - **Bootstrap:** `src/bootstrap/initInputSystem.js` ← Update one line
 
@@ -137,7 +137,7 @@ Kotlin: onSwipeMove(150, 100)
   ↓
 JS: window.GestureCallback.onSwipeMove(150, 100)
   ↓
-kotlinPositionHandler.onSwipeMove()
+androidGestureAdapter.onSwipeMove()
   - Calculates: delta = (150 - lastX)
   - Emits: gestureBus.emit(SWIPE_MOVE, {delta, total})
   ↓
@@ -156,7 +156,7 @@ No magic, just position → delta → event → state → UI
 
 | File | What It Does |
 |------|------------|
-| `kotlinPositionHandler.js` | Converts Kotlin positions to gesture events |
+| `androidGestureAdapter.js` | Converts Kotlin positions to gesture events |
 | `swipeLaneController.js` | Listens to events, updates carousel state |
 | `swipeState.js` | Vue reactive state for carousel |
 
@@ -180,7 +180,7 @@ All three work together. You just feed positions from Kotlin!
 
 ❌ **Not attaching the bridge**
 - `window.GestureCallback` is undefined
-- ✅ Do: `window.GestureCallback = kotlinPositionHandler` in bootstrap
+- ✅ Do: `window.GestureCallback = androidGestureAdapter` in bootstrap
 
 ---
 
@@ -190,7 +190,7 @@ All three work together. You just feed positions from Kotlin!
 - [ ] Added `webView?.post { evaluateJavascript(...) }` in Kotlin onMove
 - [ ] Added `webView?.post { evaluateJavascript(...) }` in Kotlin momentum loop
 - [ ] Added `webView?.post { evaluateJavascript(...) }` at end of momentum
-- [ ] Updated `initInputSystem.js` to attach `kotlinPositionHandler`
+- [ ] Updated `initInputSystem.js` to attach `androidGestureAdapter`
 - [ ] Browser test: Swipe moves carousel
 - [ ] Kotlin test: Native swipe moves carousel
 
@@ -256,7 +256,7 @@ Just connect the dots!
 
 ## 🚀 Ready?
 
-1. Open `src/input/core/kotlinPositionHandler.js` - It's there!
+1. Open `src/input/core/androidGestureAdapter.js` - It's there!
 2. Add 4 calls to your Kotlin `SwipeEngine`
 3. Update `src/bootstrap/initInputSystem.js` with one line
 4. Test in browser

@@ -17,7 +17,10 @@ export function useScale({ targetId = 'app' } = {}) {
     window.__APP_SCALE = scale
 
     const el = document.getElementById(targetId)
-    if (el) el.style.transform = `scale(${scale})`
+    if (el) {
+      el.style.transform = `scale(${scale})`
+      el.style.transformOrigin = '0 0' // Scale from top-left for correct coordinate mapping
+    }
   }
 
   onMounted(() => {

@@ -7,13 +7,17 @@ import kotlin.math.roundToInt
 object GestureDebug {
 
     // -----------------------------
-    // Debug settings
+    // Debug settings (matches JS appSettings.DEBUG)
     // -----------------------------
     object DEBUG {
         var enabled = true
-        object input {
-            var inputLag = true
-        }
+        
+        // Performance tracking
+        var lagTime = true            // Input lag measurements
+        
+        // Kotlin-specific
+        var swipeEngine = false       // SwipeEngine momentum logs (disable - kotlinBridge shows all events)
+        var kotlinBridge = true       // JS bridge communication logs ✅ SHOWS NORMALIZED COORDS SENT TO JS
     }
 
     // -----------------------------
@@ -23,28 +27,52 @@ object GestureDebug {
 
     private val timeList = mutableListOf<LagEntry>()
 
+    /**
+     * Track performance lag between gesture events.
+     * Matches JS debugLagTime() functionality.
+     */
     fun track(label: String) {
-        if (!DEBUG.enabled || !DEBUG.input.inputLag) return
+        if (!DEBUG.enabled || !DEBUG.lagTime) return
 
         val now = System.nanoTime() / 1_000_000.0 // convert ns → ms
         timeList.add(LagEntry(label, now))
     }
 
+    /**
+     * Output lag measurements. Matches JS debugLagTime('log') format.
+     */
     fun logLag() {
-        if (!DEBUG.enabled || !DEBUG.input.inputLag) return
+        if (!DEBUG.enabled || !DEBUG.lagTime) return
 
         for (i in 0 until timeList.size - 1) {
             val a = timeList[i]
             val b = timeList[i + 1]
             val delta = (b.timeMs - a.timeMs).roundToInt()
-            Log.d("LAG", "${a.label} → ${b.label}: $delta ms")
+            Log.d("lagTime", "${a.label} → ${b.label}: ${delta}ms")
         }
         timeList.clear()
     }
 
-    // Optional: convenience function to log normal debug events
-    fun log(type: String, x: Float, y: Float) {
+    /**
+     * Universal log function that respects DEBUG settings.
+     * Matches JS log(key, ...args) functionality.
+     * @param key Debug category key
+     * @param args Variable arguments to log
+     */
+    fun log(key: String, vararg args: Any) {
         if (!DEBUG.enabled) return
-        Log.d("GESTURE_NATIVE", "$type x=$x y=$y")
+        
+        // Check if this category is enabled
+        val enabled = when (key) {
+            "swipeEngine" -> DEBUG.swipeEngine
+            "kotlinBridge" -> DEBUG.kotlinBridge
+            "lagTime" -> DEBUG.lagTime
+            else -> false
+        }
+        
+        if (enabled) {
+            val message = args.joinToString(" ")
+            Log.d(key, message)
+        }
     }
 }

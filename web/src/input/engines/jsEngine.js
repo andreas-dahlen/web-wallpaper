@@ -21,6 +21,7 @@ export class JSEngine extends GestureEngine {
     container.addEventListener('pointermove', e => this.handle('move', e))
     container.addEventListener('pointerup', e => this.handle('up', e))
     container.addEventListener('pointercancel', () => this.pointerCancel())
+    log('jsEngine', 'Initialized with DOM event listeners')
   }
 
   handle(type, event) {
@@ -60,8 +61,8 @@ export class JSEngine extends GestureEngine {
     drawDot(x, y, 'lime')
     debugLagTime('down')
 
-    log('fsmTransitions', '↓ PRESS_PENDING', { x, y, el: this.state.pressCandidate })
-    log('elementMatching', 'Matched element:', this.state.pressCandidate)
+    log('fsmTransitions', 'PRESS_PENDING', { x, y })
+    log('elementMatching', 'Press target:', this.state.pressCandidate)
   }
 
   // -------------------------
@@ -85,18 +86,18 @@ export class JSEngine extends GestureEngine {
       else this.state.last.y = this.state.start.y
 
       debugLagTime('axisDecided')
-      log('fsmTransitions', 'Axis determined:', this.state.swipeAxis)
+      log('jsEngine', 'Axis detected:', this.state.swipeAxis)
     }
 
     const originElements = document.elementsFromPoint(this.state.start.x, this.state.start.y)
     this.state.swipeCandidate = originElements.find(el => gestureTargetRegistry.hasSwipe(el, this.state.swipeAxis)) || null
 
-    log('elementMatching', 'Swipe candidate:', this.state.swipeCandidate, 'axis:', this.state.swipeAxis)
+    log('elementMatching', 'Swipe target:', this.state.swipeCandidate, 'axis:', this.state.swipeAxis)
     
     if (!this.state.swipeCandidate) return
 
     this.state.fsmState = 'SWIPING'
-    log('fsmTransitions', '→ SWIPING', this.state.swipeAxis)
+    log('fsmTransitions', 'SWIPING', this.state.swipeAxis)
   }
 
   // -------------------------
@@ -117,7 +118,7 @@ export class JSEngine extends GestureEngine {
       cfg?.handlers?.onSwipeStart?.({ el: s.swipeCandidate, axis: s.swipeAxis })
       gestureBus.emit(GestureType.SWIPE_START, { el: s.swipeCandidate, axis: s.swipeAxis })
       s.swipeStarted = true
-      log('fsmTransitions', 'SWIPE START', s.swipeAxis)
+      log('fsmTransitions', 'SWIPE_START', s.swipeAxis)
     }
 
     const cfg = gestureTargetRegistry.getSwipeConfig(s.swipeCandidate)
@@ -129,7 +130,7 @@ export class JSEngine extends GestureEngine {
     cfg?.handlers[dir]?.({ el: s.swipeCandidate, delta: stepDelta, total: s.swipeAccum })
     gestureBus.emit(GestureType.SWIPE_MOVE, { axis: s.swipeAxis, delta: stepDelta, total: s.swipeAccum })
 
-    log('fsmMove', 'move', { delta: stepDelta, total: s.swipeAccum, dir })
+    log('fsmMove', `${s.swipeAxis} ${dir}`, { delta: stepDelta, total: s.swipeAccum })
     log('swipeMovement', `${s.swipeAxis} ${dir}`, { delta: stepDelta, accum: s.swipeAccum })
 
     if (s.swipeAxis === 'horizontal') s.last.x = x
@@ -146,11 +147,11 @@ export class JSEngine extends GestureEngine {
       const cfg = gestureTargetRegistry.getSwipeConfig(s.swipeCandidate)
       cfg?.handlers?.onSwipeRelease?.({ el: s.swipeCandidate, total: s.swipeAccum })
       gestureBus.emit(GestureType.SWIPE_END, { axis: s.swipeAxis, total: s.swipeAccum })
-      log('fsmTransitions', 'SWIPE END', { axis: s.swipeAxis, total: s.swipeAccum })
+      log('fsmTransitions', 'SWIPE_END', { axis: s.swipeAxis, total: s.swipeAccum })
     } else if (s.fsmState === 'PRESS_PENDING' && s.pressCandidate) {
       gestureTargetRegistry.triggerRelease(s.pressCandidate, event)
       gestureBus.emit(GestureType.PRESS_END, { el: s.pressCandidate })
-      log('fsmTransitions', 'PRESS END')
+      log('fsmTransitions', 'PRESS_END')
     }
 
     this.reset()
@@ -164,7 +165,7 @@ export class JSEngine extends GestureEngine {
     if (s.pressCandidate) {
       gestureTargetRegistry.triggerCancel(s.pressCandidate)
     }
-    log('fsmTransitions', 'POINTER CANCEL')
+    log('fsmTransitions', 'CANCEL')
     this.reset()
   }
 

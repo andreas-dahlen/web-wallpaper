@@ -21,7 +21,7 @@ Your input system has been **completely restructured and cleaned up**. Here's wh
 - ✨ `engines/kotlinEngine.js` - Kotlin wrapper (for reference)
 
 **Kotlin Bridge (NEW):**
-- ✨ `core/kotlinPositionHandler.js` - **Position-based bridge** ← Your optimized approach!
+- ✨ `core/androidGestureAdapter.js` - **Position-based bridge** ← Your optimized approach!
 
 ### 3. Updated Core Routing
 - 📝 `core/inputRouter.js` - Now supports engine selection (`initInputRouter('js'|'kotlin')`)
@@ -61,7 +61,7 @@ Your Kotlin `SwipeEngine` revealed a **better-than-expected design**:
 ┌─────────────────────────────────────────────────────────┐
 │ JavaScript (Web Platform)                                │
 ├─────────────────────────────────────────────────────────┤
-│ kotlinPositionHandler                                    │
+│ androidGestureAdapter                                    │
 │ ├─ Receives positions from Kotlin                       │
 │ ├─ Calculates deltas (current - last)                  │
 │ ├─ Detects axis (horizontal vs vertical)               │
@@ -112,7 +112,7 @@ input/
 │   ├── inputRegistry.js           ← Element registry (unchanged)
 │   ├── inputRouter.js             ← Engine selector (UPDATED)
 │   ├── swipeLaneController.js     ← Carousel event listener
-│   └── kotlinPositionHandler.js   ← Kotlin bridge (NEW!)
+│   └── androidGestureAdapter.js   ← Kotlin bridge (NEW!)
 ├── debug/
 │   └── inputDebug.js              ← Logging utilities
 └── engines/
@@ -130,7 +130,7 @@ input/
 // src/bootstrap/initInputSystem.js
 import { initInputRouter } from '../input/core/inputRouter'
 import { initSwipeLaneController } from '../input/core/swipeLaneController'
-import { kotlinPositionHandler } from '../input/core/kotlinPositionHandler'
+import { androidGestureAdapter } from '../input/core/androidGestureAdapter'
 
 export function initInputSystem() {
   // Test in browser first
@@ -192,10 +192,10 @@ fun onUp(...) {
 
 ```javascript
 // src/bootstrap/initInputSystem.js (update)
-import { kotlinPositionHandler } from '../input/core/kotlinPositionHandler'
+import { androidGestureAdapter } from '../input/core/androidGestureAdapter'
 
 export function initInputSystem() {
-  window.GestureCallback = kotlinPositionHandler  // NEW!
+  window.GestureCallback = androidGestureAdapter  // NEW!
   initInputRouter('js', document.body)
   initSwipeLaneController()
 }
@@ -231,7 +231,7 @@ console.log(swipeState.lanes)
 - **kotlinEngine.js** - Wrapper for native (reference, not actively used)
 
 ### Kotlin Bridge (NEW)
-- **kotlinPositionHandler.js** - Converts Kotlin positions → gesture events
+- **androidGestureAdapter.js** - Converts Kotlin positions → gesture events
 
 ### State Management
 - **swipeLaneController.js** - Listens to gestureBus, updates swipeState
@@ -248,12 +248,12 @@ console.log(swipeState.lanes)
 
 2. **swipeState.js serves UI, not input**
    - Don't confuse input state (FSM) with UI state (carousel)
-   - Input state is now in `jsEngine.state` and `kotlinPositionHandler`
+   - Input state is now in `jsEngine.state` and `androidGestureAdapter`
    - UI state (index, offset, animation) is in `swipeState.lanes`
 
 3. **The event bus is the universal contract**
    - Browser → JSEngine → gestureBus
-   - Kotlin → kotlinPositionHandler → gestureBus
+   - Kotlin → androidGestureAdapter → gestureBus
    - Carousel listens to gestureBus, agnostic of source
 
 4. **No app code changes needed**
@@ -289,7 +289,7 @@ console.log(swipeState.lanes)
 All infrastructure is in place:
 - ✅ Code cleaned up
 - ✅ Architecture defined
-- ✅ Kotlin bridge ready (`kotlinPositionHandler.js`)
+- ✅ Kotlin bridge ready (`androidGestureAdapter.js`)
 - ✅ Documentation comprehensive
 - ✅ Next steps clear
 

@@ -6,7 +6,7 @@
 - [x] `inputState.js` - Shared state
 - [x] `jsEngine.js` - Browser engine
 - [x] `inputRouter.js` - Engine selector
-- [x] `kotlinPositionHandler.js` - **NEW** Kotlin bridge ← CREATE THIS
+- [x] `androidGestureAdapter.js` - **NEW** Kotlin bridge ← CREATE THIS
 - [x] Removed deprecated files (pressGesture, swipeGesture, unifiedInputDriver)
 - [x] Documentation updated for position-based approach
 
@@ -28,11 +28,11 @@
 // src/bootstrap/initInputSystem.js
 import { initInputRouter } from '../input/core/inputRouter'
 import { initSwipeLaneController } from '../input/core/swipeLaneController'
-import { kotlinPositionHandler } from '../input/core/kotlinPositionHandler'
+import { androidGestureAdapter } from '../input/core/androidGestureAdapter'
 
 export function initInputSystem() {
   // Attach Kotlin bridge
-  window.GestureCallback = kotlinPositionHandler
+  window.GestureCallback = androidGestureAdapter
 
   // Initialize routing (JS engine for carousel FSM)
   initInputRouter('js', document.body)
@@ -142,7 +142,7 @@ fun sendToJS(method: String, x: Float, y: Float) {
 ### 2. Check JS Bridge → Event Bus
 
 ```javascript
-// In kotlinPositionHandler.js, already has logging:
+// In androidGestureAdapter.js, already has logging:
 log('KotlinHandler', 'SWIPE_MOVE', { delta, total: totalDelta })
 
 // Enable debug logging
@@ -274,9 +274,9 @@ console.log('Lane state:', swipeState.lanes)
 
 | File | Status | Notes |
 |------|--------|-------|
-| `input/core/kotlinPositionHandler.js` | ✨ NEW | Copy into your project |
+| `input/core/androidGestureAdapter.js` | ✨ NEW | Copy into your project |
 | `input/core/inputRouter.js` | 📝 UPDATED | Already done |
-| `bootstrap/initInputSystem.js` | 📝 NEEDS UPDATE | Add kotlinPositionHandler |
+| `bootstrap/initInputSystem.js` | 📝 NEEDS UPDATE | Add androidGestureAdapter |
 | Kotlin SwipeEngine | ⏳ NEEDS UPDATE | Add JS bridge calls |
 
 ---

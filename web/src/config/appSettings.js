@@ -1,9 +1,6 @@
 //config/appSettings.js
 
 export const APP_SETTINGS = {
-  // Engine selection: 'js' | 'android'
-  engineType: 'js',
-
   phone: {
     width: 364,
     height: 800,
@@ -23,7 +20,7 @@ export const APP_SETTINGS = {
     laneHeight: 265,     // optional, same as phone height
     swipeAnimationMs: 300, // used for CSS transition duration
     swipeSpeedMultiplier: 1.2,
-    laneLenghts: {
+    laneLengths: {
       top: 3,
       mid: 3,
       bottom: 3
@@ -35,23 +32,26 @@ export const APP_SETTINGS = {
 export const DEBUG = {
   enabled: true,
 
+  // Bridge & Initialization
+  kotlinBridge: true,       // Kotlin-JS bridge initialization ✅ ENABLE TO SEE BRIDGE SETUP
+
   // Input engines
-  jsEngine: true,           // JS pointer event handler logs
-  androidAdapter: true,     // Android gesture adapter logs
+  jsEngine: false,          // JS pointer event handler logs (disable for Android testing)
+  androidAdapter: true,     // Android gesture adapter logs ✅ ENABLE FOR ANDROID TESTING
 
   // Gesture FSM (split to avoid spam)
-  fsmTransitions: true,     // FSM state changes: DOWN, UP, CANCEL
-  fsmMove: false,            // FSM MOVE events (fires 60x/sec - very spammy!)
+  fsmTransitions: false,    // FSM state changes: DOWN, UP, CANCEL (disable - reduces noise)
+  fsmMove: false,           // FSM MOVE events (fires 60x/sec - very spammy!)
 
   // Swipe processing
-  swipeMovement: true,      // Swipe delta and accumulation logs
-  elementMatching: false,    // Which element matched for gesture
+  swipeMovement: false,     // Swipe delta and accumulation logs (disable for cleaner output)
+  elementMatching: true,    // Which element matched for gesture ✅ CRITICAL - SHOWS COORDINATE CONVERSION & REGISTRY LOOKUP
 
-  // UI/Carousel integration
-  targetRegistry: false,     // Element registration/unregistration
-  carouselUpdates: true,    // Carousel state changes from gestures
+  // Component Registration (CRITICAL for debugging)
+  targetRegistry: true,     // TouchArea registration/unregistration ✅ CRITICAL - VERIFY COMPONENTS MOUNT
+  carouselUpdates: false,   // Carousel state changes (disable until gestures work)
 
   // Visual/Performance
-  drawDots: false,           // Draw pointer position dots on screen
-  lagTime: false,            // Log timing/performance metrics
+  drawDots: false,          // Draw pointer position dots on screen (disable for Android)
+  lagTime: false,           // Log timing/performance metrics (disable - reduces noise)
 }

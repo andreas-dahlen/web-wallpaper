@@ -11,6 +11,7 @@ object SwipeEngine {
     private var velocityY = 0f
     private var lastTime = 0L
     private var active = false
+    private var momentumThread: Thread? = null  // Track momentum animation thread
 
     private const val DECAY = 0.9f
     private const val MIN_VELOCITY = 0.5f
@@ -23,7 +24,6 @@ object SwipeEngine {
         velocityY = 0f
         lastTime = SystemClock.uptimeMillis()
         active = true
-        GestureDebug.log("down", x, y)
     }
 
     fun onMove(x: Float, y: Float) {
@@ -38,33 +38,46 @@ object SwipeEngine {
         lastX = x
         lastY = y
         lastTime = now
-
-        GestureDebug.log("move", x, y)
     }
 
-    fun onUp(onUpdate: (Float, Float) -> Unit) {
+    fun onUp(onUpdate: (Float, Float) -> Unit, onComplete: () -> Unit) {
         if (!active) return
         active = false
+
+        // Cancel any existing momentum animation before starting new one
+        momentumThread?.interrupt()
+        momentumThread = null
 
         var posX = lastX
         var posY = lastY
         var vX = velocityX
         var vY = velocityY
 
-        Thread {
-            while (abs(vX) > MIN_VELOCITY || abs(vY) > MIN_VELOCITY) {
-                posX += vX * FRAME_MS
-                posY += vY * FRAME_MS
+        momentumThread = Thread {
+            try {
+                while (abs(vX) > MIN_VELOCITY || abs(vY) > MIN_VELOCITY) {
+                    posX += vX * FRAME_MS
+                    posY += vY * FRAME_MS
 
-                onUpdate(posX, posY)
+                    onUpdate(posX, posY)
 
-                vX *= DECAY
-                vY *= DECAY
+                    vX *= DECAY
+                    vY *= DECAY
 
-                Thread.sleep(FRAME_MS)
+                    Thread.sleep(FRAME_MS)
+                }
+                
+                // Signal completion after momentum finishes
+                onComplete()
+            } catch (e: InterruptedException) {
+                // Thread was cancelled - this is normal when user taps rapidly
+                GestureDebug.log("swipeEngine", "Momentum animation cancelled")
+            } finally {
+                momentumThread = null
             }
-        }.start()
-
-        GestureDebug.log("up", lastX, lastY)
+        }
+        
+        GestureDebug.log("swipeEngine", "Momentum: vx=${String.format("%.2f", velocityX)} vy=${String.format("%.2f", velocityY)}")
+        momentumThread?.start()
     }
 }

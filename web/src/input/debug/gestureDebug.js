@@ -1,18 +1,22 @@
 import { DEBUG } from '../../config/appSettings'
 
+/**
+ * Universal log function that respects DEBUG settings.
+ * @param {string} key - Debug category key (must exist in DEBUG object)
+ * @param {...any} args - Arguments to log
+ */
 export function log(key, ...args) {
     if (!DEBUG.enabled) return
+    if (!DEBUG[key]) return
 
-    if (DEBUG[key]) {
-        const time = new Date().toLocaleTimeString('en-US', { 
-            hour12: false, 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit', 
-            fractionalSecondDigits: 3 
-        })
-        console.log(`[${time}] [DEBUG:${key}]`, ...args)
-    }
+    const time = new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit', 
+        fractionalSecondDigits: 3 
+    })
+    console.log(`[${time}] [${key}]`, ...args)
 }
 
 // Draw using raw SCREEN PIXELS ONLY
@@ -36,16 +40,20 @@ export function drawDot(x, y, color = 'red') {
 
 let timeList = []
 
+/**
+ * Track performance lag between gesture events.
+ * Call with label to track, call with 'log' to output results.
+ * @param {string} label - Event label or 'log' to output
+ */
 export function debugLagTime(label) {
-    if (!DEBUG.enabled || !DEBUG['debugLagTime']) return
+    if (!DEBUG.enabled || !DEBUG.lagTime) return
 
     if (label === 'log') {
         for (let i = 0; i < timeList.length - 1; i++) {
             const a = timeList[i]
             const b = timeList[i + 1]
-            console.log(
-                `[LAG] ${a.label} → ${b.label}: ${(b.t - a.t).toFixed(2)} ms`
-            )
+            const delta = (b.t - a.t).toFixed(1)
+            console.log(`[lagTime] ${a.label} → ${b.label}: ${delta}ms`)
         }
         timeList = []
     } else {

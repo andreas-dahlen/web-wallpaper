@@ -35,7 +35,8 @@ class WebWallpaperService : WallpaperService() {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
                         // Initialize Android gesture engine after page loads
-                        webView.evaluateJavascript("window.initAndroidEngine()", null)
+                        // Retry logic ensures bridge functions are available
+                        initializeGestureEngine()
                     }
                 }
                 addJavascriptInterface(JSBridge(applicationContext), "Android")
@@ -87,23 +88,32 @@ class WebWallpaperService : WallpaperService() {
                 MotionEvent.ACTION_CANCEL -> {
                     GestureDebug.track("pointerUp")
 
-                    SwipeEngine.onUp { x, y ->
-                        val w = surfaceHolder.surfaceFrame.width().toFloat()
-                        val h = surfaceHolder.surfaceFrame.height().toFloat()
+                    SwipeEngine.onUp(
+                        onUpdate = { x, y ->
+                            val w = surfaceHolder.surfaceFrame.width().toFloat()
+                            val h = surfaceHolder.surfaceFrame.height().toFloat()
 
-                        val normX = (x / w) * BASE_WIDTH
-                        val normY = (y / h) * BASE_HEIGHT
+                            val normX = (x / w) * BASE_WIDTH
+                            val normY = (y / h) * BASE_HEIGHT
 
-                        handler.post {
-                            webView.evaluateJavascript(
-                                "handleTouch('move', $normX, $normY)",
-                                null
-                            )
+                            handler.post {
+                                webView.evaluateJavascript(
+                                    "handleTouch('move', $normX, $normY)",
+                                    null
+                                )
+                            }
+                        },
+                        onComplete = {
+                            // Send final 'up' event when momentum finishes
+                            handler.post {
+                                webView.evaluateJavascript(
+                                    "handleTouch('up', 0, 0)",
+                                    null
+                                )
+                                GestureDebug.logLag()
+                            }
                         }
-                    }
-
-                    sendToJS("up", event.x, event.y)
-                    GestureDebug.logLag()
+                    )
                 }
             }
         }
@@ -115,6 +125,8 @@ class WebWallpaperService : WallpaperService() {
             val normX = (x / w) * BASE_WIDTH
             val normY = (y / h) * BASE_HEIGHT
 
+            GestureDebug.log("kotlinBridge", "→ JS handleTouch('$type', ${normX.toInt()}, ${normY.toInt()})")
+
             webView.evaluateJavascript(
                 "handleTouch('$type', $normX, $normY)",
                 null
@@ -125,6 +137,38 @@ class WebWallpaperService : WallpaperService() {
             handler.removeCallbacksAndMessages(null)
             webView.destroy()
             super.onDestroy()
+        }
+
+        /**
+         * Initialize gesture engine with retry logic to handle race conditions.
+         * JS bridge functions may not be available immediately after page load.
+         */
+        private fun initializeGestureEngine(attempt: Int = 1) {
+            webView.evaluateJavascript(
+                """
+                (function() {
+                    if (typeof window.initAndroidEngine === 'function') {
+                        window.initAndroidEngine();
+                        return 'success';
+                    }
+                    return 'not_ready';
+                })();
+                """.trimIndent()
+            ) { result ->
+                when {
+                    result?.contains("success") == true -> {
+                        GestureDebug.log("kotlinBridge", "Gesture engine initialized successfully")
+                    }
+                    attempt < 5 -> {
+                        // Retry after delay if bridge not ready
+                        handler.postDelayed({ initializeGestureEngine(attempt + 1) }, 100L * attempt)
+                        GestureDebug.log("kotlinBridge", "Bridge not ready, retry attempt $attempt")
+                    }
+                    else -> {
+                        GestureDebug.log("kotlinBridge", "ERROR: Failed to initialize gesture engine after $attempt attempts")
+                    }
+                }
+            }
         }
     }
 }
