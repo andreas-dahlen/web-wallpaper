@@ -9,7 +9,6 @@ import { gestureBus } from '../bus/gestureBus'
 import { GestureType } from '../bus/gestureTypes'
 import { debugLagTime, drawDot, log } from '../debug/gestureDebug'
 import { APP_SETTINGS } from '../../config/appSettings'
-import { DEBUG } from '../../config/appSettings'
 
 export class JSEngine extends GestureEngine {
   constructor() {

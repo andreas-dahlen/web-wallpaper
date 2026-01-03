@@ -9,13 +9,15 @@ import { gestureBus } from '../bus/gestureBus'
 import { GestureType } from '../bus/gestureTypes'
 import { log } from '../debug/gestureDebug'
 
-let lastX = 0
-let lastY = 0
-let startX = 0
-let startY = 0
-let swipeAxis = null
-let totalDelta = 0
-let hasStarted = false
+const adapterState = {
+  swipeAxis: null,
+  totalDelta: 0,
+  hasStarted: false,
+  startX: 0,
+  startY: 0,
+  lastX: 0,
+  lastY: 0
+}
 
 export const androidGestureAdapter = {
   /**
@@ -24,13 +26,13 @@ export const androidGestureAdapter = {
    * @param {number} y - Initial Y coordinate
    */
   onSwipeDown(x, y) {
-    lastX = x
-    lastY = y
-    startX = x
-    startY = y
-    swipeAxis = null
-    totalDelta = 0
-    hasStarted = false
+    adapterState.lastX = x
+    adapterState.lastY = y
+    adapterState.startX = x
+    adapterState.startY = y
+    adapterState.swipeAxis = null
+    adapterState.totalDelta = 0
+    adapterState.hasStarted = false
 
     log('androidAdapter', 'DOWN', { x, y })
   },
@@ -42,13 +44,10 @@ export const androidGestureAdapter = {
    * @param {number} y - Current Y coordinate
    */
   onSwipeMove(x, y) {
-    const deltaX = x - lastX
-    const deltaY = y - lastY
-
     // Detect axis on first significant movement
-    if (!swipeAxis) {
-      const distFromStartX = Math.abs(x - startX)
-      const distFromStartY = Math.abs(y - startY)
+    if (!adapterState.swipeAxis) {
+      const distFromStartX = Math.abs(x - adapterState.startX)
+      const distFromStartY = Math.abs(y - adapterState.startY)
 
       // Threshold: 8px movement (same as jsEngine)
       if (distFromStartX < 8 && distFromStartY < 8) {
@@ -56,68 +55,83 @@ export const androidGestureAdapter = {
       }
 
       // Determine dominant direction
-      swipeAxis = distFromStartX > distFromStartY ? 'horizontal' : 'vertical'
+      adapterState.swipeAxis = distFromStartX > distFromStartY ? 'horizontal' : 'vertical'
+      adapterState.hasStarted = true
+
+      // Find which element is at these coordinates (same as jsEngine via elementFromPoint)
+      const element = document.elementFromPoint(x, y)
+      const laneId = element?.dataset?.lane || 'wallpaper'
 
       // Emit swipe start event
-      if (!hasStarted) {
-        gestureBus.emit(GestureType.SWIPE_START, {
-          axis: swipeAxis,
-          x,
-          y
-        })
-        hasStarted = true
-        log('fsmTransitions', 'Android SWIPE_START', swipeAxis)
-      }
+      gestureBus.emit(GestureType.SWIPE_START, {
+        axis: adapterState.swipeAxis,
+        laneId,
+        x,
+        y
+      })
+      log('fsmTransitions', 'Android SWIPE_START', adapterState.swipeAxis)
     }
 
     // Calculate delta in the swipe direction
-    const delta = swipeAxis === 'horizontal' ? deltaX : deltaY
-    totalDelta += delta
+    const deltaX = x - adapterState.lastX
+    const deltaY = y - adapterState.lastY
+    const delta = adapterState.swipeAxis === 'horizontal' ? deltaX : deltaY
+    adapterState.totalDelta += delta
 
-    // Emit move event (swipeLaneController listens to this)
+    // Find element at current position for lane
+    const element = document.elementFromPoint(x, y)
+    const laneId = element?.dataset?.lane || 'wallpaper'
+
+    // Emit move event
     gestureBus.emit(GestureType.SWIPE_MOVE, {
       delta,
-      total: totalDelta,
-      axis: swipeAxis,
+      total: adapterState.totalDelta,
+      axis: adapterState.swipeAxis,
+      laneId,
       x,
       y
     })
 
-    log('fsmMove', 'Android move', { delta, total: totalDelta, axis: swipeAxis })
-    log('swipeMovement', `Android ${swipeAxis}`, { delta, accum: totalDelta })
+    log('fsmMove', 'Android move', { delta, total: adapterState.totalDelta, axis: adapterState.swipeAxis })
+    log('swipeMovement', `Android ${adapterState.swipeAxis}`, { delta, accum: adapterState.totalDelta })
 
     // Update for next delta calculation
-    lastX = x
-    lastY = y
+    adapterState.lastX = x
+    adapterState.lastY = y
   },
 
   /**
    * Called by Kotlin when momentum animation completes
    */
   onSwipeEnd() {
-    if (hasStarted && swipeAxis) {
+    if (adapterState.hasStarted && adapterState.swipeAxis) {
+      // Find element at last position for lane
+      const element = document.elementFromPoint(adapterState.lastX, adapterState.lastY)
+      const laneId = element?.dataset?.lane || 'wallpaper'
+
       gestureBus.emit(GestureType.SWIPE_END, {
-        total: totalDelta,
-        axis: swipeAxis
+        total: adapterState.totalDelta,
+        axis: adapterState.swipeAxis,
+        laneId
       })
 
-      log('fsmTransitions', 'Android SWIPE_END', { axis: swipeAxis, total: totalDelta })
+      log('fsmTransitions', 'Android SWIPE_END', { axis: adapterState.swipeAxis, total: adapterState.totalDelta })
     }
 
     // Reset state
-    swipeAxis = null
-    totalDelta = 0
-    hasStarted = false
+    adapterState.swipeAxis = null
+    adapterState.totalDelta = 0
+    adapterState.hasStarted = false
   },
 
   // Debug methods
   getState() {
     return {
-      swipeAxis,
-      totalDelta,
-      hasStarted,
-      lastPos: { x: lastX, y: lastY },
-      startPos: { x: startX, y: startY }
+      swipeAxis: adapterState.swipeAxis,
+      totalDelta: adapterState.totalDelta,
+      hasStarted: adapterState.hasStarted,
+      lastPos: { x: adapterState.lastX, y: adapterState.lastY },
+      startPos: { x: adapterState.startX, y: adapterState.startY }
     }
   }
 }

@@ -1,11 +1,15 @@
 //config/appSettings.js
 
 export const APP_SETTINGS = {
+  // Engine selection: 'js' | 'android'
+  engineType: 'js',
+
   phone: {
     width: 364,
     height: 800,
     scale: 1.0
   },
+
 
   input: {
     swipeThreshold: 8, //distance before swipe is declared

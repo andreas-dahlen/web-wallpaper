@@ -7,11 +7,11 @@ let activeEngine = null
 /**
  * Initialize gesture engine router with specified engine type.
  * 
- * @param {string} engineType - 'js' | 'kotlin'
+ * @param {string} engineType - 'js' | 'android'
  * @param {Element} container - DOM container to listen on (JS engine only)
  */
 export function initGestureEngineRouter(engineType = 'js', container = window) {
-  if (engineType === 'kotlin') {
+  if (engineType === 'android') {
     activeEngine = kotlinEngine
   } else {
     activeEngine = jsEngine

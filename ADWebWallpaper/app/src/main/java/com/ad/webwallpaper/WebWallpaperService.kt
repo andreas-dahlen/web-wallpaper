@@ -31,7 +31,13 @@ class WebWallpaperService : WallpaperService() {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 setBackgroundColor(0)
-                webViewClient = WebViewClient()
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        // Initialize Android gesture engine after page loads
+                        webView.evaluateJavascript("window.initAndroidEngine()", null)
+                    }
+                }
                 addJavascriptInterface(JSBridge(applicationContext), "Android")
                 loadUrl("file:///android_asset/index.html")
             }

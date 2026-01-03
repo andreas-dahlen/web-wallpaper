@@ -17,7 +17,8 @@ export function initCarouselGestureController() {
 }
 
 function onSwipeStart({ el, axis }) {
-  const laneId = el?.dataset?.lane
+  // Get lane from DOM element OR use wallpaper as fallback for Android
+  const laneId = el?.dataset?.lane || 'wallpaper'
   if (!laneId) return
 
   activeLane = laneId
@@ -28,7 +29,7 @@ function onSwipeStart({ el, axis }) {
   lane.dragging = true
   lane.pendingDir = null
   
-  log('carouselUpdates', 'Carousel swipe start', { lane: laneId, axis })
+  log('carouselUpdates', 'Carousel swipe start', { lane: laneId, axis, source: el ? 'jsEngine' : 'androidAdapter' })
 }
 
 function onSwipeMove({ delta }) {
