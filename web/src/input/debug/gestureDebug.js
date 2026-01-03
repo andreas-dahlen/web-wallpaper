@@ -3,15 +3,15 @@ import { DEBUG } from '../../config/appSettings'
 export function log(key, ...args) {
     if (!DEBUG.enabled) return
 
-    // doubleTrubble override: logs both android and js inputs
-    if (DEBUG.doubleTrubble && (key === 'androidInputs' || key === 'jsInputs')) {
-        if (DEBUG.androidInputs) console.log('[DEBUG:ANDROID]', ...args)
-        if (DEBUG.jsInputs) console.log('[DEBUG:JS]', ...args)
-        return
-    }
-    // normal key logging
     if (DEBUG[key]) {
-        console.log(`[DEBUG:${key}]`, ...args)
+        const time = new Date().toLocaleTimeString('en-US', { 
+            hour12: false, 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit', 
+            fractionalSecondDigits: 3 
+        })
+        console.log(`[${time}] [DEBUG:${key}]`, ...args)
     }
 }
 

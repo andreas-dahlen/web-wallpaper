@@ -7,8 +7,6 @@
       class="swipe-area"
       :id="lane.id"
       :data-lane="lane.lane"
-      :onSwipeStart="onSwipeStart"
-      :onSwipeRelease="onSwipeRelease"
       :onSwipe="lane.swipeDirs"
     />
   </div>
@@ -19,8 +17,6 @@
       :id="wallpaper.id"
       :data-lane="wallpaper.lane"
       class="swipe-area-wallpaper"
-      :onSwipeStart="onSwipeStart"
-      :onSwipeRelease="onSwipeRelease"
       :onSwipe="wallpaper.swipeDirs"
     />
   </div>
@@ -28,7 +24,6 @@
 
 <script setup>
 import TouchArea from './TouchArea.vue'
-import { gestureBus } from '../input/bus/gestureBus'
 
 /* ---------- lane config ---------- */
 
@@ -36,38 +31,24 @@ const horizontalLanes = [
   {
     id: 'topLane',
     lane: 'top',
-    swipeDirs: { left: onSwipeMove, right: onSwipeMove }
+    swipeDirs: { left: () => {}, right: () => {} }
   },
   {
     id: 'midLane',
     lane: 'mid',
-    swipeDirs: { left: onSwipeMove, right: onSwipeMove }
+    swipeDirs: { left: () => {}, right: () => {} }
   },
   {
     id: 'bottomLane',
     lane: 'bottom',
-    swipeDirs: { left: onSwipeMove, right: onSwipeMove }
+    swipeDirs: { left: () => {}, right: () => {} }
   }
 ]
 
 const wallpaper = {
   id: 'wallpaperLane',
   lane: 'wallpaper',
-  swipeDirs: { up: onSwipeMove, down: onSwipeMove }
-}
-
-/* ---------- gesture forwarding ---------- */
-
-function onSwipeStart(data) {
-  gestureBus.emit('swipeStart', data)
-}
-
-function onSwipeMove(data) {
-  gestureBus.emit('swipeMove', data)
-}
-
-function onSwipeRelease(data) {
-  gestureBus.emit('swipeEnd', data)
+  swipeDirs: { up: () => {}, down: () => {} }
 }
 </script>
 

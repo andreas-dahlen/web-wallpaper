@@ -1,12 +1,12 @@
 // src/bootstrap/initInputSystem.js
-import { initInputRouter } from '../input/core/inputRouter'
-import { initSwipeLaneController } from '../input/core/swipeLaneController'
+import { initGestureEngineRouter } from '../input/core/gestureEngineRouter'
+import { initCarouselGestureController } from '../input/core/carouselGestureController'
 
 export function initInputSystem() {
 
   // Low-level input (JS / Android)
-  initInputRouter()
+  initGestureEngineRouter()
 
   // High-level swipe → state glue
-  initSwipeLaneController()
+  initCarouselGestureController()
 }

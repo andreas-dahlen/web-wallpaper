@@ -24,7 +24,7 @@
 
 <script setup>
 import { computed, watchEffect, markRaw } from 'vue'
-import { swipeState, ensureLane, setLaneCount } from '../state/swipeState'
+import { ensureLane, setLaneCount, setLaneSize } from '../state/swipeState'
 import { APP_SETTINGS } from '../config/appSettings'
 
 const props = defineProps({
@@ -40,6 +40,11 @@ const laneState = computed(() => ensureLane(props.lane))
 
 watchEffect(() => {
   setLaneCount(props.lane, props.scenes.length)
+})
+
+watchEffect(() => {
+  const size = horizontal.value ? props.width : props.height
+  setLaneSize(props.lane, size)
 })
 
 /* -------------------------
@@ -82,8 +87,10 @@ function onTransitionEnd(e) {
   const lane = laneState.value
   if (!lane.pendingDir) return
 
-  if (lane.pendingDir === 'right' || lane.pendingDir === 'down') lane.index++
-  if (lane.pendingDir === 'left' || lane.pendingDir === 'up') lane.index--
+  // 'right'/'down' offset shows PREVIOUS scene, so DECREMENT index
+  if (lane.pendingDir === 'right' || lane.pendingDir === 'down') lane.index--
+  // 'left'/'up' offset shows NEXT scene, so INCREMENT index
+  if (lane.pendingDir === 'left' || lane.pendingDir === 'up') lane.index++
 
   // Wrap around
   lane.index = (lane.index + lane.count) % lane.count

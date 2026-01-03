@@ -1,3 +1,5 @@
+import { log } from '../debug/gestureDebug'
+
 // central registry of touch/mouse targets
 class InputRegistry {
     constructor() {
@@ -7,11 +9,13 @@ class InputRegistry {
     registerTarget(el, handlers) {
         if (!el) return
         this.targets.set(el, handlers)
+        log('targetRegistry', 'Registered target:', el.id || el.className || el.tagName)
     }
 
     unregisterTarget(el) {
         if (!el) return
         this.targets.delete(el)
+        log('targetRegistry', 'Unregistered target:', el.id || el.className || el.tagName)
     }
 
     getTarget(el) {
@@ -56,4 +60,4 @@ class InputRegistry {
     }
 }
 
-export const inputRegistry = new InputRegistry()
+export const gestureTargetRegistry = new InputRegistry()

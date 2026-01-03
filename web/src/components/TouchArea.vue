@@ -6,7 +6,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { inputRegistry } from '../input/core/inputRegistry'
+import { gestureTargetRegistry } from '../input/core/gestureTargetRegistry'
 
 const props = defineProps({
   onPress: Function,
@@ -28,7 +28,7 @@ onMounted(() => {
   if (props.onSwipeStart) swipeHandlers.onSwipeStart = props.onSwipeStart
   if (props.onSwipeRelease) swipeHandlers.onSwipeRelease = props.onSwipeRelease
 
-  inputRegistry.registerTarget(el.value, {
+  gestureTargetRegistry.registerTarget(el.value, {
     onPress: () => props.onPress?.(el.value, props.action),
     onRelease: () => props.onRelease?.(el.value, props.action),
     onPressCancel: () => props.onPressCancel?.(el.value, props.action),
@@ -36,7 +36,7 @@ onMounted(() => {
   })
 })
 
-onBeforeUnmount(() => { if(el.value) inputRegistry.unregisterTarget(el.value) })
+onBeforeUnmount(() => { if(el.value) gestureTargetRegistry.unregisterTarget(el.value) })
 </script>
 
 <style scoped>

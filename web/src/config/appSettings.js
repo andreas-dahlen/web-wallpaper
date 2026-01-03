@@ -1,7 +1,6 @@
 //config/appSettings.js
-export const APP_SETTINGS = {
-  inputMode: 'js', // 'android' | 'js'
 
+export const APP_SETTINGS = {
   phone: {
     width: 364,
     height: 800,
@@ -28,20 +27,27 @@ export const APP_SETTINGS = {
   },
 }
 
+
 export const DEBUG = {
-  enabled: true, // master kill switch
+  enabled: true,
 
-  doubleTrubble: false,
-  androidInputs: false,
-  jsInputs: false,
+  // Input engines
+  jsEngine: true,           // JS pointer event handler logs
+  androidAdapter: true,     // Android gesture adapter logs
 
-  debugLagTime: false,
-  drawDots: false,
+  // Gesture FSM (split to avoid spam)
+  fsmTransitions: true,     // FSM state changes: DOWN, UP, CANCEL
+  fsmMove: false,            // FSM MOVE events (fires 60x/sec - very spammy!)
 
-  FSMDown: false,
-  FSMMove: false,
-  elTest: false,
+  // Swipe processing
+  swipeMovement: true,      // Swipe delta and accumulation logs
+  elementMatching: false,    // Which element matched for gesture
 
-  swipeFSM: false,      // for FSM state transitions
-  swipeMoves: false,    // for swipe delta logs
+  // UI/Carousel integration
+  targetRegistry: false,     // Element registration/unregistration
+  carouselUpdates: true,    // Carousel state changes from gestures
+
+  // Visual/Performance
+  drawDots: false,           // Draw pointer position dots on screen
+  lagTime: false,            // Log timing/performance metrics
 }
