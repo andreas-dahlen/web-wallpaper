@@ -11,44 +11,6 @@ import { log } from '../debug/gestureDebug'
 import { APP_SETTINGS } from '../../config/appSettings'
 import { gestureTargetRegistry } from './gestureTargetRegistry'
 
-/**
- * Walk up DOM tree to find registered target for given axis.
- * Matches jsEngine behavior: checks element and parents.
- * @param {Element} element - Starting element
- * @param {string} axis - 'horizontal' or 'vertical'
- * @returns {Element|null} Registered element or null
- */
-function findRegisteredSwipeTarget(element, axis) {
-  if (!element) {
-    log('elementMatching', `findRegisteredSwipeTarget called with null element`)
-    return null
-  }
-
-  log('elementMatching', `Looking for ${axis} target starting from: <${element.tagName}> class="${element.className}" id="${element.id}" data-lane="${element.dataset?.lane || ''}"`)
-
-  // Log what's in the registry
-  log('elementMatching', `Registry contains ${gestureTargetRegistry.targets.size} registered targets`)
-
-  let current = element
-  let depth = 0
-  const maxDepth = 8 // Increased from 5 to handle deeper nesting
-  
-  while (current && depth < maxDepth) {
-    const hasSwipe = gestureTargetRegistry.hasSwipe(current, axis)
-    log('elementMatching', `  Depth ${depth}: <${current.tagName}> class="${current.className}" hasSwipe=${hasSwipe}`)
-
-    if (hasSwipe) {
-      log('elementMatching', `✓ Found registered ${axis} target at depth ${depth}: <${current.tagName}> class="${current.className}"`)
-      return current
-    }
-    current = current.parentElement
-    depth++
-  }
-  
-  log('elementMatching', `✗ No registered ${axis} target found after ${depth} levels`)
-  return null
-}
-
 const adapterState = {
   swipeAxis: null,
   totalDelta: 0,
@@ -89,16 +51,17 @@ export const androidGestureAdapter = {
       log('elementMatching', '⚠️ __APP_SCALE not set, using scale=1 (may cause coordinate mismatch)')
     }
     
-    log('elementMatching', `Coordinate conversion: normalized(${x},${y}) * ${scale} = viewport(${viewportX.toFixed(1)},${viewportY.toFixed(1)}) window=${window.innerWidth}x${window.innerHeight}`)
+    log('elementMatching', `Coordinate conversion: normalized(${x},${y}) * ${scale} = viewport(${viewportX.toFixed(1)},${viewportY.toFixed(1)})`)
     
-    // Find element at press location for potential tap event
-    const element = document.elementFromPoint(viewportX, viewportY)
-    adapterState.pressElement = element
+    // Match jsEngine: Get ALL elements at point, find first registered target
+    const elements = document.elementsFromPoint(viewportX, viewportY)
+    adapterState.pressElement = elements.find(el => gestureTargetRegistry.hasTarget(el)) || null
 
-    // Emit PRESS_START (matches jsEngine) - use normalized coords in event
-    gestureBus.emit(GestureType.PRESS_START, { x, y, el: element })
+    log('elementMatching', 'Press target:', adapterState.pressElement)
+
+    // Emit PRESS_START (matches jsEngine)
+    gestureBus.emit(GestureType.PRESS_START, { x, y, el: adapterState.pressElement })
     log('androidAdapter', `PRESS_START at (${x},${y})`)
-    log('elementMatching', `Press target: <${element?.tagName}> class="${element?.className}"`)
   },
 
   /**
@@ -120,6 +83,15 @@ export const androidGestureAdapter = {
 
       // Determine dominant direction
       adapterState.swipeAxis = distFromStartX > distFromStartY ? 'horizontal' : 'vertical'
+      
+      // Reset last position to start (matches jsEngine behavior)
+      // This ensures first delta is calculated from axis-detection point, not from Down
+      if (adapterState.swipeAxis === 'horizontal') {
+        adapterState.lastX = adapterState.startX
+      } else {
+        adapterState.lastY = adapterState.startY
+      }
+      
       log('androidAdapter', `Axis detected: ${adapterState.swipeAxis}`)
 
       // Convert normalized start coords to viewport coords for elementFromPoint
@@ -127,9 +99,11 @@ export const androidGestureAdapter = {
       const viewportStartX = adapterState.startX * scale
       const viewportStartY = adapterState.startY * scale
 
-      // Find registered element at START position (matches jsEngine)
-      const startElement = document.elementFromPoint(viewportStartX, viewportStartY)
-      const registeredElement = findRegisteredSwipeTarget(startElement, adapterState.swipeAxis)
+      // Match jsEngine: Get ALL elements at START point, find first registered target for this axis
+      const originElements = document.elementsFromPoint(viewportStartX, viewportStartY)
+      const registeredElement = originElements.find(el => gestureTargetRegistry.hasSwipe(el, adapterState.swipeAxis)) || null
+
+      log('elementMatching', 'Swipe target:', registeredElement, 'axis:', adapterState.swipeAxis)
 
       if (!registeredElement) {
         // No registered target found - ignore swipe (matches jsEngine)
@@ -158,6 +132,15 @@ export const androidGestureAdapter = {
       
       // No longer a press once swiping starts
       adapterState.isPressing = false
+      
+      // Update current position to last (matches jsEngine behavior)
+      // jsEngine only updates axis coordinate here, but for androidAdapter
+      // we update both since we don't track moves during PRESS_PENDING
+      adapterState.lastX = x
+      adapterState.lastY = y
+      
+      // Return early (matches jsEngine: axis detection move doesn't emit SWIPE_MOVE)
+      return
     }
 
     // Calculate delta in the swipe direction
@@ -183,9 +166,12 @@ export const androidGestureAdapter = {
     log('fsmMove', `${adapterState.swipeAxis} delta`, { delta, total: adapterState.totalDelta })
     log('swipeMovement', `${adapterState.swipeAxis}`, { delta, accum: adapterState.totalDelta })
 
-    // Update for next delta calculation
-    adapterState.lastX = x
-    adapterState.lastY = y
+    // Update for next delta calculation (match jsEngine: only update axis coordinate)
+    if (adapterState.swipeAxis === 'horizontal') {
+      adapterState.lastX = x
+    } else {
+      adapterState.lastY = y
+    }
   },
 
   /**
@@ -206,13 +192,9 @@ export const androidGestureAdapter = {
       log('fsmTransitions', 'SWIPE_END', { axis: adapterState.swipeAxis, total: adapterState.totalDelta })
     } else if (adapterState.isPressing && adapterState.pressElement) {
       // Finger lifted without swiping = tap/press event
-      // Only emit if element is registered for press events
-      if (gestureTargetRegistry.hasTarget(adapterState.pressElement)) {
-        gestureBus.emit(GestureType.PRESS_END, { el: adapterState.pressElement })
-        log('fsmTransitions', 'PRESS_END')
-      } else {
-        log('elementMatching', 'Press on unregistered element, ignoring')
-      }
+      // pressElement is already validated in onSwipeDown, no need to check again
+      gestureBus.emit(GestureType.PRESS_END, { el: adapterState.pressElement })
+      log('fsmTransitions', 'PRESS_END')
     }
 
     // Reset state
