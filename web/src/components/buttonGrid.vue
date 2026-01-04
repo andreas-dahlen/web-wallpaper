@@ -1,55 +1,96 @@
 <template>
-    <div class="button-area-grid">
-        <TouchArea 
-            v-for="item in buttons"
-            :key="item.id"
-            class="button"
-            :action="item"
-            :onPress="onPress"
-            :onRelease="onRelease" 
-            :onPressCancel="onCancel" 
-        />
-    </div>
+  <!--
+    Button Grid - Example grid of interactive buttons
+    
+    Uses TouchArea for press/release feedback.
+    Each button can trigger an action (e.g., open app via Android bridge).
+  -->
+  <div class="button-grid">
+    <TouchArea 
+      v-for="item in buttons"
+      :key="item.id"
+      class="button"
+      :action="item"
+      :onPressStart="onPressStart"
+      :onPressEnd="onPressEnd"
+      :onPressCancel="onPressCancel"
+    >
+      <span class="button-label">{{ item.label }}</span>
+    </TouchArea>
+  </div>
 </template>
 
 <script setup>
 import TouchArea from './TouchArea.vue'
-import { log } from '../debug/functions'
 
+// Button configuration
 const buttons = [
-  { id: 1, label: 'one', type: 'spotify' },
-  { id: 2, label: 'two', type: 'youtube' },
-  { id: 3, label: 'three', type: 'custom' },
-  { id: 4, label: 'four', type: 'cus' },
-  { id: 5, label: 'five', type: 'cust' },
-  { id: 6, label: 'six', type: 'custo' }
+  { id: 1, label: '1', type: 'spotify', package: 'com.spotify.music' },
+  { id: 2, label: '2', type: 'youtube', package: 'com.google.android.youtube' },
+  { id: 3, label: '3', type: 'custom' },
+  { id: 4, label: '4', type: 'custom' },
+  { id: 5, label: '5', type: 'custom' },
+  { id: 6, label: '6', type: 'custom' }
 ]
 
-function onPress(el, action) { log('uiButtons', action, el) }
-function onRelease(el, action) { log('uiButtons', action, el) }
-function onCancel(el, action) { log('uiButtons', action, el) }
+function onPressStart(el, action) {
+  // Optional: Add custom press logic
+}
+
+function onPressEnd(el, action) {
+  // Trigger app launch via Android bridge if available
+  if (action?.package && typeof Android !== 'undefined') {
+    Android.openApp(action.package)
+  }
+}
+
+function onPressCancel(el, action) {
+  // Press was cancelled (finger moved away)
+}
 </script>
 
 <style scoped>
-.button-area-grid {
-    position: absolute;
-    top: 0;
-    left: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    background-color: rgba(255, 192, 203, 0.424);
-    width: 310px;
-    height: 230px;
-    gap: 10px;
-    margin: 20px;
-    justify-content: center;
-    align-items: center;
-    z-index: 20;
+.button-grid {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  
+  width: 180px;
+  padding: 10px;
+  
+  /* Visual styling */
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  
+  /* Layer management */
+  z-index: 30;
+  
+  /* GPU compositing */
+  transform: translateZ(0);
 }
 
 .button {
-    width: 50px;
-    height: 50px;
-    background-color: rgb(0, 0, 0);
+  width: 50px;
+  height: 50px;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  
+  /* Text styling */
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.button-label {
+  pointer-events: none;
 }
 </style>

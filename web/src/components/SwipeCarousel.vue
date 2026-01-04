@@ -66,22 +66,61 @@ const prevScene = computed(() => safeScenes.value[prevIndex.value] || null)
 const nextScene = computed(() => safeScenes.value[nextIndex.value] || null)
 
 /* -------------------------
-   Movement math
+   Movement math - OPTIMIZED
+   
+   Performance notes:
+   - Use translate3d() to force GPU compositing layer
+   - Disable transition during drag (dragging=true) for instant response
+   - Only apply transition when animating to final position
 -------------------------- */
 const delta = computed(() => laneState.value.offset)
-// PERF: Disable transition during drag to prevent CSS fighting JS updates
+const isDragging = computed(() => laneState.value.dragging)
+
+// CSS transition: none during drag, eased during animation
 const transition = computed(() => {
-  const lane = laneState.value
-  if (lane.dragging) return 'none'  // Instant updates during drag
-  return `transform ${APP_SETTINGS.ui.swipeAnimationMs}ms ease`
+  if (isDragging.value) return 'none'
+  return `transform ${APP_SETTINGS.ui.swipeAnimationMs}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`
 })
-const translate = (v) => horizontal.value ? `translateX(${v}px)` : `translateY(${v}px)`
 
-const currentStyle = computed(() => ({ position: 'absolute', inset: 0, transform: translate(delta.value), transition: transition.value, willChange: 'transform' }))
-const prevStyle = computed(() => ({ position: 'absolute', inset: 0, transform: translate((horizontal.value ? -props.width : -props.height) + delta.value), transition: transition.value, willChange: 'transform' }))
-const nextStyle = computed(() => ({ position: 'absolute', inset: 0, transform: translate((horizontal.value ? props.width : props.height) + delta.value), transition: transition.value, willChange: 'transform' }))
+// Use translate3d for GPU acceleration
+const translate = (v) => horizontal.value 
+  ? `translate3d(${v}px, 0, 0)` 
+  : `translate3d(0, ${v}px, 0)`
 
-const carouselStyle = computed(() => ({ width: `${props.width}px`, height: `${props.height}px`, position: 'relative', overflow: 'hidden', touchAction: 'none' }))
+const baseStyle = { 
+  position: 'absolute', 
+  inset: 0, 
+  backfaceVisibility: 'hidden',
+  willChange: 'transform'
+}
+
+const currentStyle = computed(() => ({ 
+  ...baseStyle, 
+  transform: translate(delta.value), 
+  transition: transition.value 
+}))
+
+const prevStyle = computed(() => ({ 
+  ...baseStyle, 
+  transform: translate((horizontal.value ? -props.width : -props.height) + delta.value), 
+  transition: transition.value 
+}))
+
+const nextStyle = computed(() => ({ 
+  ...baseStyle, 
+  transform: translate((horizontal.value ? props.width : props.height) + delta.value), 
+  transition: transition.value 
+}))
+
+const carouselStyle = computed(() => ({ 
+  width: `${props.width}px`, 
+  height: `${props.height}px`, 
+  position: 'relative', 
+  overflow: 'hidden', 
+  touchAction: 'none',
+  // Force compositing layer for the container
+  transform: 'translateZ(0)'
+}))
 
 /* -------------------------
    Commit after transition
@@ -106,6 +145,16 @@ function onTransitionEnd(e) {
 </script>
 
 <style scoped>
-.carousel { touch-action: none; }
-.scene { user-select: none; will-change: transform; }
+.carousel { 
+  touch-action: none;
+  /* GPU compositing hints */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+.scene { 
+  user-select: none;
+  /* Prevent layout thrashing */
+  contain: layout style paint;
+}
 </style>

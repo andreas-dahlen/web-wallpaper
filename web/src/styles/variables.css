@@ -8,12 +8,15 @@
   --touch-swipe-up: #9cb659;
   --touch-swipe-down: #e622ae;
 
-  /*Swipe Zone Colors */
+  /* Swipe Zone Colors */
   --index-0: blue;
   --index-1: green;
   --index-2: orange;
 
-  /* Motion */
-  --touch-transition-fast: 150ms;
-  --touch-transition-normal: 250ms;
+  /* Motion - slightly faster for snappier feel on Android */
+  --touch-transition-fast: 120ms;
+  --touch-transition-normal: 200ms;
+  
+  /* Force GPU compositing for better Android WebView performance */
+  --gpu-hint: translateZ(0);
 }

@@ -7,25 +7,29 @@ export const APP_SETTINGS = {
     scale: 1.0
   },
 
-
   input: {
-    swipeThreshold: 8, //distance before swipe is declared
-    swipeViewChangeThreshold: 40, //distance before view is changed
+    swipeThreshold: 8,           // Distance before swipe axis is locked
+    swipeViewChangeThreshold: 40 // Distance before view change is committed
   },
 
   ui: {
     wallpaperWidth: 352,
     wallpaperHeight: 784,
-    laneWidth: 352,      // width of a carousel lane
-    laneHeight: 265,     // optional, same as phone height
-    swipeAnimationMs: 300, // used for CSS transition duration
+    laneWidth: 352,
+    laneHeight: 265,
+    // Slightly faster animation for snappier Android feel
+    swipeAnimationMs: 250,
     swipeSpeedMultiplier: 1.2,
     laneLengths: {
       top: 3,
       mid: 3,
       bottom: 3
     }
-  },
+  }
 }
 
-export { DEBUG } from '../debug/config'
+// Debug config is now optional - most debug features removed for performance
+export const DEBUG = {
+  enabled: false,
+  gestures: false
+}

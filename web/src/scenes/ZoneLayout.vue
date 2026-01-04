@@ -1,4 +1,14 @@
 <!-- scenes/ZoneLayout.vue -->
+<!--
+  Zone Layout - Contains all carousel lanes
+  
+  Layout Structure:
+  - 3 horizontal lanes (top, mid, bottom) stacked vertically
+  - Each lane is a SwipeCarousel with its own scenes
+  
+  The swipe detection zones are handled separately in SwipeZones.vue
+  which overlays invisible touch areas with data-lane attributes.
+-->
 <template>
   <div class="layout">
     <SwipeCarousel
@@ -27,33 +37,44 @@
   </div>
 </template>
 
-
 <script setup>
 import SwipeCarousel from '../components/SwipeCarousel.vue'
 import { APP_SETTINGS } from '../config/appSettings'
 import { LANES } from './lanes/laneIndex'
 
-// --- layout config ---
-// const { laneWidth, laneHeight } = APP_SETTINGS.ui
-
+// Layout dimensions from config
 const laneWidth = APP_SETTINGS.ui.laneWidth
 const laneHeight = APP_SETTINGS.ui.laneHeight
 
+// Scene components for each lane
 const topScenes = LANES.top
 const midScenes = LANES.mid
 const bottomScenes = LANES.bottom
-
 </script>
 
 <style scoped>
 .layout {
-  opacity: 50%;
   position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  display: grid;
-  grid-template-rows: repeat(3, auto);
-  gap: 0px; /* or spacing if you want */
-  justify-content: center;
-  z-index: 20;
+  
+  /* Stack lanes vertically */
+  display: flex;
+  flex-direction: column;
+  
+  /* Layer above background, below swipe zones */
+  z-index: 2;
+  
+  /* GPU compositing hint */
+  transform: translateZ(0);
+  
+  /* Prevent any pointer events on container */
+  pointer-events: none;
+}
+
+/* Allow pointer events on carousel children */
+.layout :deep(.carousel) {
+  pointer-events: auto;
 }
 </style>

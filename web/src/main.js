@@ -4,13 +4,12 @@ import App from './App.vue'
 
 import './styles/main.css'
 
-import { initInputSystem } from './bootstrap/initInputSystem'
-import './bootstrap/initAndroidBridge'
-import { initPerfDebug } from './bootstrap/initPerfDebug'
-
-// One call. One responsibility.
-initInputSystem()
-initPerfDebug()
+// Simplified: Single unified gesture handler replaces complex input system
+import { initGestureHandler } from './input/gestureHandler'
 
 // Create and mount the Vue app
-createApp(App).mount('#app')
+const app = createApp(App)
+app.mount('#app')
+
+// Initialize gesture handling after Vue mounts (ensures DOM is ready)
+initGestureHandler()
