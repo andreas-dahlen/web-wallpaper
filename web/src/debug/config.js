@@ -29,9 +29,10 @@ export const DEBUG = {
   carouselUpdates: false,    // Carousel state changes
 
   // UI level
-  uiButtons: true,          // Button grid interactions
+  uiButtons: false,          // Button grid interactions
 
   // Visual/Performance
   drawDots: true,           // Draw pointer position dots on screen
+  rafDelta: true,          // requestAnimationFrame delta logs (avg/min/max)
   lagTime: false,            // Log timing/performance metrics
 }
