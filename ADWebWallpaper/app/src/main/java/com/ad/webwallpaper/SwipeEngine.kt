@@ -1,6 +1,9 @@
 package com.ad.webwallpaper
 
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
+import android.view.Choreographer
 import kotlin.math.abs
 
 object SwipeEngine {
@@ -11,13 +14,17 @@ object SwipeEngine {
     private var velocityY = 0f
     private var lastTime = 0L
     private var active = false
-    private var momentumThread: Thread? = null  // Track momentum animation thread
+    private var isMomentumActive = false  // Track if momentum is running
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val choreographer = Choreographer.getInstance()
 
-    private const val DECAY = 0.9f
-    private const val MIN_VELOCITY = 0.5f
-    private const val FRAME_MS = 16L
+    private const val DECAY = 0.92f  // Slightly smoother decay
+    private const val MIN_VELOCITY = 0.3f  // Lower threshold for smoother stop
 
     fun onDown(x: Float, y: Float) {
+        // Cancel any running momentum animation
+        isMomentumActive = false
+        
         lastX = x
         lastY = y
         velocityX = 0f
@@ -44,40 +51,42 @@ object SwipeEngine {
         if (!active) return
         active = false
 
-        // Cancel any existing momentum animation before starting new one
-        momentumThread?.interrupt()
-        momentumThread = null
-
         var posX = lastX
         var posY = lastY
-        var vX = velocityX
-        var vY = velocityY
+        // Scale velocity to per-frame values (assuming ~16ms frames)
+        var vX = velocityX * 16f
+        var vY = velocityY * 16f
 
-        momentumThread = Thread {
-            try {
-                while (abs(vX) > MIN_VELOCITY || abs(vY) > MIN_VELOCITY) {
-                    posX += vX * FRAME_MS
-                    posY += vY * FRAME_MS
+        GestureDebug.log("swipeEngine", "Momentum start: vx=${String.format("%.2f", vX)} vy=${String.format("%.2f", vY)}")
 
-                    onUpdate(posX, posY)
-
-                    vX *= DECAY
-                    vY *= DECAY
-
-                    Thread.sleep(FRAME_MS)
+        // Use Choreographer for frame-perfect momentum animation
+        isMomentumActive = true
+        
+        val frameCallback = object : Choreographer.FrameCallback {
+            override fun doFrame(frameTimeNanos: Long) {
+                if (!isMomentumActive) {
+                    // Animation was cancelled (user touched again)
+                    return
                 }
                 
-                // Signal completion after momentum finishes
-                onComplete()
-            } catch (e: InterruptedException) {
-                // Thread was cancelled - this is normal when user taps rapidly
-                GestureDebug.log("swipeEngine", "Momentum animation cancelled")
-            } finally {
-                momentumThread = null
+                if (abs(vX) < MIN_VELOCITY && abs(vY) < MIN_VELOCITY) {
+                    isMomentumActive = false
+                    onComplete()
+                    return
+                }
+                
+                posX += vX
+                posY += vY
+                vX *= DECAY
+                vY *= DECAY
+                
+                onUpdate(posX, posY)
+                
+                // Continue animation
+                choreographer.postFrameCallback(this)
             }
         }
         
-        GestureDebug.log("swipeEngine", "Momentum: vx=${String.format("%.2f", velocityX)} vy=${String.format("%.2f", velocityY)}")
-        momentumThread?.start()
+        choreographer.postFrameCallback(frameCallback)
     }
 }

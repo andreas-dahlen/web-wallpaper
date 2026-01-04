@@ -14,6 +14,7 @@ export function initCarouselGestureController() {
   gestureBus.on(GestureType.SWIPE_START, onSwipeStart)
   gestureBus.on(GestureType.SWIPE_MOVE, onSwipeMove)
   gestureBus.on(GestureType.SWIPE_END, onSwipeEnd)
+  gestureBus.on(GestureType.MOMENTUM_MOVE, onMomentumMove)
 }
 
 function onSwipeStart({ el, axis }) {
@@ -70,4 +71,19 @@ function onSwipeEnd() {
   activeLane = null
   activeAxis = null
   totalDelta = 0
+}
+
+/**
+ * Handle momentum updates from Kotlin SwipeEngine.
+ * For page-based carousels, we intentionally ignore momentum - 
+ * the swipe has already been committed (or rejected) at SWIPE_END,
+ * and CSS transitions handle the animation to the final position.
+ * 
+ * Momentum makes sense for continuous scrolling (like a list),
+ * but not for discrete page snapping.
+ */
+function onMomentumMove({ delta, total }) {
+  // Intentionally ignored for page-based carousel
+  // If you want continuous scrolling behavior, you would apply the delta here
+  // log('carouselUpdates', 'Momentum (ignored)', { delta, total })
 }

@@ -69,12 +69,17 @@ const nextScene = computed(() => safeScenes.value[nextIndex.value] || null)
    Movement math
 -------------------------- */
 const delta = computed(() => laneState.value.offset)
-const transition = computed(() => `transform ${APP_SETTINGS.ui.swipeAnimationMs}ms ease`)
+// PERF: Disable transition during drag to prevent CSS fighting JS updates
+const transition = computed(() => {
+  const lane = laneState.value
+  if (lane.dragging) return 'none'  // Instant updates during drag
+  return `transform ${APP_SETTINGS.ui.swipeAnimationMs}ms ease`
+})
 const translate = (v) => horizontal.value ? `translateX(${v}px)` : `translateY(${v}px)`
 
-const currentStyle = computed(() => ({ position: 'absolute', inset: 0, transform: translate(delta.value), transition: transition.value }))
-const prevStyle = computed(() => ({ position: 'absolute', inset: 0, transform: translate((horizontal.value ? -props.width : -props.height) + delta.value), transition: transition.value }))
-const nextStyle = computed(() => ({ position: 'absolute', inset: 0, transform: translate((horizontal.value ? props.width : props.height) + delta.value), transition: transition.value }))
+const currentStyle = computed(() => ({ position: 'absolute', inset: 0, transform: translate(delta.value), transition: transition.value, willChange: 'transform' }))
+const prevStyle = computed(() => ({ position: 'absolute', inset: 0, transform: translate((horizontal.value ? -props.width : -props.height) + delta.value), transition: transition.value, willChange: 'transform' }))
+const nextStyle = computed(() => ({ position: 'absolute', inset: 0, transform: translate((horizontal.value ? props.width : props.height) + delta.value), transition: transition.value, willChange: 'transform' }))
 
 const carouselStyle = computed(() => ({ width: `${props.width}px`, height: `${props.height}px`, position: 'relative', overflow: 'hidden', touchAction: 'none' }))
 

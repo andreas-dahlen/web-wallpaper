@@ -21,6 +21,13 @@ class WebWallpaperService : WallpaperService() {
 
         private val BASE_WIDTH = 364f
         private val BASE_HEIGHT = 800f
+        
+        // Throttle move events to reduce IPC overhead
+        private var lastMoveTime = 0L
+        private val MOVE_THROTTLE_MS = 8L  // ~120fps max, reduces evaluateJavascript calls
+        
+        // Gesture sequence ID to ignore stale momentum updates
+        private var gestureSeqId = 0
 
         @SuppressLint("SetJavaScriptEnabled")
         override fun onCreate(surfaceHolder: SurfaceHolder) {
@@ -44,12 +51,39 @@ class WebWallpaperService : WallpaperService() {
             }
         }
 
+        // PERF: Track if redraw is needed instead of constant 60fps loop
+        private var needsRedraw = true
+        private var isDrawScheduled = false
+
         override fun onVisibilityChanged(visible: Boolean) {
             super.onVisibilityChanged(visible)
-            if (visible) drawFrame()
+            if (visible) {
+                needsRedraw = true
+                scheduleFrame()
+            }
+        }
+
+        /**
+         * Request a redraw on the next frame.
+         * Call this when WebView content changes.
+         */
+        private fun requestRedraw() {
+            needsRedraw = true
+            scheduleFrame()
+        }
+        
+        private fun scheduleFrame() {
+            if (!isDrawScheduled && isVisible) {
+                isDrawScheduled = true
+                handler.post { drawFrame() }
+            }
         }
 
         private fun drawFrame() {
+            isDrawScheduled = false
+            if (!needsRedraw || !isVisible) return
+            needsRedraw = false
+            
             val holder = surfaceHolder ?: return
             val canvas: Canvas? = holder.lockCanvas()
             if (canvas != null) {
@@ -61,7 +95,12 @@ class WebWallpaperService : WallpaperService() {
                 webView.draw(canvas)
                 holder.unlockCanvasAndPost(canvas)
             }
-            if (isVisible) handler.postDelayed({ drawFrame() }, 16)
+            
+            // Schedule next frame during active interaction
+            // WebView invalidates will trigger redraws automatically
+            if (isVisible && needsRedraw) {
+                scheduleFrame()
+            }
         }
 
         override fun onTouchEvent(event: MotionEvent) {
@@ -69,6 +108,9 @@ class WebWallpaperService : WallpaperService() {
 
                 MotionEvent.ACTION_DOWN -> {
                     GestureDebug.track("down")
+                    // Increment gesture ID to invalidate any pending momentum updates from previous gesture
+                    gestureSeqId++
+                    
                     SwipeEngine.onDown(event.x, event.y)
                     sendToJS("down", event.x, event.y)
                 }
@@ -78,8 +120,12 @@ class WebWallpaperService : WallpaperService() {
 
                     SwipeEngine.onMove(event.x, event.y)
 
-                    // 🔑 IMPORTANT: keep JS visually in sync
-                    sendToJS("move", event.x, event.y)
+                    // PERF: Throttle JS updates to reduce evaluateJavascript IPC overhead
+                    val now = android.os.SystemClock.uptimeMillis()
+                    if (now - lastMoveTime >= MOVE_THROTTLE_MS) {
+                        lastMoveTime = now
+                        sendToJS("move", event.x, event.y)
+                    }
 
                     GestureDebug.track("moveEnd")
                 }
@@ -88,8 +134,22 @@ class WebWallpaperService : WallpaperService() {
                 MotionEvent.ACTION_CANCEL -> {
                     GestureDebug.track("pointerUp")
 
+                    // Ensure JS sees the final finger position even if move events were throttled.
+                    sendToJS("move", event.x, event.y)
+                    lastMoveTime = 0L
+                    
+                    // CRITICAL: Send 'up' IMMEDIATELY when finger lifts
+                    // This lets the carousel exit dragging mode and re-enable CSS transitions
+                    sendToJS("up", event.x, event.y)
+                    
+                    // Capture gesture ID for this momentum animation
+                    val momentumGestureId = gestureSeqId
+
                     SwipeEngine.onUp(
                         onUpdate = { x, y ->
+                            // CRITICAL: Ignore if a new gesture has started
+                            if (momentumGestureId != gestureSeqId) return@onUp
+                            
                             val w = surfaceHolder.surfaceFrame.width().toFloat()
                             val h = surfaceHolder.surfaceFrame.height().toFloat()
 
@@ -97,19 +157,22 @@ class WebWallpaperService : WallpaperService() {
                             val normY = (y / h) * BASE_HEIGHT
 
                             handler.post {
+                                // Double-check in handler in case gesture changed while queued
+                                if (momentumGestureId != gestureSeqId) return@post
+                                
+                                // Use 'momentum' type so JS handles it differently from finger moves
                                 webView.evaluateJavascript(
-                                    "handleTouch('move', $normX, $normY)",
+                                    "handleTouch('momentum', $normX, $normY, $momentumGestureId)",
                                     null
                                 )
+                                requestRedraw()  // Redraw after momentum update
                             }
                         },
                         onComplete = {
-                            // Send final 'up' event when momentum finishes
+                            // Momentum finished - 'up' was already sent above
+                            // Just log and redraw
                             handler.post {
-                                webView.evaluateJavascript(
-                                    "handleTouch('up', 0, 0)",
-                                    null
-                                )
+                                requestRedraw()
                                 GestureDebug.logLag()
                             }
                         }
@@ -125,12 +188,16 @@ class WebWallpaperService : WallpaperService() {
             val normX = (x / w) * BASE_WIDTH
             val normY = (y / h) * BASE_HEIGHT
 
-            GestureDebug.log("kotlinBridge", "→ JS handleTouch('$type', ${normX.toInt()}, ${normY.toInt()})")
+            GestureDebug.log("kotlinBridge", "→ JS handleTouch('$type', ${normX.toInt()}, ${normY.toInt()}, seq=$gestureSeqId)")
 
+            // Include gesture sequence ID so JS can reject stale events
             webView.evaluateJavascript(
-                "handleTouch('$type', $normX, $normY)",
+                "handleTouch('$type', $normX, $normY, $gestureSeqId)",
                 null
             )
+            
+            // Request redraw after JS update
+            requestRedraw()
         }
 
         override fun onDestroy() {

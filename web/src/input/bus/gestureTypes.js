@@ -11,5 +11,6 @@ export const GestureType = {
   SWIPE_START: 'swipeStart',
   SWIPE_MOVE: 'swipeMove',
   SWIPE_END: 'swipeEnd',
-  RAW_MOVE: 'rawMove' // 👈 NEW
+  MOMENTUM_MOVE: 'momentumMove',  // Post-release physics updates from Kotlin SwipeEngine
+  RAW_MOVE: 'rawMove'
 }

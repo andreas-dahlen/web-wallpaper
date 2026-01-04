@@ -73,6 +73,7 @@ export class JSEngine extends GestureEngine {
     const { clientX: x, clientY: y } = event
     this.state.last.x = x
     this.state.last.y = y
+    drawDot(x, y, 'yellow')
 
     const dx = x - this.state.start.x
     const dy = y - this.state.start.y
@@ -112,6 +113,7 @@ export class JSEngine extends GestureEngine {
       : y - s.last.y
 
     s.swipeAccum += stepDelta
+    drawDot(x, y, 'yellow')
 
     if (!s.swipeStarted) {
       const cfg = gestureTargetRegistry.getSwipeConfig(s.swipeCandidate)
@@ -142,6 +144,7 @@ export class JSEngine extends GestureEngine {
   // -------------------------
   pointerUp(event) {
     const s = this.state
+    const { clientX: x, clientY: y } = event
 
     if (s.fsmState === 'SWIPING' && s.swipeCandidate) {
       const cfg = gestureTargetRegistry.getSwipeConfig(s.swipeCandidate)
@@ -153,6 +156,10 @@ export class JSEngine extends GestureEngine {
       gestureBus.emit(GestureType.PRESS_END, { el: s.pressCandidate })
       log('fsmTransitions', 'PRESS_END')
     }
+
+    drawDot(x, y, 'red')
+
+    debugLagTime('log')
 
     this.reset()
   }

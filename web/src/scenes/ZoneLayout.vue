@@ -54,5 +54,6 @@ const bottomScenes = LANES.bottom
   grid-template-rows: repeat(3, auto);
   gap: 0px; /* or spacing if you want */
   justify-content: center;
+  z-index: 20;
 }
 </style>

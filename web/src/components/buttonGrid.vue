@@ -14,6 +14,7 @@
 
 <script setup>
 import TouchArea from './TouchArea.vue'
+import { log } from '../debug/functions'
 
 const buttons = [
   { id: 1, label: 'one', type: 'spotify' },
@@ -24,9 +25,9 @@ const buttons = [
   { id: 6, label: 'six', type: 'custo' }
 ]
 
-function onPress(el, action) { console.log('pressed', action) }
-function onRelease(el, action) { console.log('released', action) }
-function onCancel(el, action) { console.log('cancel', action) }
+function onPress(el, action) { log('uiButtons', action, el) }
+function onRelease(el, action) { log('uiButtons', action, el) }
+function onCancel(el, action) { log('uiButtons', action, el) }
 </script>
 
 <style scoped>
@@ -43,6 +44,7 @@ function onCancel(el, action) { console.log('cancel', action) }
     margin: 20px;
     justify-content: center;
     align-items: center;
+    z-index: 20;
 }
 
 .button {

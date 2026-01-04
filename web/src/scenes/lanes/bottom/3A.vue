@@ -1,13 +1,13 @@
 <template>
   <div class="scene-root a">
     BOTTOM · A
-    <ButtonZone></ButtonZone>
+    <ButtonGrid />
   </div>
 </template>
 
 <script setup>
-  import ButtonZone from '../../../components/ButtonGrid.vue';
-  defineOptions({ name: 'BottomA' })
+import ButtonGrid from '../../../components/buttonGrid.vue'
+defineOptions({ name: 'BottomA' })
 </script>
 
 <style scoped>

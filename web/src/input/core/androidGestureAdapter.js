@@ -7,7 +7,7 @@
 
 import { gestureBus } from '../bus/gestureBus'
 import { GestureType } from '../bus/gestureTypes'
-import { log } from '../debug/gestureDebug'
+import { log, drawDot } from '../debug/gestureDebug'
 import { APP_SETTINGS } from '../../config/appSettings'
 import { gestureTargetRegistry } from './gestureTargetRegistry'
 
@@ -22,6 +22,7 @@ const adapterState = {
   isPressing: false,      // Track if we're in press state (not swiping)
   pressElement: null,     // Element that was pressed
   swipeElement: null      // Registered element handling the swipe
+  // Note: Stale gesture detection is now handled in initAndroidBridge.js via seqId
 }
 
 export const androidGestureAdapter = {
@@ -32,32 +33,29 @@ export const androidGestureAdapter = {
    * @param {number} y - Normalized Y coordinate (BASE_HEIGHT=800)
    */
   onSwipeDown(x, y) {
+    // Fully reset state to handle new gesture
+    // Note: Stale event filtering is done in initAndroidBridge.js via seqId
+    adapterState.swipeAxis = null
+    adapterState.totalDelta = 0
+    adapterState.hasStarted = false
+    adapterState.swipeElement = null
+    adapterState.pressElement = null
+    
+    // Set new gesture state
     adapterState.lastX = x
     adapterState.lastY = y
     adapterState.startX = x
     adapterState.startY = y
-    adapterState.swipeAxis = null
-    adapterState.totalDelta = 0
-    adapterState.hasStarted = false
     adapterState.isPressing = true
     
-    // Convert normalized coords to viewport coords for elementFromPoint
-    // Kotlin sends 364x800 space, but viewport is scaled via CSS transform
-    const scale = window.__APP_SCALE || 1
-    const viewportX = x * scale
-    const viewportY = y * scale
-    
-    if (!window.__APP_SCALE) {
-      log('elementMatching', '⚠️ __APP_SCALE not set, using scale=1 (may cause coordinate mismatch)')
-    }
-    
-    log('elementMatching', `Coordinate conversion: normalized(${x},${y}) * ${scale} = viewport(${viewportX.toFixed(1)},${viewportY.toFixed(1)})`)
-    
     // Match jsEngine: Get ALL elements at point, find first registered target
-    const elements = document.elementsFromPoint(viewportX, viewportY)
+    const elements = document.elementsFromPoint(x, y)
     adapterState.pressElement = elements.find(el => gestureTargetRegistry.hasTarget(el)) || null
 
     log('elementMatching', 'Press target:', adapterState.pressElement)
+
+    // Visualize press point (mirrors jsEngine drawDot)
+    drawDot(x, y, 'lime')
 
     // Emit PRESS_START (matches jsEngine)
     gestureBus.emit(GestureType.PRESS_START, { x, y, el: adapterState.pressElement })
@@ -71,6 +69,10 @@ export const androidGestureAdapter = {
    * @param {number} y - Current Y coordinate
    */
   onSwipeMove(x, y) {
+    // NOTE: Stale momentum detection is handled in Kotlin via gestureSeqId.
+    // JS just processes whatever Kotlin sends - trust the Kotlin filtering.
+    drawDot(x, y, 'yellow')
+    
     // Detect axis on first significant movement
     if (!adapterState.swipeAxis) {
       const distFromStartX = Math.abs(x - adapterState.startX)
@@ -94,13 +96,8 @@ export const androidGestureAdapter = {
       
       log('androidAdapter', `Axis detected: ${adapterState.swipeAxis}`)
 
-      // Convert normalized start coords to viewport coords for elementFromPoint
-      const scale = window.__APP_SCALE || 1
-      const viewportStartX = adapterState.startX * scale
-      const viewportStartY = adapterState.startY * scale
-
       // Match jsEngine: Get ALL elements at START point, find first registered target for this axis
-      const originElements = document.elementsFromPoint(viewportStartX, viewportStartY)
+      const originElements = document.elementsFromPoint(adapterState.startX, adapterState.startY)
       const registeredElement = originElements.find(el => gestureTargetRegistry.hasSwipe(el, adapterState.swipeAxis)) || null
 
       log('elementMatching', 'Swipe target:', registeredElement, 'axis:', adapterState.swipeAxis)
@@ -175,7 +172,7 @@ export const androidGestureAdapter = {
   },
 
   /**
-   * Called by Kotlin when momentum animation completes
+   * Called by Kotlin when finger lifts (immediately, before momentum starts)
    */
   onSwipeEnd() {
     if (adapterState.hasStarted && adapterState.swipeAxis && adapterState.swipeElement) {
@@ -190,20 +187,61 @@ export const androidGestureAdapter = {
       })
 
       log('fsmTransitions', 'SWIPE_END', { axis: adapterState.swipeAxis, total: adapterState.totalDelta })
+      drawDot(adapterState.lastX, adapterState.lastY, 'red')
+      
+      // DON'T reset state yet - momentum will continue to use it
+      // State will be reset on next onSwipeDown
     } else if (adapterState.isPressing && adapterState.pressElement) {
       // Finger lifted without swiping = tap/press event
-      // pressElement is already validated in onSwipeDown, no need to check again
       gestureBus.emit(GestureType.PRESS_END, { el: adapterState.pressElement })
       log('fsmTransitions', 'PRESS_END')
+      drawDot(adapterState.lastX, adapterState.lastY, 'red')
+      
+      // Reset press state (no momentum for press)
+      adapterState.isPressing = false
+      adapterState.pressElement = null
+    }
+  },
+
+  /**
+   * Called by Kotlin during momentum animation (after finger has lifted)
+   * Unlike onSwipeMove, this doesn't trigger axis detection or swipe start.
+   * Just updates position for physics-based animation.
+   * @param {number} x - Current momentum X coordinate  
+   * @param {number} y - Current momentum Y coordinate
+   */
+  onMomentumMove(x, y) {
+    // Only process if we had an active swipe
+    if (!adapterState.swipeAxis || !adapterState.swipeElement) {
+      return
     }
 
-    // Reset state
-    adapterState.swipeAxis = null
-    adapterState.totalDelta = 0
-    adapterState.hasStarted = false
-    adapterState.isPressing = false
-    adapterState.pressElement = null
-    adapterState.swipeElement = null
+    // Calculate delta in the swipe direction (same as onSwipeMove)
+    const deltaX = x - adapterState.lastX
+    const deltaY = y - adapterState.lastY
+    const delta = adapterState.swipeAxis === 'horizontal' ? deltaX : deltaY
+    adapterState.totalDelta += delta
+
+    const laneId = adapterState.swipeElement.dataset?.lane || 'wallpaper'
+
+    // Emit MOMENTUM_MOVE instead of SWIPE_MOVE
+    // This lets listeners handle it differently (e.g., apply directly without CSS transition fighting)
+    gestureBus.emit(GestureType.MOMENTUM_MOVE, {
+      el: adapterState.swipeElement,
+      delta,
+      total: adapterState.totalDelta,
+      axis: adapterState.swipeAxis,
+      laneId,
+      x,
+      y
+    })
+
+    // Update for next delta calculation
+    if (adapterState.swipeAxis === 'horizontal') {
+      adapterState.lastX = x
+    } else {
+      adapterState.lastY = y
+    }
   },
 
   // Debug methods
