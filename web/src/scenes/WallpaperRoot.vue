@@ -19,8 +19,6 @@
       <!-- Layer 2: Carousel lanes -->
       <ZoneLayout />
       
-      <!-- Layer 3: Invisible swipe detection zones -->
-      <SwipeZones />
     </div>
   </div>
 </template>
@@ -28,13 +26,14 @@
 <script setup>
 import BKGimage from './BKGimage.vue'
 import ZoneLayout from './ZoneLayout.vue'
-import SwipeZones from '../components/SwipeZones.vue'
 </script>
 
 <style scoped>
 .phone {
-  width: 364px;
-  height: 800px;
+  width: var(--phone-width);
+  height: var(--phone-height);
+  /* width: 364px;
+  height: 800px; */
   position: relative;
   overflow: hidden;
   
@@ -43,11 +42,16 @@ import SwipeZones from '../components/SwipeZones.vue'
 }
 
 .screen {
-  width: 352px;
-  height: 784px;
+  /* width: var(--wallpaper-width);
+  height: var(--wallpaper-height); */
+  /* width: 352px; */
+  /* height: 784px; */
+  width: 364px;
+  height: 800px;
   position: absolute;
   left: 0;
   top: 0;
+  background-color: hotpink;
   
   /* Disable browser touch actions - handled by gesture system */
   touch-action: none;

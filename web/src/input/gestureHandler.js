@@ -28,9 +28,9 @@ const COMMIT_THRESHOLD = APP_SETTINGS.input.swipeViewChangeThreshold || 40
 const DEBUG_ENABLED = false // Set to true for development
 
 function log(...args) {
-  if (DEBUG_ENABLED) {
-    console.log('[GestureHandler]', ...args)
-  }
+    if (DEBUG_ENABLED) {
+        console.log('[GestureHandler]', ...args)
+    }
 }
 
 // ============================================================================
@@ -38,27 +38,26 @@ function log(...args) {
 // ============================================================================
 
 const state = {
-  // Current gesture phase
-  phase: 'IDLE', // 'IDLE' | 'PENDING' | 'SWIPING'
-  
-  // Starting position (for threshold detection)
-  startX: 0,
-  startY: 0,
-  
-  // Last position in locked axis (for delta calculation)
-  lastAxisPos: 0,
-  
-  // Locked axis after threshold
-  axis: null, // 'horizontal' | 'vertical' | null
-  
-  // Accumulated delta in swipe direction
-  totalDelta: 0,
-  
-  // Target lane ID (cached from DOM on gesture start)
-  laneId: null,
-  
-  // Platform mode
-  isAndroid: false
+    // Current gesture phase
+    phase: 'IDLE', // 'IDLE' | 'PENDING' | 'SWIPING'
+
+    // Starting position (for threshold detection)
+    startX: 0,
+    startY: 0,
+
+    // Last position in locked axis (for delta calculation)
+    lastAxisPos: 0,
+
+    // Locked axis after threshold
+    axis: null, // 'horizontal' | 'vertical' | null
+
+    // Accumulated delta in swipe direction
+    totalDelta: 0,
+
+    elId: null,
+    elAxis: null,
+    // Platform mode
+    isAndroid: false
 }
 
 // ============================================================================
@@ -70,20 +69,20 @@ const state = {
  * Auto-detects platform and sets up appropriate event listeners.
  */
 export function initGestureHandler() {
-  state.isAndroid = typeof Android !== 'undefined'
-  
-  if (state.isAndroid) {
-    // Android mode: expose global handler for Kotlin bridge
-    window.handleTouch = handleAndroidTouch
-    log('Initialized in Android mode')
-  } else {
-    // Browser mode: attach DOM event listeners
-    window.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
-    window.addEventListener('pointercancel', onPointerUp)
-    log('Initialized in Browser mode')
-  }
+    state.isAndroid = typeof Android !== 'undefined'
+
+    if (state.isAndroid) {
+        // Android mode: expose global handler for Kotlin bridge
+        window.handleTouch = handleAndroidTouch
+        log('Initialized in Android mode')
+    } else {
+        // Browser mode: attach DOM event listeners
+        window.addEventListener('pointerdown', onPointerDown)
+        window.addEventListener('pointermove', onPointerMove)
+        window.addEventListener('pointerup', onPointerUp)
+        window.addEventListener('pointercancel', onPointerUp) //SHOULD BE CANCEL... ONPOINTERCANCEL AND HAPPENS TO A BUTTON WHEN SWIPE IS INITIALIZED
+        log('Initialized in Browser mode')
+    }
 }
 
 /**
@@ -91,9 +90,9 @@ export function initGestureHandler() {
  * This replaces the complex initAndroidEngine retry logic.
  */
 window.initAndroidEngine = () => {
-  state.isAndroid = true
-  log('Android engine confirmed')
-  return 'success'
+    state.isAndroid = true
+    log('Android engine confirmed')
+    return 'success'
 }
 
 // ============================================================================
@@ -107,26 +106,26 @@ let currentSeqId = 0
  * Coordinates are already normalized to BASE_WIDTH/BASE_HEIGHT (364x800)
  */
 function handleAndroidTouch(type, x, y, seqId) {
-  // Reject stale events from previous gesture
-  if (type === 'down') {
-    currentSeqId = seqId
-  } else if (seqId !== currentSeqId) {
-    return // Stale event, ignore
-  }
-  
-  switch (type) {
-    case 'down':
-      handleDown(x, y)
-      break
-    case 'move':
-      handleMove(x, y)
-      break
-    case 'up':
-      handleUp()
-      break
-    // 'momentum' events are intentionally ignored
-    // Page-based carousels use CSS transitions, not physics
-  }
+    // Reject stale events from previous gesture
+    if (type === 'down') {
+        currentSeqId = seqId
+    } else if (seqId !== currentSeqId) {
+        return // Stale event, ignore
+    }
+
+    switch (type) {
+        case 'down':
+            handleDown(x, y)
+            break
+        case 'move':
+            handleMove(x, y)
+            break
+        case 'up':
+            handleUp()
+            break
+        // 'momentum' events are intentionally ignored
+        // Page-based carousels use CSS transitions, not physics
+    }
 }
 
 // ============================================================================
@@ -134,15 +133,15 @@ function handleAndroidTouch(type, x, y, seqId) {
 // ============================================================================
 
 function onPointerDown(e) {
-  handleDown(e.clientX, e.clientY)
+    handleDown(e.clientX, e.clientY)
 }
 
 function onPointerMove(e) {
-  handleMove(e.clientX, e.clientY)
+    handleMove(e.clientX, e.clientY)
 }
 
 function onPointerUp() {
-  handleUp()
+    handleUp()
 }
 
 // ============================================================================
@@ -154,23 +153,26 @@ function onPointerUp() {
  * Finds the target lane and prepares for potential swipe.
  */
 function handleDown(x, y) {
-  // Reset state for new gesture
-  state.phase = 'PENDING'
-  state.startX = x
-  state.startY = y
-  state.lastAxisPos = 0
-  state.axis = null
-  state.totalDelta = 0
-  state.laneId = null
-  
-  // Find lane at touch point (single DOM query, cached for gesture)
-  const el = findLaneElement(x, y)
-  if (el) {
-    state.laneId = el.dataset.lane
-    log('Down on lane:', state.laneId)
-  } else {
-    log('Down - no lane found')
-  }
+    // Reset state for new gesture
+    state.phase = 'PENDING'
+    state.startX = x
+    state.startY = y
+    state.lastAxisPos = 0
+    state.axis = null
+    state.totalDelta = 0
+    state.elId = null
+    state.targetEl = null
+    state.elAxis = null
+
+    // Find lane at touch point (single DOM query, cached for gesture)
+    const el = findLaneElement(x, y)
+    if (el) {
+        state.elId = el.dataset.lane
+        state.elAxis = el.dataset.direction
+        log('Down on:', state.elId)
+    } else {
+        log('Down - no element found')
+    }
 }
 
 /**
@@ -178,52 +180,53 @@ function handleDown(x, y) {
  * Detects axis lock, then tracks only the locked axis.
  */
 function handleMove(x, y) {
-  if (state.phase === 'IDLE') return
-  
-  // Phase 1: Detect axis (PENDING → SWIPING)
-  if (state.phase === 'PENDING') {
-    const dx = x - state.startX
-    const dy = y - state.startY
-    const absX = Math.abs(dx)
-    const absY = Math.abs(dy)
-    
-    // Not enough movement yet
-    if (absX < SWIPE_THRESHOLD && absY < SWIPE_THRESHOLD) {
-      return
+    if (state.phase === 'IDLE') return
+
+    // Phase 1: Detect axis (PENDING → SWIPING)
+    if (state.phase === 'PENDING') {
+        const dx = x - state.startX
+        const dy = y - state.startY
+        const absX = Math.abs(dx)
+        const absY = Math.abs(dy)
+
+        // Not enough movement yet
+        if (absX < SWIPE_THRESHOLD && absY < SWIPE_THRESHOLD) {
+            return
+        }
+
+        // Lock axis based on dominant direction
+        state.axis = absX > absY ? 'horizontal' : 'vertical'
+
+        // Check if the current element supports this axis; if not, walk up to find one that does
+        const resolved = axisProcessing(x, y, state.axis)
+        if (!resolved) {
+            console.log('axis error')
+            state.phase = 'IDLE'
+            return
+        }
+
+        // Initialize for swiping
+        state.lastAxisPos = state.axis === 'horizontal' ? state.startX : state.startY
+        state.phase = 'SWIPING'
+
+        // Mark lane as dragging (disables CSS transition)
+        const lane = ensureLane(state.elId)
+        lane.dragging = true
+        lane.pendingDir = null
+
+        log('Swiping started, axis:', state.axis)
     }
-    
-    // Lock axis based on dominant direction
-    state.axis = absX > absY ? 'horizontal' : 'vertical'
-    
-    // Check if lane supports this axis
-    if (!isAxisSupported(state.laneId, state.axis)) {
-      log('Axis not supported, resetting')
-      state.phase = 'IDLE'
-      return
+
+    // Phase 2: Track delta in locked axis only
+    if (state.phase === 'SWIPING') {
+        const currentAxisPos = state.axis === 'horizontal' ? x : y
+        const delta = currentAxisPos - state.lastAxisPos
+        state.lastAxisPos = currentAxisPos
+        state.totalDelta += delta
+
+        // Apply offset to carousel (instant, no transition)
+        applyLaneOffset(state.elId, state.totalDelta)
     }
-    
-    // Initialize for swiping
-    state.lastAxisPos = state.axis === 'horizontal' ? state.startX : state.startY
-    state.phase = 'SWIPING'
-    
-    // Mark lane as dragging (disables CSS transition)
-    const lane = ensureLane(state.laneId)
-    lane.dragging = true
-    lane.pendingDir = null
-    
-    log('Swiping started, axis:', state.axis)
-  }
-  
-  // Phase 2: Track delta in locked axis only
-  if (state.phase === 'SWIPING') {
-    const currentAxisPos = state.axis === 'horizontal' ? x : y
-    const delta = currentAxisPos - state.lastAxisPos
-    state.lastAxisPos = currentAxisPos
-    state.totalDelta += delta
-    
-    // Apply offset to carousel (instant, no transition)
-    applyLaneOffset(state.laneId, state.totalDelta)
-  }
 }
 
 /**
@@ -231,27 +234,29 @@ function handleMove(x, y) {
  * Commits or rejects the swipe, then resets.
  */
 function handleUp() {
-  if (state.phase === 'SWIPING' && state.laneId) {
-    const lane = ensureLane(state.laneId)
-    
-    if (Math.abs(state.totalDelta) > COMMIT_THRESHOLD) {
-      // Commit swipe - determine direction
-      const dir = getSwipeDirection(state.axis, state.totalDelta)
-      log('Swipe committed:', dir, 'delta:', state.totalDelta)
-      commitLaneSwipe(state.laneId, dir)
-    } else {
-      // Reject - snap back
-      log('Swipe rejected, delta:', state.totalDelta)
-      lane.offset = 0
-      lane.pendingDir = null
-      lane.dragging = false
+    if (state.phase === 'SWIPING' && state.elId) {
+        const lane = ensureLane(state.elId)
+
+        if (Math.abs(state.totalDelta) > COMMIT_THRESHOLD) {
+            // Commit swipe - determine direction
+            const dir = getSwipeDirection(state.axis, state.totalDelta)
+            log('Swipe committed:', dir, 'delta:', state.totalDelta)
+            commitLaneSwipe(state.elId, dir)
+        } else {
+            // Reject - snap back
+            log('Swipe rejected, delta:', state.totalDelta)
+            lane.offset = 0
+            lane.pendingDir = null
+            lane.dragging = false
+        }
     }
-  }
-  
-  // Reset to idle
-  state.phase = 'IDLE'
-  state.axis = null
-  state.laneId = null
+
+    // Reset to idle
+    state.phase = 'IDLE'
+    state.axis = null
+    state.elId = null
+    state.targetEl = null
+    state.elAxis = null
 }
 
 // ============================================================================
@@ -263,31 +268,29 @@ function handleUp() {
  * Uses data-lane attribute for identification.
  */
 function findLaneElement(x, y) {
-  const elements = document.elementsFromPoint(x, y)
-  return elements.find(el => el.dataset && el.dataset.lane) || null
+    const elements = document.elementsFromPoint(x, y)
+    return elements.find(el => el.dataset && el.dataset.lane) || null
 }
 
-/**
- * Check if a lane supports the given swipe axis.
- * Wallpaper = vertical, other lanes = horizontal.
- */
-function isAxisSupported(laneId, axis) {
-  if (!laneId) return false
-  
-  if (laneId === 'wallpaper') {
-    return axis === 'vertical'
-  }
-  return axis === 'horizontal'
+function axisProcessing(x, y, axis) {
+    if (state.elAxis === axis) return true
+    const elements = document.elementsFromPoint(x, y);
+    const el = elements.find(el => el.dataset?.direction === axis);
+    if (!el) return false;
+    state.elId = el.dataset.lane;
+    log('element changed: ', state.elId)
+    return true;
 }
+
 
 /**
  * Convert axis + delta to direction string.
  */
 function getSwipeDirection(axis, delta) {
-  if (axis === 'horizontal') {
-    return delta > 0 ? 'right' : 'left'
-  }
-  return delta > 0 ? 'down' : 'up'
+    if (axis === 'horizontal') {
+        return delta > 0 ? 'right' : 'left'
+    }
+    return delta > 0 ? 'down' : 'up'
 }
 
 // ============================================================================
@@ -295,5 +298,5 @@ function getSwipeDirection(axis, delta) {
 // ============================================================================
 
 export function getGestureState() {
-  return { ...state }
+    return { ...state }
 }

@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.webkit.JavascriptInterface
 
+/**
+ * JS bridge for Android → JS calls.
+ */
 class JSBridge(private val context: Context) {
 
     @JavascriptInterface
@@ -14,4 +17,5 @@ class JSBridge(private val context: Context) {
             context.startActivity(it)
         }
     }
+
 }

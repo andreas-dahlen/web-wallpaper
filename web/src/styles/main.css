@@ -2,3 +2,7 @@
 @import './variables.css';
 @import './touch.css';
 @import './scenes.css';
+
+body {
+    margin: 0;
+}

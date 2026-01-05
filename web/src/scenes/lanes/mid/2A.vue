@@ -1,6 +1,6 @@
 <template>
   <div class="scene-root a">
-    <div class="spin-box" aria-label="spin test" />
+    <div class="spin-box" aria-label="spin test" ></div>
     <div class="label">MID · A</div>
   </div>
 </template>
@@ -14,8 +14,8 @@ defineOptions({ name: 'MidA' })
   background: linear-gradient(135deg, #ff7a7a, #ffb347);
   display: grid;
   place-items: center;
-  gap: 12px;
-  padding: 24px;
+  gap: 0px;
+  /* padding: 24px; */
 }
 
 .spin-box {

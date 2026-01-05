@@ -1,5 +1,10 @@
 <template>
-  <div class="carousel" :style="carouselStyle">
+  <div
+    class="carousel"
+    :style="carouselStyle"
+    :data-lane="lane"
+    :data-direction="direction"
+  >
     <component
       v-if="totalScenes > 0"
       :is="prevScene"

@@ -4,10 +4,12 @@ import android.annotation.SuppressLint
 import android.graphics.Canvas
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.service.wallpaper.WallpaperService
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.View
+import android.view.Choreographer
 import android.webkit.WebView
 import android.webkit.WebViewClient
 
@@ -19,6 +21,7 @@ class WebWallpaperService : WallpaperService() {
 
         private lateinit var webView: WebView
         private val handler = Handler(Looper.getMainLooper())
+        private val choreographer = Choreographer.getInstance()
 
         private val BASE_WIDTH = 364f
         private val BASE_HEIGHT = 800f
@@ -34,6 +37,11 @@ class WebWallpaperService : WallpaperService() {
         
         // Track if we're in active gesture (for frame scheduling)
         private var isGestureActive = false
+
+        // Frame throttling to keep battery usage low while allowing animations
+        private val FRAME_THROTTLE_MS = 33L  // ~30fps cap for CSS animations
+        private var lastFrameTimeMs = 0L
+        private var frameCallback: Choreographer.FrameCallback? = null
 
         @SuppressLint("SetJavaScriptEnabled")
         override fun onCreate(surfaceHolder: SurfaceHolder) {
@@ -70,33 +78,45 @@ class WebWallpaperService : WallpaperService() {
         }
 
         // =========================================================================
-        // PERFORMANCE: On-demand rendering instead of constant loop
+        // PERFORMANCE: Continuous but throttled rendering for CSS animations
         // =========================================================================
         private var needsRedraw = true
-        private var isDrawScheduled = false
 
-        override fun onVisibilityChanged(visible: Boolean) {
-            super.onVisibilityChanged(visible)
-            if (visible) {
-                needsRedraw = true
-                scheduleFrame()
+        /**
+         * Start a light frame loop driven by Choreographer. Always keeps CSS
+         * animations ticking while visible, throttled to ~30fps for battery.
+         */
+        private fun startFrameLoop() {
+            if (frameCallback != null || !isVisible) return
+
+            frameCallback = Choreographer.FrameCallback {
+                val now = SystemClock.uptimeMillis()
+                if (now - lastFrameTimeMs >= FRAME_THROTTLE_MS) {
+                    lastFrameTimeMs = now
+                    needsRedraw = true
+                    drawFrame()
+                }
+
+                // Continue while needed
+                if (isVisible) {
+                    choreographer.postFrameCallback(frameCallback!!)
+                } else {
+                    frameCallback = null
+                }
             }
+
+            choreographer.postFrameCallback(frameCallback!!)
         }
 
-        private fun requestRedraw() {
-            needsRedraw = true
-            scheduleFrame()
-        }
-        
-        private fun scheduleFrame() {
-            if (!isDrawScheduled && isVisible) {
-                isDrawScheduled = true
-                handler.post { drawFrame() }
-            }
+        /**
+         * Stop the frame loop when wallpaper is not visible.
+         */
+        private fun stopFrameLoop() {
+            frameCallback?.let { choreographer.removeFrameCallback(it) }
+            frameCallback = null
         }
 
         private fun drawFrame() {
-            isDrawScheduled = false
             if (!needsRedraw || !isVisible) return
             needsRedraw = false
             
@@ -112,9 +132,9 @@ class WebWallpaperService : WallpaperService() {
                 holder.unlockCanvasAndPost(canvas)
             }
             
-            // Continue frame loop during active gesture
-            if (isVisible && isGestureActive) {
-                scheduleFrame()
+            // For gesture-driven redraws, ensure loop is alive
+            if (isVisible && isGestureActive && frameCallback == null) {
+                startFrameLoop()
             }
         }
 
@@ -140,6 +160,9 @@ class WebWallpaperService : WallpaperService() {
                     gestureSeqId++
                     isGestureActive = true
                     lastMoveTime = 0L
+
+                    // Ensure frame loop is running during interaction
+                    startFrameLoop()
                     
                     sendToJS("down", normX, normY)
                 }
@@ -166,7 +189,9 @@ class WebWallpaperService : WallpaperService() {
                     lastMoveTime = 0L
                     
                     // Final redraw after gesture completes
-                    handler.postDelayed({ requestRedraw() }, 50)
+                    handler.postDelayed({
+                        needsRedraw = true
+                    }, 50)
                 }
             }
         }
@@ -180,7 +205,9 @@ class WebWallpaperService : WallpaperService() {
                 "handleTouch('$type',$normX,$normY,$gestureSeqId)",
                 null
             )
-            requestRedraw()
+            needsRedraw = true
+            // Ensure animations keep running during gesture-driven updates
+            if (isGestureActive) startFrameLoop()
         }
 
         override fun onDestroy() {
@@ -206,13 +233,26 @@ class WebWallpaperService : WallpaperService() {
                 when {
                     result?.contains("success") == true -> {
                         // Engine ready, request initial render
-                        requestRedraw()
+                        needsRedraw = true
+                        // Start animation frames so CSS animations run
+                        startFrameLoop()
                     }
                     attempt < 3 -> {
                         // Retry with exponential backoff
                         handler.postDelayed({ initializeGestureEngine(attempt + 1) }, 100L * attempt)
                     }
                 }
+            }
+        }
+
+        // Frame loop lifecycle tied to visibility
+        override fun onVisibilityChanged(visible: Boolean) {
+            super.onVisibilityChanged(visible)
+            if (visible) {
+                needsRedraw = true
+                startFrameLoop()
+            } else {
+                stopFrameLoop()
             }
         }
     }

@@ -1,89 +1,82 @@
 <template>
-  <!--
-    Swipe Detection Zones
-    
-    These invisible overlay areas define where swipes can be detected.
-    The gesture handler (gestureHandler.js) uses document.elementsFromPoint()
-    to find elements with data-lane attributes at the touch point.
-    
-    Structure:
-    - 3 horizontal lanes (top, mid, bottom) for left/right swipes
-    - 1 wallpaper lane (full height) for up/down swipes
-    
-    The wallpaper zone is behind the horizontal zones so that:
-    - Touching a horizontal lane area = horizontal swipe on that lane
-    - Touching outside horizontal lanes = vertical swipe on wallpaper
-  -->
-  
-  <!-- Horizontal swipe lanes (higher z-index, captures horizontal swipes) -->
-  <div class="swipe-zones-horizontal">
-    <div 
-      v-for="lane in lanes" 
-      :key="lane"
-      :data-lane="lane"
-      class="swipe-zone"
+  <!-- horizontal swipe lanes -->
+  <!-- <div class="swipe-area-box lanes">
+    <TouchArea
+      v-for="lane in horizontalLanes"
+      :key="lane.id"
+      class="swipe-area"
+      :id="lane.id"
+      :data-lane="lane.lane"
+      :data-direction="lane.dir"
+      :onSwipe="lane.swipeDirs"
     />
-  </div>
+  </div> -->
 
-  <!-- Wallpaper lane (lower z-index, captures vertical swipes) -->
-  <div 
-    data-lane="wallpaper"
-    class="swipe-zone-wallpaper"
-  />
+  <!-- vertical wallpaper lane -->
+  <!-- <div class="swipe-area-box wallpaper">
+    <TouchArea
+      :data-lane="wallpaper.lane"
+      :data-direction="wallpaper.dir"
+      class="swipe-area-wallpaper"
+      :onSwipe="wallpaper.swipeDirs"
+    />
+  </div> -->
 </template>
 
 <script setup>
-// Lane identifiers - must match SwipeCarousel lane props
-const lanes = ['top', 'mid', 'bottom']
+import TouchArea from './TouchArea.vue'
+
+/* ---------- lane config ---------- */
+
+// const horizontalLanes = [
+//   {
+//     lane: 'top',
+//     dir: 'horizontal',
+//   },
+//   {
+//     lane: 'mid',
+//     dir: 'horizontal',
+//   },
+//   {
+//     lane: 'bottom',
+//     dir: 'horizontal',
+//   }
+// ]
+
+const wallpaper = {
+  lane: 'wallpaper',
+  dir: 'vertical',
+}
 </script>
 
 <style scoped>
-/* Container for horizontal lanes */
-.swipe-zones-horizontal {
+.swipe-area-box {
   position: absolute;
   left: 0;
   top: 0;
-  z-index: 10;
-  
+  z-index: 10; /* Above visual layers */
+}
+
+/* horizontal lanes */
+.lanes {
   display: flex;
   flex-direction: column;
-  
-  /* Container doesn't capture events */
-  pointer-events: none;
 }
 
-/* Individual horizontal swipe zone */
-.swipe-zone {
+.swipe-area {
   width: 352px;
   height: 265px;
-  
-  /* Capture pointer events for gesture detection */
-  pointer-events: auto;
-  touch-action: none;
-  user-select: none;
-  
-  /* Invisible - uncomment for debugging */
-  /* background: rgba(255, 0, 0, 0.15); */
-  /* border: 1px solid rgba(255, 0, 0, 0.3); */
+  opacity: 0;
 }
 
-/* Wallpaper zone - full height, behind horizontal zones */
-.swipe-zone-wallpaper {
-  position: absolute;
-  left: 0;
+/* wallpaper lane */
+.wallpaper {
   top: 0;
+}
+
+.swipe-area-wallpaper {
   width: 352px;
   height: 784px;
-  
-  /* Behind horizontal lanes */
-  z-index: 5;
-  
-  /* Capture pointer events for gesture detection */
-  pointer-events: auto;
-  touch-action: none;
-  user-select: none;
-  
-  /* Invisible - uncomment for debugging */
-  /* background: rgba(0, 0, 255, 0.1); */
+  opacity: 0;
 }
 </style>
