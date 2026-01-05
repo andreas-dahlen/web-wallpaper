@@ -1,18 +1,3 @@
-/**
- * Unified Gesture Handler
- * 
- * Handles both JS DOM events and Android bridge events with a single,
- * simplified state machine. Eliminates the need for separate engines,
- * event buses, and complex routing.
- * 
- * States: IDLE → PENDING → SWIPING → IDLE
- * 
- * Performance optimizations:
- * - Single DOM query on pointer down (cached for entire gesture)
- * - Only tracks the locked axis after threshold detection
- * - Direct callbacks instead of event bus
- * - No momentum handling (page-based carousels use CSS transitions)
- */
 
 import { ensureLane, applyLaneOffset, commitLaneSwipe } from '../state/swipeState'
 import { APP_SETTINGS } from '../config/appSettings'
@@ -24,7 +9,6 @@ import { APP_SETTINGS } from '../config/appSettings'
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold || 8
 const COMMIT_THRESHOLD = APP_SETTINGS.input.swipeViewChangeThreshold || 40
 
-// Debug logging (respects DEBUG settings)
 const DEBUG_ENABLED = false // Set to true for development
 
 function log(...args) {
