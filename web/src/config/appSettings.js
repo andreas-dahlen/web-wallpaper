@@ -33,3 +33,5 @@ export const DEBUG = {
   enabled: false,
   gestures: false
 }
+
+// Removed LANES exports to match current architecture

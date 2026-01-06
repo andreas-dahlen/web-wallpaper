@@ -10,7 +10,6 @@ import android.webkit.JavascriptInterface
  */
 class JSBridge(private val context: Context) {
 
-
     /**
      * Launch another app by package name
      */
@@ -33,10 +32,11 @@ class JSBridge(private val context: Context) {
     fun launchPlaceholder(action: String?) {
         // Intentionally empty: reserved for upcoming launch actions from JS.
     }
+
     fun performAction(action: String, payload: String?) {
-    when (action) {
-        "openApp" -> payload?.let { openApp(it) }
-        // future: "openSettings", "showRecents", etc.
+        when (action) {
+            "openApp" -> payload?.let { openApp(it) }
+            // future: "openSettings", "showRecents", etc.
+        }
     }
-}
 }

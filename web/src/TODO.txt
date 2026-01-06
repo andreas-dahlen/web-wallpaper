@@ -1,0 +1,16 @@
+
+
+makeAnimation.js
+
+make grid.vue for defult button placements..?
+
+start working on launch app logic? (spotify, autible, firefox etc...)
+
+make unmount for buttons that aren't in view?
+
+OH PLEASE MAKE AN EASIER AUTO APK AUTOMISATION!!! npm run build, take file from dist into webWallpaper.android app.. save on github.. then termux for phone auto stuff?
+
+
+12 - 24 GOD JUL! -- onCancel is never triggered :p Canceltarget is never used might be the reason why its never triggered
+Lock swipes to swipe direction picked?
+Set the state of if it should be locked or not? any point to this?

@@ -11,6 +11,7 @@
       class="scene"
       :style="prevStyle"
     />
+
     <component
       v-if="totalScenes > 0"
       :is="currentScene"
@@ -18,6 +19,7 @@
       :style="currentStyle"
       @transitionend="onTransitionEnd"
     />
+
     <component
       v-if="totalScenes > 0"
       :is="nextScene"
