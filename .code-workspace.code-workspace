@@ -4,7 +4,7 @@
 			"path": "web/src"
 		},
 		{
-			"path": "ADWebWallpaper/app/src/main/java"
+			"path": "ADWebWallpaper/app/src/main"
 		}
 	],
 	"settings": {}

@@ -1,10 +1,9 @@
 package com.ad.webwallpaper
 
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import android.view.Choreographer
 import kotlin.math.abs
+import kotlin.math.pow
 
 object SwipeEngine {
 
@@ -15,11 +14,11 @@ object SwipeEngine {
     private var lastTime = 0L
     private var active = false
     private var isMomentumActive = false  // Track if momentum is running
-    private val mainHandler = Handler(Looper.getMainLooper())
     private val choreographer = Choreographer.getInstance()
 
     private const val DECAY = 0.92f  // Slightly smoother decay
     private const val MIN_VELOCITY = 0.3f  // Lower threshold for smoother stop
+    private const val VELOCITY_BLEND = 0.8f // Low-pass filter: favors older velocity to smooth jittery input
 
     fun onDown(x: Float, y: Float) {
         // Cancel any running momentum animation
@@ -39,8 +38,11 @@ object SwipeEngine {
         val now = SystemClock.uptimeMillis()
         val dt = (now - lastTime).coerceAtLeast(1)
 
-        velocityX = (x - lastX) / dt
-        velocityY = (y - lastY) / dt
+        val newVX = (x - lastX) / dt
+        val newVY = (y - lastY) / dt
+
+        velocityX = velocityX * VELOCITY_BLEND + newVX * (1f - VELOCITY_BLEND)
+        velocityY = velocityY * VELOCITY_BLEND + newVY * (1f - VELOCITY_BLEND)
 
         lastX = x
         lastY = y
@@ -53,15 +55,21 @@ object SwipeEngine {
 
         var posX = lastX
         var posY = lastY
-        // Scale velocity to per-frame values (assuming ~16ms frames)
+        // Convert velocity from px/ms → px/frame (~16ms)
         var vX = velocityX * 16f
         var vY = velocityY * 16f
+
+        // Safety clamp against spikes
+        vX = vX.coerceIn(-100f, 100f)
+        vY = vY.coerceIn(-100f, 100f)
 
         GestureDebug.log("swipeEngine", "Momentum start: vx=${String.format("%.2f", vX)} vy=${String.format("%.2f", vY)}")
 
         // Use Choreographer for frame-perfect momentum animation
         isMomentumActive = true
         
+        var lastFrameTimeMs = SystemClock.uptimeMillis()
+
         val frameCallback = object : Choreographer.FrameCallback {
             override fun doFrame(frameTimeNanos: Long) {
                 if (!isMomentumActive) {
@@ -69,6 +77,10 @@ object SwipeEngine {
                     return
                 }
                 
+                val now = SystemClock.uptimeMillis()
+                val frameDeltaMs = (now - lastFrameTimeMs).coerceAtLeast(1).toFloat()
+                lastFrameTimeMs = now
+
                 if (abs(vX) < MIN_VELOCITY && abs(vY) < MIN_VELOCITY) {
                     isMomentumActive = false
                     onComplete()
@@ -77,8 +89,10 @@ object SwipeEngine {
                 
                 posX += vX
                 posY += vY
-                vX *= DECAY
-                vY *= DECAY
+
+                val frameDecay = DECAY.pow(frameDeltaMs / 16f)
+                vX *= frameDecay
+                vY *= frameDecay
                 
                 onUpdate(posX, posY)
                 
