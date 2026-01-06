@@ -1,7 +1,6 @@
-package com.ad.webwallpaper
+package com.ad.launcher
 
 import android.util.Log
-import kotlin.system.measureNanoTime
 import kotlin.math.roundToInt
 
 object GestureDebug {

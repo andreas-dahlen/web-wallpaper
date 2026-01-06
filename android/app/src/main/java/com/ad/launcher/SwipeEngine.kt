@@ -1,4 +1,4 @@
-package com.ad.webwallpaper
+package com.ad.launcher
 
 import android.os.SystemClock
 import android.view.Choreographer

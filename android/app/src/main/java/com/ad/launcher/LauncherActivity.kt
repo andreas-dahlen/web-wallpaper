@@ -1,4 +1,4 @@
-package com.ad.webwallpaper
+package com.ad.launcher
 
 import android.annotation.SuppressLint
 import android.os.Bundle

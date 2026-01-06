@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.ad.webwallpaper">
+    package="com.ad.launcher">
 
     <application
         android:allowBackup="true"
@@ -11,12 +12,12 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ADWebWallpaper"
+        android:theme="@style/Theme.launcher"
         android:hardwareAccelerated="true">
 
         <!-- Launcher Activity hosting the WebView UI -->
         <activity
-            android:name="com.ad.webwallpaper.LauncherActivity"
+            android:name=".LauncherActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:hardwareAccelerated="true">

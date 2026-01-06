@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ADWebWallpaper"
+rootProject.name = "launcher"
 include(":app")

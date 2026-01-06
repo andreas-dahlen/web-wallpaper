@@ -1,4 +1,4 @@
-package com.ad.webwallpaper  // launcher host package
+package com.ad.launcher  // launcher host package
 
 import android.content.Context
 import android.content.Intent

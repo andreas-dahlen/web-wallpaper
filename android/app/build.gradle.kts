@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.ad.webwallpaper"
+    namespace = "com.ad.launcher"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.ad.webwallpaper"
+        applicationId = "com.ad.launcher"
         minSdk = 35
         targetSdk = 36
         versionCode = 1
