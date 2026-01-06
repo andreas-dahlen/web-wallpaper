@@ -1,0 +1,22 @@
+:root {
+  /* Touch areas */
+  --touch-idle: rgba(0, 0, 0, 0.442);
+  --touch-pressed: #2ecc71;
+  --touch-release: #e74c3c;
+  --touch-swipe-left: #9b59b6;
+  --touch-swipe-right: #e67e22;
+  --touch-swipe-up: #9cb659;
+  --touch-swipe-down: #e622ae;
+
+  /* Swipe Zone Colors */
+  --index-0: blue;
+  --index-1: green;
+  --index-2: orange;
+
+  /* Motion - slightly faster for snappier feel on Android */
+  --touch-transition-fast: 120ms;
+  --touch-transition-normal: 200ms;
+  
+  /* Force GPU compositing for better Android WebView performance */
+  --gpu-hint: translateZ(0);
+}

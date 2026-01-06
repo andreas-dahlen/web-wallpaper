@@ -1,0 +1,15 @@
+<template>
+  <div class="scene-root c">
+    MID · C
+  </div>
+</template>
+
+<script setup>
+defineOptions({ name: 'MidC' })
+</script>
+
+<style scoped>
+.c {
+  background: linear-gradient(135deg, #7affb2, #47ff7a);
+}
+</style>
