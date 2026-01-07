@@ -8,6 +8,12 @@ import './styles/main.css'
 import { initGestureHandler } from './input/gestureHandler'
 import { exportCSS } from './config/exportSettings'
 
+function applyRuntimeLayout() {
+	exportCSS()
+	// Reuse existing scaling logic by simulating a resize when dimensions change
+	window.dispatchEvent(new Event('layout:refresh'))
+}
+
 // Create and mount the Vue app
 const app = createApp(App)
 app.mount('#app')
@@ -16,4 +22,7 @@ app.mount('#app')
 initGestureHandler()
 
 // Apply CSS variables from JS after DOM is ready
-exportCSS()
+applyRuntimeLayout()
+
+// Refresh layout when Android injects device dimensions
+window.addEventListener('phone:metrics', applyRuntimeLayout)

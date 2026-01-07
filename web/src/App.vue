@@ -1,19 +1,16 @@
 <!-- App.vue -->
 <template>
   <div id="app">
-    <WallpaperRoot />
+    <DebugScreen :enabled="!isAndroid">
+      <WallpaperRoot />
+    </DebugScreen>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import WallpaperRoot from './scenes/WallpaperRoot.vue'
-import { useScale } from './composables/useScale'
+import DebugScreen from './components/DebugScreen.vue'
 
-useScale()
+const isAndroid = computed(() => typeof Android !== 'undefined')
 </script>
-
-<style>
-#app {
-  transform-origin: center center;
-}
-</style>

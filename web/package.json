@@ -7,10 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy:wallpaper": "node scripts/deploy-wallpaper.js",
-    "deploy:debug-wallpaper": "node scripts/deploy-debug-wallpaper.js",
-    "build:android": "npm run build && npm run deploy:wallpaper",
-    "build:debug": "vite build --mode debug && npm run deploy:debug-wallpaper"
+    "build:android": "vite build --mode production && node scripts/deploy-wallpaper.js",
+    "build:debug": "vite build --mode debug && node scripts/deploy-debug-wallpaper.js"
   },
   "dependencies": {
     "vue": "^3.5.24"

@@ -30,8 +30,8 @@ import ZoneLayout from './ZoneLayout.vue'
 
 <style scoped>
 .phone {
-  width: var(--phone-width);
-  height: var(--phone-height);
+  width: var(--design-width);
+  height: var(--design-height);
   /* width: 364px;
   height: 800px; */
   position: relative;
@@ -42,12 +42,10 @@ import ZoneLayout from './ZoneLayout.vue'
 }
 
 .screen {
-  /* width: var(--wallpaper-width);
-  height: var(--wallpaper-height); */
+  width: var(--design-width);
+  height: var(--design-height);
   /* width: 352px; */
   /* height: 784px; */
-  width: 364px;
-  height: 800px;
   position: absolute;
   left: 0;
   top: 0;

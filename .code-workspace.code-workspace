@@ -4,7 +4,7 @@
 			"path": "web/src"
 		},
 		{
-			"path": "ADWebWallpaper/app/src/main"
+			"path": "android/app/src/main/java/com/ad/launcher"
 		}
 	],
 	"settings": {}

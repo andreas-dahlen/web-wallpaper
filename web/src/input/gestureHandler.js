@@ -9,7 +9,7 @@ import { APP_SETTINGS } from '../config/appSettings'
 const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold || 8
 const COMMIT_THRESHOLD = APP_SETTINGS.input.swipeViewChangeThreshold || 40
 
-const DEBUG_ENABLED = false // Set to true for development
+const DEBUG_ENABLED = true // Set to true for development
 
 function log(...args) {
     if (DEBUG_ENABLED) {
@@ -87,7 +87,7 @@ let currentSeqId = 0
 
 /**
  * Global handler called by Kotlin: handleTouch('down', x, y, seqId)
- * Coordinates are already normalized to BASE_WIDTH/BASE_HEIGHT (364x800)
+ * Coordinates are already normalized to the current device dimensions
  */
 function handleAndroidTouch(type, x, y, seqId) {
     // Reject stale events from previous gesture
@@ -256,10 +256,10 @@ function findLaneElement(x, y) {
     return elements.find(el => el.dataset && el.dataset.lane) || null
 }
 
-function axisProcessing(x, y, axis) {
-    if (state.elAxis === axis) return true
+function axisProcessing(x, y) {
+    if (state.elAxis === state.axis) return true
     const elements = document.elementsFromPoint(x, y);
-    const el = elements.find(el => el.dataset?.direction === axis);
+    const el = elements.find(el => el.dataset?.direction === state.axis);
     if (!el) return false;
     state.elId = el.dataset.lane;
     log('element changed: ', state.elId)

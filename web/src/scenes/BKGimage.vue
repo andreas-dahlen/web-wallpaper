@@ -22,9 +22,9 @@ import SwipeCarousel from '../components/SwipeCarousel.vue'
 import { APP_SETTINGS } from '../config/appSettings'
 import { LANES } from './lanes/laneIndex'
 
-// Wallpaper uses phone dimensions (full screen)
-const laneWidth = APP_SETTINGS.ui.wallpaperWidth
-const laneHeight = APP_SETTINGS.ui.wallpaperHeight
+// Wallpaper uses design viewport dimensions
+const laneWidth = APP_SETTINGS.design.width
+const laneHeight = APP_SETTINGS.design.height
 
 // Wallpaper scenes from lane index
 const scenes = LANES.wallpaper

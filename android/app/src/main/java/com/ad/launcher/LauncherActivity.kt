@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import java.util.Locale
 
 class LauncherActivity : AppCompatActivity() {
 
@@ -24,8 +25,9 @@ class LauncherActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private val choreographer = Choreographer.getInstance()
 
-    private val baseWidth = 364f
-    private val baseHeight = 800f
+    private var deviceWidthPx = 0f
+    private var deviceHeightPx = 0f
+    private var deviceDensity = 1f
 
     // =========================================================================
     // PERFORMANCE: Throttle move events to reduce JS bridge overhead
@@ -51,12 +53,15 @@ class LauncherActivity : AppCompatActivity() {
     // =========================================================================
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        captureDeviceMetrics()
         enterImmersiveMode()
         setupWebView()
     }
 
     override fun onResume() {
         super.onResume()
+        captureDeviceMetrics()
+        injectDeviceMetrics()
         isForeground = true
         webView.onResume()
         startFrameLoop()
@@ -109,6 +114,7 @@ class LauncherActivity : AppCompatActivity() {
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    injectDeviceMetrics()
                     initializeGestureEngine()
                 }
             }
@@ -148,8 +154,14 @@ class LauncherActivity : AppCompatActivity() {
         val width = if (w > 0f) w else resources.displayMetrics.widthPixels.toFloat()
         val height = if (h > 0f) h else resources.displayMetrics.heightPixels.toFloat()
 
-        val normX = (event.x / width) * baseWidth
-        val normY = (event.y / height) * baseHeight
+        val safeWidth = if (width > 0f) width else 1f
+        val safeHeight = if (height > 0f) height else 1f
+
+        val targetWidth = deviceWidthPx.takeIf { it > 0f } ?: width
+        val targetHeight = deviceHeightPx.takeIf { it > 0f } ?: height
+
+        val normX = (event.x / safeWidth) * targetWidth
+        val normY = (event.y / safeHeight) * targetHeight
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -188,6 +200,45 @@ class LauncherActivity : AppCompatActivity() {
                 }, 50)
             }
         }
+    }
+
+    /**
+     * Capture current device metrics once per resume.
+     */
+private fun captureDeviceMetrics() {
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        val metrics = windowManager.currentWindowMetrics
+        val bounds = metrics.bounds
+        deviceWidthPx = bounds.width().toFloat()
+        deviceHeightPx = bounds.height().toFloat()
+        deviceDensity = resources.displayMetrics.density
+    } else {
+        val metrics = resources.displayMetrics
+        deviceWidthPx = metrics.widthPixels.toFloat()
+        deviceHeightPx = metrics.heightPixels.toFloat()
+        deviceDensity = metrics.density
+    }
+}
+
+    /**
+     * Inject device dimensions into the WebView for JS to consume.
+     */
+    private fun injectDeviceMetrics() {
+        val width = deviceWidthPx.toInt()
+        val height = deviceHeightPx.toInt()
+        val density = String.format(Locale.US, "%.4f", deviceDensity)
+
+        val js = """
+            (function() {
+                const metrics = { width: $width, height: $height, scale: $density };
+                window.__ANDROID_SCREEN__ = metrics;
+                if (typeof window.__applyAndroidScreen === 'function') {
+                    window.__applyAndroidScreen(metrics);
+                }
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(js, null)
     }
 
     /**

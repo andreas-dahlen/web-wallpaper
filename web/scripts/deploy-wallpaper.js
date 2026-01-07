@@ -13,10 +13,10 @@ function findWebRoot(startDir) {
 const ROOT = findWebRoot(process.cwd())
 
 const SRC = path.join(ROOT, 'dist', 'index.html')
-const DEST_DIR = path.join(ROOT, '..', 'ADWebWallpaper', 'app', 'src', 'main', 'assets')
+const DEST_DIR = path.join(ROOT, '..', 'android', 'app', 'src', 'main', 'assets')
 const DEST = path.join(DEST_DIR, 'index.html')
 
-console.log('Deploying wallpaper HTML...')
+console.log('Deploying launcher HTML...')
 
 if (!fs.existsSync(SRC)) {
   console.error('❌ Source index.html not found:', SRC)

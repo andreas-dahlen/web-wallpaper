@@ -43,9 +43,8 @@ import { APP_SETTINGS } from '../config/appSettings'
 import { LANES } from './lanes/laneIndex'
 
 // Layout dimensions from config
-const laneWidth = APP_SETTINGS.ui.laneWidth
+const laneWidth = APP_SETTINGS.design.width
 const laneHeight = APP_SETTINGS.ui.laneHeight
-
 // Scene components for each lane
 const topScenes = LANES.top
 const midScenes = LANES.mid
@@ -59,6 +58,7 @@ const bottomScenes = LANES.bottom
   left: 0;
   width: 100%;
   
+  opacity: 50%;
   /* Stack lanes vertically */
   display: flex;
   flex-direction: column;

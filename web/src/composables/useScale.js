@@ -5,9 +5,18 @@ import { APP_SETTINGS } from '../config/appSettings'
 let currentScale = 1
 
 export function useScale({ targetId = 'app' } = {}) {
-  const { width, height } = APP_SETTINGS.phone
+
+  function getBaseSize() {
+    return {
+      width: APP_SETTINGS.design.width,
+      height: APP_SETTINGS.design.height
+    }
+  }
 
   function applyScale() {
+    const { width, height } = getBaseSize()
+    if (!width || !height) return
+
     const scale = Math.min(
       window.innerWidth / width,
       window.innerHeight / height
@@ -23,13 +32,19 @@ export function useScale({ targetId = 'app' } = {}) {
     }
   }
 
+  function onMetrics() {
+    applyScale()
+  }
+
   onMounted(() => {
     applyScale()
-    window.addEventListener('resize', applyScale)
+    window.addEventListener('layout:refresh', applyScale)
+    window.addEventListener('phone:metrics', onMetrics)
   })
 
   onBeforeUnmount(() => {
-    window.removeEventListener('resize', applyScale)
+    window.removeEventListener('layout:refresh', applyScale)
+    window.removeEventListener('phone:metrics', onMetrics)
   })
 
   return {

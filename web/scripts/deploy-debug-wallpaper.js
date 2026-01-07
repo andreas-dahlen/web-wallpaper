@@ -13,10 +13,10 @@ function findWebRoot(startDir) {
 const ROOT = findWebRoot(process.cwd())
 
 const SRC = path.join(ROOT, 'dist', 'index.html')
-const DEST_DIR = path.join(ROOT, '..', 'ADWebWallpaper', 'app', 'src', 'main', 'assets')
+const DEST_DIR = path.join(ROOT, '..', 'android', 'app', 'src', 'main', 'assets')
 const DEST = path.join(DEST_DIR, 'index.html')
 
-console.log('Deploying DEBUG wallpaper HTML...')
+console.log('Deploying DEBUG launcher HTML...')
 
 if (!fs.existsSync(SRC)) {
   console.error('Source index.html not found:', SRC)
@@ -32,4 +32,4 @@ if (fs.existsSync(DEST)) {
 
 fs.copyFileSync(SRC, DEST)
 
-console.log('index.html deployed to debug assets successfully')
+console.log('index.html deployed successfully (debug)')
