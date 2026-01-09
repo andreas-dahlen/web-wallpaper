@@ -1,0 +1,12 @@
+Web sizing vs APK: The wrapper uses the design defaults from PHONE_SPEC (1272×2800, dpr ~4.69) and caps scale at 1, so on desktop you see a true-size downscale of that canvas. On APK, Android injects the real device metrics via window.__ANDROID_SCREEN__, and applyDesignViewport() overwrites design width/height/dpr to match the device; the wrapper isn’t used there. Result: layouts on device render at full device pixels; the web view is a scaled preview of the default spec, not of your actual phone unless you also set the design defaults to the device metrics for web.
+
+Gesture parity: Pointer deltas now normalize to design space using the .phone bounding rect before thresholds/deltas are applied, so scaling in the web wrapper no longer changes swipe thresholds/speeds. On Android, Kotlin already normalizes to device pixels, and JS now treats both paths uniformly in design units. Lane hit-testing still uses viewport coords, so targeting remains correct.
+
+Stability checks:
+
+applyDesignViewport writes --design-width/height and dispatches phone:metrics; the wrapper listens to this to rescale.
+Wrapper now measures its own size, prefers width scaling when height is short, allows vertical scroll, and caps at 1 so no upscale.
+No extra transforms in WallpaperRoot; touch-action is disabled as expected.
+If you want the web view to mirror your exact phone, set DESIGN_DEFAULTS (or call applyDesignViewport) to your device’s px metrics while testing in the browser. Otherwise, what you see is the PHONE_SPEC canvas shrunk to fit.
+
+Open items to verify: ensure Android injects metrics on resume (it does in onResume and onPageFinished), and confirm your device’s reported width/height match the rotation you expect. Let me know if you want the web defaults switched to your device size for one-to-one previews.

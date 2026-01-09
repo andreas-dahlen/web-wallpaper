@@ -1,10 +1,21 @@
-import { DEBUG } from './config'
+import { DEBUG } from './debugFlags'
 
 // Universal log function that respects DEBUG settings.
 export function log(key, ...args) {
+
+  //critical channels
+  if (DEBUG[key] === 'always') {
+    return console.log(format(key), ...args)
+  }
+
+  // Normal debug-gated logging
   if (!DEBUG.enabled) return
   if (!DEBUG[key]) return
 
+  console.log(format(key), ...args)
+}
+
+function format(key) {
   const time = new Date().toLocaleTimeString('en-US', {
     hour12: false,
     hour: '2-digit',
@@ -12,11 +23,11 @@ export function log(key, ...args) {
     second: '2-digit',
     fractionalSecondDigits: 3,
   })
-  console.log(`[${time}] [${key}]`, ...args)
+  return `[${time}] [${key}]`
 }
 
 // Draw using raw screen pixels only.
-export function drawDot(x, y, color = 'red') {
+export function drawDots(x, y, color = 'red') {
   if (DEBUG.enabled && DEBUG.drawDots) {
     const dot = document.createElement('div')
     dot.style.position = 'fixed'
@@ -51,71 +62,4 @@ export function debugLagTime(label) {
   } else {
     timeList.push({ label, t: performance.now() })
   }
-}
-
-const RAF_SAMPLE = 120
-let rafHandle = null
-let rafLast = 0
-let rafCount = 0
-let rafMin = Number.POSITIVE_INFINITY
-let rafMax = 0
-let rafSum = 0
-
-// requestAnimationFrame delta logging. Controlled by DEBUG.rafDelta.
-export function startRafDeltaDebug(label = 'rAF') {
-  if (!DEBUG.enabled || !DEBUG.rafDelta) return
-  if (rafHandle) return
-
-  const tick = (now) => {
-    if (!rafLast) {
-      rafLast = now
-      rafHandle = requestAnimationFrame(tick)
-      return
-    }
-
-    const delta = now - rafLast
-    rafLast = now
-
-    rafMin = Math.min(rafMin, delta)
-    rafMax = Math.max(rafMax, delta)
-    rafSum += delta
-    rafCount += 1
-
-    if (DEBUG.lagTime) {
-      debugLagTime(`${label} frame`)
-      if (rafCount % RAF_SAMPLE === 0) debugLagTime('log')
-    }
-
-    if (rafCount % RAF_SAMPLE === 0) {
-      const avg = rafSum / RAF_SAMPLE
-      log('rafDelta', `${label} delta ${avg.toFixed(1)}ms avg, ${rafMin.toFixed(1)}ms min, ${rafMax.toFixed(1)}ms max over ${RAF_SAMPLE} frames`)
-      rafMin = Number.POSITIVE_INFINITY
-      rafMax = 0
-      rafSum = 0
-    }
-
-    rafHandle = requestAnimationFrame(tick)
-  }
-
-  rafHandle = requestAnimationFrame(tick)
-}
-
-export function stopRafDeltaDebug() {
-  if (rafHandle) {
-    cancelAnimationFrame(rafHandle)
-    rafHandle = null
-  }
-
-  if (DEBUG.enabled && DEBUG.rafDelta && rafCount > 0) {
-    const avg = rafSum / rafCount
-    log('rafDelta', `stop ${rafCount}f avg=${avg.toFixed(1)}ms min=${rafMin.toFixed(1)}ms max=${rafMax.toFixed(1)}ms`)
-  }
-
-  if (DEBUG.lagTime) debugLagTime('log')
-
-  rafLast = 0
-  rafCount = 0
-  rafMin = Number.POSITIVE_INFINITY
-  rafMax = 0
-  rafSum = 0
 }

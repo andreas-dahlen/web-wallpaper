@@ -1,67 +1,59 @@
 <template>
-  <!--
-    Debug Panel - Shows current gesture state
-    Only visible when DEBUG_ENABLED is true in gestureHandler.js
-    
-    Usage: Add <DebugPanel /> to WallpaperRoot.vue for development
-  -->
-  <div v-if="showDebug" class="debug-panel">
-    <div class="debug-row">Phase: {{ gestureState.phase }}</div>
-    <div class="debug-row">Axis: {{ gestureState.axis || '-' }}</div>
-    <div class="debug-row">Lane: {{ gestureState.laneId || '-' }}</div>
-    <div class="debug-row">Delta: {{ Math.round(gestureState.totalDelta) }}</div>
+  <div v-if="showPanel" class="debug-panel">
+    <div class="row">
+      <span class="label">Debug</span>
+      <span class="value">Panel enabled</span>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { getGestureState } from '../input/gestureHandler'
+import { APP_SETTINGS } from '../config/appSettings'
 
-const showDebug = ref(false)
-const gestureState = ref({
-  phase: 'IDLE',
-  axis: null,
-  laneId: null,
-  totalDelta: 0
-})
-
-let intervalId = null
-
-onMounted(() => {
-  // Check if debug mode is available
-  showDebug.value = typeof getGestureState === 'function'
-  
-  if (showDebug.value) {
-    intervalId = setInterval(() => {
-      gestureState.value = getGestureState()
-    }, 32) // ~30fps update for debug display
-  }
-})
-
-onUnmounted(() => {
-  if (intervalId) clearInterval(intervalId)
-})
+const showPanel = APP_SETTINGS.debugPanel === true
 </script>
 
 <style scoped>
 .debug-panel {
-  position: fixed;
+  position: absolute;
   top: 10px;
+  left: 10px;
   right: 10px;
-  
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 6px;
-  
-  font-family: monospace;
-  font-size: 11px;
-  color: #0f0;
-  
-  z-index: 9999;
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 12px;
   pointer-events: none;
+  z-index: 5;
 }
 
-.debug-row {
-  white-space: nowrap;
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.label {
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+.value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #f8fafc;
+}
+
+@media (max-width: 480px) {
+  .debug-panel {
+    font-size: 11px;
+    padding: 8px 10px;
+  }
 }
 </style>

@@ -11,20 +11,13 @@
       lane="wallpaper"
       :scenes="scenes"
       direction="vertical"
-      :width="laneWidth"
-      :height="laneHeight"
     />
   </div>
 </template>
 
 <script setup>
 import SwipeCarousel from '../components/SwipeCarousel.vue'
-import { APP_SETTINGS } from '../config/appSettings'
 import { LANES } from './lanes/laneIndex'
-
-// Wallpaper uses design viewport dimensions
-const laneWidth = APP_SETTINGS.design.width
-const laneHeight = APP_SETTINGS.design.height
 
 // Wallpaper scenes from lane index
 const scenes = LANES.wallpaper
@@ -37,6 +30,8 @@ const scenes = LANES.wallpaper
   left: 0;
   width: 100%;
   height: 100%;
+  
+  opacity: 100;
   
   /* Lowest z-index - behind all other layers */
   z-index: 1;

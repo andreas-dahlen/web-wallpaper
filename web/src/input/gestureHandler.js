@@ -1,71 +1,61 @@
 
 import { ensureLane, applyLaneOffset, commitLaneSwipe } from '../state/swipeState'
 import { APP_SETTINGS } from '../config/appSettings'
+import { log, drawDots } from '../debug/functions'
 
-// ============================================================================
+// =====================================================
 // Configuration
-// ============================================================================
+// =====================================================
 
-const SWIPE_THRESHOLD = APP_SETTINGS.input.swipeThreshold || 8
-const COMMIT_THRESHOLD = APP_SETTINGS.input.swipeViewChangeThreshold || 40
+const SWIPE_THRESHOLD = APP_SETTINGS.swipeThreshold
+const COMMIT_THRESHOLD = APP_SETTINGS.swipeViewChangeThreshold
 
-const DEBUG_ENABLED = true // Set to true for development
-
-function log(...args) {
-    if (DEBUG_ENABLED) {
-        console.log('[GestureHandler]', ...args)
-    }
-}
-
-// ============================================================================
+// =====================================================
 // State
-// ============================================================================
+// =====================================================
 
 const state = {
     // Current gesture phase
     phase: 'IDLE', // 'IDLE' | 'PENDING' | 'SWIPING'
 
-    // Starting position (for threshold detection)
+    // Starting position (for threshold detection) in design px
     startX: 0,
     startY: 0,
 
-    // Last position in locked axis (for delta calculation)
+    // Last position in locked axis (for delta calculation) in design px
     lastAxisPos: 0,
 
     // Locked axis after threshold
     axis: null, // 'horizontal' | 'vertical' | null
 
-    // Accumulated delta in swipe direction
+    // Accumulated delta in swipe direction (design px)
     totalDelta: 0,
 
     elId: null,
     elAxis: null,
-    // Platform mode
-    isAndroid: false
 }
 
-// ============================================================================
+// =====================================================
 // Initialization
-// ============================================================================
+// =====================================================
 
 /**
  * Initialize the gesture handler.
  * Auto-detects platform and sets up appropriate event listeners.
  */
 export function initGestureHandler() {
-    state.isAndroid = typeof Android !== 'undefined'
 
-    if (state.isAndroid) {
+    if (APP_SETTINGS.platform === 'android') {
         // Android mode: expose global handler for Kotlin bridge
         window.handleTouch = handleAndroidTouch
-        log('Initialized in Android mode')
+        log('init', 'Initialized in Android mode')
     } else {
         // Browser mode: attach DOM event listeners
         window.addEventListener('pointerdown', onPointerDown)
         window.addEventListener('pointermove', onPointerMove)
         window.addEventListener('pointerup', onPointerUp)
-        window.addEventListener('pointercancel', onPointerUp) //SHOULD BE CANCEL... ONPOINTERCANCEL AND HAPPENS TO A BUTTON WHEN SWIPE IS INITIALIZED
-        log('Initialized in Browser mode')
+        window.addEventListener('pointercancel', onPointerUp)
+        log('init', 'Initialized in Browser mode')
     }
 }
 
@@ -74,14 +64,13 @@ export function initGestureHandler() {
  * This replaces the complex initAndroidEngine retry logic.
  */
 window.initAndroidEngine = () => {
-    state.isAndroid = true
-    log('Android engine confirmed')
+    log('init', 'Android engine confirmed')
     return 'success'
 }
 
-// ============================================================================
+// =====================================================
 // Android Bridge Handler
-// ============================================================================
+// =====================================================
 
 let currentSeqId = 0
 
@@ -112,9 +101,9 @@ function handleAndroidTouch(type, x, y, seqId) {
     }
 }
 
-// ============================================================================
+// =====================================================
 // Browser DOM Event Handlers
-// ============================================================================
+// =====================================================
 
 function onPointerDown(e) {
     handleDown(e.clientX, e.clientY)
@@ -128,15 +117,17 @@ function onPointerUp() {
     handleUp()
 }
 
-// ============================================================================
+// =====================================================
 // Core Gesture Logic
-// ============================================================================
+// =====================================================
 
 /**
  * Handle pointer/touch down.
  * Finds the target lane and prepares for potential swipe.
  */
 function handleDown(x, y) {
+    drawDots(x, y, 'green')
+    log('input', `[@DOWN] X = ${x} Y = ${y}`)
     // Reset state for new gesture
     state.phase = 'PENDING'
     state.startX = x
@@ -153,9 +144,9 @@ function handleDown(x, y) {
     if (el) {
         state.elId = el.dataset.lane
         state.elAxis = el.dataset.direction
-        log('Down on:', state.elId)
+        log('dom', `[@DOWN] ${state.elId}`)
     } else {
-        log('Down - no element found')
+        log('dom', '[@DOWN] no element found')
     }
 }
 
@@ -165,13 +156,13 @@ function handleDown(x, y) {
  */
 function handleMove(x, y) {
     if (state.phase === 'IDLE') return
-
+    drawDots(x, y, 'yellow')
     // Phase 1: Detect axis (PENDING → SWIPING)
     if (state.phase === 'PENDING') {
-        const dx = x - state.startX
-        const dy = y - state.startY
-        const absX = Math.abs(dx)
-        const absY = Math.abs(dy)
+        const deltaX = x - state.startX
+        const deltaY = y - state.startY
+        const absX = Math.abs(deltaX)
+        const absY = Math.abs(deltaY)
 
         // Not enough movement yet
         if (absX < SWIPE_THRESHOLD && absY < SWIPE_THRESHOLD) {
@@ -184,7 +175,7 @@ function handleMove(x, y) {
         // Check if the current element supports this axis; if not, walk up to find one that does
         const resolved = axisProcessing(x, y, state.axis)
         if (!resolved) {
-            console.log('axis error')
+            log('dom', 'dom-axis not found')
             state.phase = 'IDLE'
             return
         }
@@ -198,7 +189,7 @@ function handleMove(x, y) {
         lane.dragging = true
         lane.pendingDir = null
 
-        log('Swiping started, axis:', state.axis)
+        log('swipe', 'Swiping started, axis:', state.axis)
     }
 
     // Phase 2: Track delta in locked axis only
@@ -224,11 +215,11 @@ function handleUp() {
         if (Math.abs(state.totalDelta) > COMMIT_THRESHOLD) {
             // Commit swipe - determine direction
             const dir = getSwipeDirection(state.axis, state.totalDelta)
-            log('Swipe committed:', dir, 'delta:', state.totalDelta)
+            log('Swipe', '[', dir, ']', 'delta:', state.totalDelta)
             commitLaneSwipe(state.elId, dir)
         } else {
             // Reject - snap back
-            log('Swipe rejected, delta:', state.totalDelta)
+            log('Swipe', 'rejected', 'delta:', state.totalDelta)
             lane.offset = 0
             lane.pendingDir = null
             lane.dragging = false
@@ -243,9 +234,9 @@ function handleUp() {
     state.elAxis = null
 }
 
-// ============================================================================
+// =====================================================
 // Helpers
-// ============================================================================
+// =====================================================
 
 /**
  * Find the lane element at the given coordinates.
@@ -262,7 +253,7 @@ function axisProcessing(x, y) {
     const el = elements.find(el => el.dataset?.direction === state.axis);
     if (!el) return false;
     state.elId = el.dataset.lane;
-    log('element changed: ', state.elId)
+    log('dom', 'element changed: ', state.elId)
     return true;
 }
 
@@ -277,9 +268,10 @@ function getSwipeDirection(axis, delta) {
     return delta > 0 ? 'down' : 'up'
 }
 
-// ============================================================================
+
+// =====================================================
 // Debug Helpers
-// ============================================================================
+// =====================================================
 
 export function getGestureState() {
     return { ...state }

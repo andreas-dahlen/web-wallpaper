@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "android/app/src/main/java/com/ad/launcher"
+		},
+		{
+			"path": "web/scripts"
 		}
 	],
 	"settings": {}

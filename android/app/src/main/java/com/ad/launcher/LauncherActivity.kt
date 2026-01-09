@@ -114,6 +114,7 @@ class LauncherActivity : AppCompatActivity() {
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    view?.evaluateJavascript("window.__PLATFORM__ = 'android';", null)
                     injectDeviceMetrics()
                     initializeGestureEngine()
                 }
@@ -160,8 +161,12 @@ class LauncherActivity : AppCompatActivity() {
         val targetWidth = deviceWidthPx.takeIf { it > 0f } ?: width
         val targetHeight = deviceHeightPx.takeIf { it > 0f } ?: height
 
-        val normX = (event.x / safeWidth) * targetWidth
-        val normY = (event.y / safeHeight) * targetHeight
+        // Convert to CSS px space so JS does not scale.
+        val cssWidth = targetWidth / deviceDensity
+        val cssHeight = targetHeight / deviceDensity
+
+        val normX = (event.x / safeWidth) * cssWidth
+        val normY = (event.y / safeHeight) * cssHeight
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -224,17 +229,13 @@ private fun captureDeviceMetrics() {
      * Inject device dimensions into the WebView for JS to consume.
      */
     private fun injectDeviceMetrics() {
-        val width = deviceWidthPx.toInt()
-        val height = deviceHeightPx.toInt()
+        val cssWidth = (deviceWidthPx / deviceDensity).toInt()
+        val cssHeight = (deviceHeightPx / deviceDensity).toInt()
         val density = String.format(Locale.US, "%.4f", deviceDensity)
 
         val js = """
             (function() {
-                const metrics = { width: $width, height: $height, scale: $density };
-                window.__ANDROID_SCREEN__ = metrics;
-                if (typeof window.__applyAndroidScreen === 'function') {
-                    window.__applyAndroidScreen(metrics);
-                }
+                window.__DEVICE = { width: $cssWidth, height: $cssHeight, density: $density, platform: 'android' };
             })();
         """.trimIndent()
 

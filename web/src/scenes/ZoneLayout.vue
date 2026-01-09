@@ -15,36 +15,26 @@
       lane="top"
       :scenes="topScenes"
       direction="horizontal"
-      :width="laneWidth"
-      :height="laneHeight"
     />
 
     <SwipeCarousel
       lane="mid"
       :scenes="midScenes"
       direction="horizontal"
-      :width="laneWidth"
-      :height="laneHeight"
     />
 
     <SwipeCarousel
       lane="bottom"
       :scenes="bottomScenes"
       direction="horizontal"
-      :width="laneWidth"
-      :height="laneHeight"
     />
   </div>
 </template>
 
 <script setup>
 import SwipeCarousel from '../components/SwipeCarousel.vue'
-import { APP_SETTINGS } from '../config/appSettings'
 import { LANES } from './lanes/laneIndex'
 
-// Layout dimensions from config
-const laneWidth = APP_SETTINGS.design.width
-const laneHeight = APP_SETTINGS.ui.laneHeight
 // Scene components for each lane
 const topScenes = LANES.top
 const midScenes = LANES.mid
@@ -57,14 +47,14 @@ const bottomScenes = LANES.bottom
   top: 0;
   left: 0;
   width: 100%;
-  
+  height: 100%;
   opacity: 50%;
   /* Stack lanes vertically */
   display: flex;
   flex-direction: column;
   
   /* Layer above background, below swipe zones */
-  z-index: 2;
+  z-index: 10;
   
   /* GPU compositing hint */
   transform: translateZ(0);

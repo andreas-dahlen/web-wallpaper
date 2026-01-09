@@ -1,16 +1,15 @@
 <!-- App.vue -->
 <template>
   <div id="app">
-    <DebugScreen :enabled="!isAndroid">
+    <DebugWrapper v-if="APP_SETTINGS.debugWrapper">
       <WallpaperRoot />
-    </DebugScreen>
+    </DebugWrapper>
+    <WallpaperRoot v-else />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { APP_SETTINGS } from './config/appSettings'
+import DebugWrapper from './components/DebugWrapper.vue'
 import WallpaperRoot from './scenes/WallpaperRoot.vue'
-import DebugScreen from './components/DebugScreen.vue'
-
-const isAndroid = computed(() => typeof Android !== 'undefined')
 </script>

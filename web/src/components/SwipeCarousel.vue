@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="carouselEl"
     class="carousel"
     :style="carouselStyle"
     :data-lane="lane"
@@ -28,16 +29,33 @@
 </template>
 
 <script setup>
-import { computed, watchEffect, markRaw } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watchEffect, markRaw } from 'vue'
 import { ensureLane, setLaneCount, setLaneSize } from '../state/swipeState'
 import { APP_SETTINGS } from '../config/appSettings'
+
+const carouselEl = ref(null)
+const laneSize = ref(0)
+
+function updateLaneSize() {
+  if (!carouselEl.value) return
+  const rect = carouselEl.value.getBoundingClientRect()
+  laneSize.value = horizontal.value ? rect.width : rect.height
+  setLaneSize(props.lane, laneSize.value)
+}
+
+let observer
+onMounted(() => {
+  observer = new ResizeObserver(updateLaneSize)
+  observer.observe(carouselEl.value)
+})
+onBeforeUnmount(() => {
+  observer.disconnect()
+})
 
 const props = defineProps({
   lane: { type: String, required: true },
   scenes: { type: Array, required: true },
   direction: { type: String, default: 'horizontal' },
-  width: { type: Number, required: true },
-  height: { type: Number, required: true }
 })
 
 const horizontal = computed(() => props.direction === 'horizontal')
@@ -45,11 +63,6 @@ const laneState = computed(() => ensureLane(props.lane))
 
 watchEffect(() => {
   setLaneCount(props.lane, props.scenes.length)
-})
-
-watchEffect(() => {
-  const size = horizontal.value ? props.width : props.height
-  setLaneSize(props.lane, size)
 })
 
 /* -------------------------
@@ -84,7 +97,7 @@ const isDragging = computed(() => laneState.value.dragging)
 // CSS transition: none during drag, eased during animation
 const transition = computed(() => {
   if (isDragging.value) return 'none'
-  return `transform ${APP_SETTINGS.ui.swipeAnimationMs}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`
+  return `transform ${APP_SETTINGS.swipeAnimationMs}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`
 })
 
 // Use translate3d for GPU acceleration
@@ -107,23 +120,22 @@ const currentStyle = computed(() => ({
 
 const prevStyle = computed(() => ({ 
   ...baseStyle, 
-  transform: translate((horizontal.value ? -props.width : -props.height) + delta.value), 
+  transform: translate(-laneSize.value + delta.value),
   transition: transition.value 
 }))
 
 const nextStyle = computed(() => ({ 
   ...baseStyle, 
-  transform: translate((horizontal.value ? props.width : props.height) + delta.value), 
+  transform: translate(laneSize.value + delta.value),
   transition: transition.value 
 }))
 
 const carouselStyle = computed(() => ({ 
-  width: `${props.width}px`, 
-  height: `${props.height}px`, 
-  position: 'relative', 
-  overflow: 'hidden', 
+  width: '100%',
+  height: '100%',
+  position: 'relative',
+  overflow: 'hidden',
   touchAction: 'none',
-  // Force compositing layer for the container
   transform: 'translateZ(0)'
 }))
 
