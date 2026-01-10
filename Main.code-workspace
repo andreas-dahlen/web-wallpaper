@@ -1,13 +1,13 @@
 {
 	"folders": [
 		{
-			"path": "web/src"
-		},
-		{
 			"path": "android/app/src/main/java/com/ad/launcher"
 		},
 		{
 			"path": "web/scripts"
+		},
+		{
+			"path": "web"
 		}
 	],
 	"settings": {}

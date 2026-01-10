@@ -2,8 +2,9 @@
   <div class="phone">
     <DebugPanel v-if="showDebugPanel" />
     <div class="app-content">
-      <BKGimage />
-      <ZoneLayout />
+      <LaneWallpaper />
+      <LanesHorizontal />
+      <TestButton />
     </div>
   </div>
 </template>
@@ -11,8 +12,9 @@
 <script setup>
 import DebugPanel from '../components/DebugPanel.vue'
 import { APP_SETTINGS } from '../config/appSettings'
-import BKGimage from './BKGimage.vue'
-import ZoneLayout from './ZoneLayout.vue'
+import LaneWallpaper from './LaneWallpaper.vue'
+import LanesHorizontal from './LanesHorizontal.vue'
+import TestButton from '../buttons/TestButton.vue'
 const showDebugPanel = APP_SETTINGS.debugPanel === true
 </script>
 

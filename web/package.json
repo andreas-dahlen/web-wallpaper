@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:android": "vite build --mode android && node scripts/deploy-android.js",
-    "build:debug": "vite build --mode android && node scripts/deploy-debug.js",
+    "build:debug": "vite build --mode debug && node scripts/deploy-debug.js",
     "lint": "eslint src"
   },
   "dependencies": {

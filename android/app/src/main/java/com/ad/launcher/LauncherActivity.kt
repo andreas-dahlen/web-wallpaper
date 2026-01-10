@@ -114,7 +114,6 @@ class LauncherActivity : AppCompatActivity() {
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    view?.evaluateJavascript("window.__PLATFORM__ = 'android';", null)
                     injectDeviceMetrics()
                     initializeGestureEngine()
                 }

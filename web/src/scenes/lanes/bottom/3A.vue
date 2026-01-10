@@ -1,12 +1,10 @@
 <template>
   <div class="scene-root a">
     BOTTOM · A
-    <ButtonGrid />
   </div>
 </template>
 
 <script setup>
-import ButtonGrid from '../../../components/buttonGrid.vue'
 defineOptions({ name: 'BottomA' })
 </script>
 

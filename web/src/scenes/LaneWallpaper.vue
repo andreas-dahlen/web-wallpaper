@@ -1,4 +1,4 @@
-<!-- scenes/BKGimage.vue -->
+<!-- scenes/LaneWallpaper.vue -->
 <!--
   Background Wallpaper Layer
   

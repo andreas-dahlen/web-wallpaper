@@ -1,4 +1,4 @@
-<!-- scenes/ZoneLayout.vue -->
+<!-- scenes/LanesHorizontal.vue -->
 <!--
   Zone Layout - Contains all carousel lanes
   

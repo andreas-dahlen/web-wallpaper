@@ -1,6 +1,4 @@
 // main.js
-import './config/platformPreload.js'
-
 import { createApp } from 'vue'
 import App from './App.vue'
 
