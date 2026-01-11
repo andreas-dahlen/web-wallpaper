@@ -5,7 +5,7 @@ import android.view.Choreographer
 import kotlin.math.abs
 import kotlin.math.pow
 
-object SwipeEngine {
+object MomentumRunner {
 
     private var lastX = 0f
     private var lastY = 0f

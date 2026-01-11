@@ -9,8 +9,9 @@
 
 <script setup>
 import { APP_SETTINGS } from '../config/appSettings'
+import { DEBUG } from '../debug/debugFlags';
 
-const showPanel = APP_SETTINGS.debugPanel === true
+const showPanel = APP_SETTINGS.debugPanel === true && DEBUG.enabled === true
 </script>
 
 <style scoped>

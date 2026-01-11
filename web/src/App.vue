@@ -1,7 +1,7 @@
 <!-- App.vue -->
 <template>
   <div id="app">
-    <DebugWrapper v-if="APP_SETTINGS.debugWrapper">
+    <DebugWrapper v-if="APP_SETTINGS.platform === 'web' && APP_SETTINGS.DebugWrapper === true">
       <Root />
     </DebugWrapper>
     <Root v-else />

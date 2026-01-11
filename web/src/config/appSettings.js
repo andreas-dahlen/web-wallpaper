@@ -1,7 +1,13 @@
 export const APP_SETTINGS = {
-  debugWrapper: false,
   debugPanel: true,
+  DebugWrapper: true,
   platform: import.meta.env.VITE_PLATFORM || 'web',
+
+  rawPhoneValues: {
+    width: 1272,
+    height: 2800,
+    density: 4.5
+  },
 
   laneHeight: 267,
   swipeAnimationMs: 250,
@@ -12,6 +18,6 @@ export const APP_SETTINGS = {
     bottom: 3
   },
 
-  swipeThreshold: 8,
-  swipeViewChangeThreshold: 40
+  swipeThresholdRatio: 0.05,// start of swipe distance
+  swipeCommitRatio: 0.2 // commitmant distance on release
 }

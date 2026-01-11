@@ -1,13 +1,32 @@
+import { APP_SETTINGS } from '../config/appSettings'
 import { reactive } from 'vue'
 
+/* -------------------------
+   Central swipe state
+-------------------------- */
 export const swipeState = reactive({
   lanes: {}
 })
 
 /* -------------------------
-   Lane helpers
+   Swipe thresholds
 -------------------------- */
+export function shouldStartSwipe(laneId, delta) {
+  const lane = ensureLane(laneId)
+  if (!lane.size) return false
+  return Math.abs(delta) >= lane.size * APP_SETTINGS.swipeThresholdRatio
+}
 
+export function shouldCommitSwipe(laneId, delta) {
+  const lane = swipeState.lanes[laneId]
+  if (!lane || !lane.size) return false
+
+  return Math.abs(delta) > lane.size * APP_SETTINGS.swipeCommitRatio
+}
+
+/* -------------------------
+   Lane helpers (unchanged)
+-------------------------- */
 export function ensureLane(laneId) {
   if (!swipeState.lanes[laneId]) {
     swipeState.lanes[laneId] = {
@@ -48,9 +67,8 @@ export function applyLaneOffset(laneId, offset) {
 }
 
 /* -------------------------
-   Swipe commit (animation start)
+   Commit lane swipe (animation)
 -------------------------- */
-
 export function commitLaneSwipe(laneId, dir) {
   const lane = ensureLane(laneId)
   if (!lane.count || !lane.size) return
@@ -58,17 +76,15 @@ export function commitLaneSwipe(laneId, dir) {
   lane.pendingDir = dir
   lane.dragging = false
 
-  // set offset to full swipe distance (animation will handle transition)
   lane.offset =
     dir === 'right' || dir === 'down' ? lane.size :
     dir === 'left' || dir === 'up'   ? -lane.size : 0
 }
 
 /* -------------------------
-   Utils
+   Utility
 -------------------------- */
-
 function clamp(v, min, max) {
   if (max < min) return min
-  return Math.min(max, Math.max(min, v))
+  return Math.min(Math.max(v, min), max)
 }

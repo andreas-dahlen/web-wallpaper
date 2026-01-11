@@ -6,8 +6,8 @@ import './styles/main.css'
 import { APP_SETTINGS } from './config/appSettings'
 import { log } from './debug/functions'
 
-// Simplified: Single unified gesture handler replaces complex input system
-import { initGestureHandler } from './input/gestureHandler'
+// Input router selects platform wiring for the intent engine
+import { initInputSystem } from './input/engine/inputRouter'
 // import { exportCSS } from './config/exportSettings'
 
 log('init', APP_SETTINGS.platform)
@@ -22,8 +22,8 @@ function applyRuntimeLayout() {
 const app = createApp(App)
 app.mount('#app')
 
-// Initialize gesture handling after Vue mounts (ensures DOM is ready)
-initGestureHandler()
+// Initialize input system after Vue mounts (ensures DOM is ready)
+initInputSystem()
 
 // Apply CSS variables from JS after DOM is ready
 applyRuntimeLayout()

@@ -1,19 +1,17 @@
-const rawDebug = import.meta.env?.VITE_DEBUG
-const isDebug = rawDebug === true || rawDebug === 'true'
+
 
 export const DEBUG = {
-  // Master switch driven by Vite env; android build sets false, debug build sets true
-  enabled: isDebug,
+  enabled: import.meta.env.VITE_DEBUG || true,
 
-  drawDots: isDebug,
+  drawDots: true,
 
   lagTime: false,
 
-  swipe: isDebug,
+  swipe: true,
 
-  dom: isDebug,
+  dom: true,
 
-  input: isDebug,
+  input: true,
 
   init: 'always'
 }

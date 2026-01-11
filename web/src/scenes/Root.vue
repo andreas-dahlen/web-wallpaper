@@ -1,27 +1,25 @@
 <template>
   <div class="phone">
-    <DebugPanel v-if="showDebugPanel" />
+    <DebugPanel/>
     <div class="app-content">
-      <LaneWallpaper />
-      <LanesHorizontal />
-      <TestButton />
+      <LaneWallpaper/>
+      <LanesHorizontal/>
+      <TestButton/>
     </div>
   </div>
 </template>
 
 <script setup>
 import DebugPanel from '../components/DebugPanel.vue'
-import { APP_SETTINGS } from '../config/appSettings'
 import LaneWallpaper from './LaneWallpaper.vue'
 import LanesHorizontal from './LanesHorizontal.vue'
 import TestButton from '../buttons/TestButton.vue'
-const showDebugPanel = APP_SETTINGS.debugPanel === true
 </script>
 
 <style scoped>
 .phone {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   position: relative;
   overflow: hidden;
   transform: translateZ(0);
@@ -34,6 +32,5 @@ const showDebugPanel = APP_SETTINGS.debugPanel === true
   height: 100%;
   background-color: hotpink;
 }
-
 
 </style>
