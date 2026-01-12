@@ -155,11 +155,10 @@ export const reactionResolver = {
 
     shouldStartSwipe(delta, axis) {
         // 1. Lane-based sizing (preferred)
-        if (currentTarget.laneId) {
-            if (shouldStartSwipeLane(currentTarget.laneId, delta)) {
-                return true
-            }
+        if (currentTarget.laneId && shouldStartSwipeLane(currentTarget.laneId, delta)) {
+            return true
         }
+
 
         // 2. Axis-based viewport fallback
         const size =
@@ -174,10 +173,8 @@ export const reactionResolver = {
 
     shouldCommitSwipe(delta, axis) {
         // 1. Lane-based sizing (preferred)
-        if (currentTarget.laneId) {
-            if (shouldCommitSwipeLane(currentTarget.laneId, delta)) {
-                return true
-            }
+        if (currentTarget.laneId && shouldCommitSwipeLane(currentTarget.laneId, delta)) {
+            return true
         }
 
         // 2. Axis-based viewport fallback
