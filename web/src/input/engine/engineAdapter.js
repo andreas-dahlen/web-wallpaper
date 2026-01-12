@@ -46,12 +46,13 @@ export const engineAdapter = {
     onRelease(intent) {
         forward(reactionResolver.onRelease(intent))
     },
-
-    shouldCommitSwipe(delta) {
-        return reactionResolver.canCommitSwipe(delta)
+    
+    shouldStartSwipe(delta, axis) {
+        return reactionResolver.shouldStartSwipe(delta, axis)
     },
-    shouldStartSwipe(delta) {
-        return reactionResolver.canStartSwipe(delta)
+
+    shouldCommitSwipe(delta, axis) {
+        return reactionResolver.shouldCommitSwipe(delta, axis)
     }
 }
 

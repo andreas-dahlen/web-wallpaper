@@ -11,17 +11,17 @@ export const swipeState = reactive({
 /* -------------------------
    Swipe thresholds
 -------------------------- */
-export function shouldStartSwipe(laneId, delta) {
-  const lane = ensureLane(laneId)
-  if (!lane.size) return false
-  return Math.abs(delta) >= lane.size * APP_SETTINGS.swipeThresholdRatio
+export function shouldStartSwipeLane(laneId, delta) {
+  const lane = swipeState.lanes[laneId]
+  if (!lane) return false
+  return shouldStartSwipeBySize(lane.size, delta)
 }
 
-export function shouldCommitSwipe(laneId, delta) {
+export function shouldCommitSwipeLane(laneId, delta) {
   const lane = swipeState.lanes[laneId]
-  if (!lane || !lane.size) return false
+  if (!lane) return false
 
-  return Math.abs(delta) > lane.size * APP_SETTINGS.swipeCommitRatio
+  return shouldCommitSwipeBySize(lane.size, delta)
 }
 
 /* -------------------------
@@ -79,6 +79,20 @@ export function commitLaneSwipe(laneId, dir) {
   lane.offset =
     dir === 'right' || dir === 'down' ? lane.size :
     dir === 'left' || dir === 'up'   ? -lane.size : 0
+}
+
+export function shouldStartSwipeBySize(size, delta) {
+  if (!size) return false
+
+  return Math.abs(delta) >=
+    size * APP_SETTINGS.swipeThresholdRatio
+}
+
+export function shouldCommitSwipeBySize(size, delta) {
+  if (!size) return false
+
+  return Math.abs(delta) >=
+    size * APP_SETTINGS.swipeCommitRatio
 }
 
 /* -------------------------

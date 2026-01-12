@@ -6,9 +6,14 @@
  * - Enforce the reaction schema: press, release, swipe-start, swipe, swipe-end, cancel
  * - Return plain descriptors only (no DOM changes, no renderer calls)
  */
-
-import { shouldCommitSwipe, shouldStartSwipe } from '../../state/swipeState'
+import { scaledWidth, scaledHeight } from '../../state/domState'
 import { domRegistry } from '../dom/domRegistry'
+import {
+    shouldStartSwipeLane,
+    shouldStartSwipeBySize,
+    shouldCommitSwipeLane,
+    shouldCommitSwipeBySize
+} from '../../state/swipeState'
 
 let currentTarget = {
     element: null,
@@ -129,15 +134,6 @@ export const reactionResolver = {
         return descriptor
     },
 
-    canStartSwipe(delta) {
-        // Prefer lane-aware threshold when available
-        if (currentTarget.laneId && shouldStartSwipe(currentTarget.laneId, delta)) return true
-    },
-
-    canCommitSwipe(delta) {
-        if (currentTarget.laneId && shouldCommitSwipe(currentTarget.laneId, delta)) return true
-    },
-
     onRelease(intent) {
         const target = currentTarget.element ? currentTarget : domRegistry.findIntentAt(intent.x, intent.y)
         if (!target) return null
@@ -155,5 +151,43 @@ export const reactionResolver = {
         }
         setCurrent(null)
         return descriptor
+    },
+
+    shouldStartSwipe(delta, axis) {
+        // 1. Lane-based sizing (preferred)
+        if (currentTarget.laneId) {
+            if (shouldStartSwipeLane(currentTarget.laneId, delta)) {
+                return true
+            }
+        }
+
+        // 2. Axis-based viewport fallback
+        const size =
+            axis === 'x'
+                ? scaledWidth.value
+                : axis === 'y'
+                    ? scaledHeight.value
+                    : 0
+
+        return shouldStartSwipeBySize(size, delta)
+    },
+
+    shouldCommitSwipe(delta, axis) {
+        // 1. Lane-based sizing (preferred)
+        if (currentTarget.laneId) {
+            if (shouldCommitSwipeLane(currentTarget.laneId, delta)) {
+                return true
+            }
+        }
+
+        // 2. Axis-based viewport fallback
+        const size =
+            axis === 'x'
+                ? scaledWidth.value
+                : axis === 'y'
+                    ? scaledHeight.value
+                    : 0
+
+        return shouldCommitSwipeBySize(size, delta)
     }
 }

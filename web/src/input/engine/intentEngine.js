@@ -64,7 +64,7 @@ function onMove(x, y) {
         const absY = Math.abs(deltaY)
         const axis = absX > absY ? 'horizontal' : 'vertical'
         const delta = axis === 'horizontal' ? deltaX : deltaY
-        if (!engineAdapter.shouldStartSwipe(delta)) return
+        if (!engineAdapter.shouldStartSwipe(delta, axis)) return
         const accepted = engineAdapter.onSwipeStart(x, y, axis)
         if (!accepted) {
             log('input', 'Swipe start rejected by adapter')
@@ -103,7 +103,7 @@ function onUp() {
             return
         }
 
-        if (engineAdapter.shouldCommitSwipe(state.totalDelta)) {
+        if (engineAdapter.shouldCommitSwipe(state.totalDelta, state.axis)) {
             const direction = getSwipeDirection(state.axis, state.totalDelta)
             log('swipe', '[', direction, ']', 'delta:', state.totalDelta)
 
