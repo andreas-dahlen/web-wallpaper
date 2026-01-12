@@ -40,6 +40,25 @@ function normalize(target) {
     }
 }
 
+    function withLaneReactions(target) {
+        return {
+            ...target,
+            reactions: {
+                ...target.reactions,
+                swipeStart: true,
+                swipe: true,
+                swipeEnd: true,
+                cancel: true
+            }
+        }
+    }
+
+    function axisSize(axis) {
+        if (axis === 'horizontal' || axis === 'x') return scaledWidth.value
+        if (axis === 'vertical' || axis === 'y') return scaledHeight.value
+        return 0
+    }
+
 function setCurrent(target) {
     currentTarget = normalize(target)
 }
@@ -74,11 +93,11 @@ export const reactionResolver = {
         if (!currentTarget.element || currentTarget.laneAxis !== axis) {
             const lane = domRegistry.findLaneByAxis(x, y, axis)
             if (!lane) return null
-            setCurrent({
+            setCurrent(withLaneReactions({
                 ...currentTarget,
                 laneId: lane.laneId,
                 laneAxis: lane.direction,
-            })
+            }))
         }
 
         if (!currentTarget.laneId || currentTarget.laneAxis !== axis) return null
@@ -161,12 +180,7 @@ export const reactionResolver = {
 
 
         // 2. Axis-based viewport fallback
-        const size =
-            axis === 'x'
-                ? scaledWidth.value
-                : axis === 'y'
-                    ? scaledHeight.value
-                    : 0
+        const size = axisSize(axis)
 
         return shouldStartSwipeBySize(size, delta)
     },
@@ -178,12 +192,7 @@ export const reactionResolver = {
         }
 
         // 2. Axis-based viewport fallback
-        const size =
-            axis === 'x'
-                ? scaledWidth.value
-                : axis === 'y'
-                    ? scaledHeight.value
-                    : 0
+        const size = axisSize(axis)
 
         return shouldCommitSwipeBySize(size, delta)
     }

@@ -1,6 +1,5 @@
 <template>
   <div class="scene-root a">
-    Wall · A
   </div>
 </template>
 

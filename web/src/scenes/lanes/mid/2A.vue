@@ -1,7 +1,7 @@
 <template>
   <div class="scene-root a">
     <div class="spin-box" aria-label="spin test" ></div>
-    <div class="label">MID · A</div>
+    <!-- <div class="label">MID · A</div> -->
   </div>
 </template>
 
@@ -19,12 +19,12 @@ defineOptions({ name: 'MidA' })
 }
 
 .spin-box {
-  width: 160px;
-  height: 160px;
+  width: 265px;
+  height: 265px;
   border-radius: 24px;
   background: radial-gradient(circle at 30% 30%, #ffe8d1, #ff9f68 60%, #f45b69);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
-  animation: spin 4s linear infinite;
+  /* animation: spin 4s linear infinite; */
 }
 
 .label {

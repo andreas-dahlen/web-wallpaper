@@ -7,54 +7,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
-import { APP_SETTINGS } from '../config/appSettings'
+import { computed } from 'vue'
+import { device, scale } from '../state/domState'
 
-// Props to optionally override virtual phone
-const props = defineProps({
-  device: { type: Object, default: null } // { width, height, density } in raw px
-})
-
-// ====== 1. Correct default device ======
-// raw specs from internet
-const defaultDeviceRaw = APP_SETTINGS.rawPhoneValues // density = logical density (like Android)
-
-// Convert to CSS pixels (same as Kotlin does)
-const defaultDevice = {
-  width: defaultDeviceRaw.width / defaultDeviceRaw.density,
-  height: defaultDeviceRaw.height / defaultDeviceRaw.density,
-  density: defaultDeviceRaw.density
-}
-
-const device = computed(() => {
-  if (!props.device) return defaultDevice
-  return {
-    width: props.device.width / props.device.density,
-    height: props.device.height / props.device.density,
-    density: props.device.density
-  }
-})
-
-// ====== 2. Inject window.__DEVICE for inputViewport / thresholds ======
-onMounted(() => {
-  if (!window.__DEVICE) {
-    window.__DEVICE = device.value
-  }
-})
-
-// ====== 3. Scale device to fit viewport while preserving aspect ratio ======
-const scale = computed(() => {
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-
-  let scaleFactor = vh / device.value.height // height-first scaling
-  if (device.value.width * scaleFactor > vw) {
-    scaleFactor = vw / device.value.width // shrink to fit width
-  }
-  return scaleFactor
-})
-
-// ====== 4. Inline style for device frame ======
+// Inline style for device frame using shared domState metrics
 const frameStyle = computed(() => ({
   width: `${device.value.width}px`,
   height: `${device.value.height}px`,

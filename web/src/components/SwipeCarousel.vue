@@ -38,8 +38,8 @@ const laneSize = ref(0)
 
 function updateLaneSize() {
   if (!carouselEl.value) return
-  const rect = carouselEl.value.getBoundingClientRect()
-  laneSize.value = horizontal.value ? rect.width : rect.height
+  const size = horizontal.value ? carouselEl.value.offsetWidth : carouselEl.value.offsetHeight
+  laneSize.value = size
   setLaneSize(props.lane, laneSize.value)
 }
 

@@ -6,7 +6,7 @@ export const APP_SETTINGS = {
   rawPhoneValues: {
     width: 1272,
     height: 2800,
-    density: 4.5
+    density: 3.5
   },
 
   laneHeight: 267,
