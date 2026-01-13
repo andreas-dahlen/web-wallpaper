@@ -18,11 +18,17 @@
 import { ref } from 'vue'
 import InputElement from '../components/inputElement.vue'
 
-const pressed = ref(false)
+const interaction = ref('idle')
 
-function onPress() { pressed.value = true }
-function onRelease() { pressed.value = false }
-function onCancel() { pressed.value = false }
+function onPress() { 
+    interaction.value = 'pressed'
+}
+function onRelease() {
+    interaction.value = 'released'
+}
+function onCancel() { 
+    interaction.value = 'idle' 
+}
 // const onSwipeStart = () => { swiping.value = true }
 // const onSwipe = () => {}
 // const onSwipeEnd = () => { swiping.value = false }

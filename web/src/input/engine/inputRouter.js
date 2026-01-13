@@ -17,7 +17,12 @@ import { intentEngine } from './intentEngine'
 
 let currentSeqId = 0
 
+let initialized = false
+
 export function initInputSystem() {
+  if (initialized) return
+  initialized = true
+
   if (APP_SETTINGS.platform === 'android') {
     initAndroidInput()
   } else {

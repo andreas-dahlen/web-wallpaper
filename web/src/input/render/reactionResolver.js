@@ -6,7 +6,7 @@
  * - Enforce the reaction schema: press, release, swipe-start, swipe, swipe-end, cancel
  * - Return plain descriptors only (no DOM changes, no renderer calls)
  */
-import { scaledWidth, scaledHeight } from '../../state/domState'
+import { scaledWidth, scaledHeight, scale } from '../../state/domState'
 import { domRegistry } from '../dom/domRegistry'
 import {
     shouldStartSwipeLane,
@@ -114,11 +114,14 @@ export const reactionResolver = {
     onDrag(intent) {
         if (!currentTarget.laneId) return null
         if (!supports('swipe')) return null
+
+        const delta = window.__DEVICE ? intent.delta : intent.delta / scale.value
+
         return {
             type: 'swipe',
             laneId: currentTarget.laneId,
             axis: intent.axis,
-            delta: intent.delta,
+            delta: delta,
             element: currentTarget.element
         }
     },
