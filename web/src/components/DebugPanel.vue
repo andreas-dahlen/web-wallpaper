@@ -17,9 +17,9 @@ const showPanel = APP_SETTINGS.debugPanel === true && DEBUG.enabled === true
 <style scoped>
 .debug-panel {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 10px;
+  top: 20px;
+  left: 20px;
+  right: 20px;
   display: grid;
   gap: 6px;
   padding: 10px 12px;
