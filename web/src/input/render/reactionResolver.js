@@ -8,6 +8,7 @@
  */
 import { scaledWidth, scaledHeight, scale } from '../../state/domState'
 import { domRegistry } from '../dom/domRegistry'
+import { log } from '../../debug/functions'
 import {
     shouldStartSwipeLane,
     shouldStartSwipeBySize,
@@ -40,24 +41,24 @@ function normalize(target) {
     }
 }
 
-    function withLaneReactions(target) {
-        return {
-            ...target,
-            reactions: {
-                ...target.reactions,
-                swipeStart: true,
-                swipe: true,
-                swipeEnd: true,
-                cancel: true
-            }
+function withLaneReactions(target) {
+    return {
+        ...target,
+        reactions: {
+            ...target.reactions,
+            swipeStart: true,
+            swipe: true,
+            swipeEnd: true,
+            cancel: true
         }
     }
+}
 
-    function axisSize(axis) {
-        if (axis === 'horizontal' || axis === 'x') return scaledWidth.value
-        if (axis === 'vertical' || axis === 'y') return scaledHeight.value
-        return 0
-    }
+function axisSize(axis) {
+    if (axis === 'horizontal' || axis === 'x') return scaledWidth.value
+    if (axis === 'vertical' || axis === 'y') return scaledHeight.value
+    return 0
+}
 
 function setCurrent(target) {
     currentTarget = normalize(target)
@@ -82,9 +83,10 @@ export const reactionResolver = {
                 type: 'press',
                 actionId: intent.actionId || null,
                 laneId: intent.laneId || null,
-                element: intent.element
+                element: intent.element,
             }
         }
+        log('dom', intent)
 
         return null
     },
@@ -102,6 +104,15 @@ export const reactionResolver = {
 
         if (!currentTarget.laneId || currentTarget.laneAxis !== axis) return null
         if (!supports('swipeStart')) return null
+
+
+        if (supports('press')) {
+            return {
+                type: 'cancel',
+                laneId: currentTarget.laneId,
+                element: currentTarget.element
+            }
+        }
 
         return {
             type: 'swipe-start',

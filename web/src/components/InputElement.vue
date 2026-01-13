@@ -88,12 +88,12 @@ onBeforeUnmount(() => {
   touch-action: none;
 }
 
-/* Optional visual hooks */
+/* Optional visual hooks
 .input-element[data-press="true"][data-pressed="true"] {
   transform: scale(0.97);
 }
 
 .input-element[data-swipe="true"][data-swiping="true"] {
   opacity: 0.9;
-}
+} */
 </style>

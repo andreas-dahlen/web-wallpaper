@@ -11,7 +11,7 @@
 import { APP_SETTINGS } from '../config/appSettings'
 import { DEBUG } from '../debug/debugFlags';
 
-const showPanel = APP_SETTINGS.debugPanel === true && DEBUG.enabled === true
+const showPanel = APP_SETTINGS.debugPanel && DEBUG.enabled
 </script>
 
 <style scoped>
