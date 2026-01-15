@@ -69,13 +69,22 @@ export const renderer = {
 
       case 'swipe': {
         if (!descriptor.laneId) break
-        applyLaneOffset(descriptor.laneId, descriptor.delta)
+        if (typeof descriptor.delta === 'number') {
+          applyLaneOffset(descriptor.laneId, descriptor.delta)
+        }
         dispatchReaction(descriptor)
         break
       }
 
       case 'swipeCommit': {
         if (!descriptor.laneId) break
+        const type = descriptor.swipeType
+        if (type === 'slider' || type === 'drag' || type === 'drag-and-drop' || type === 'dragAndDrop') {
+          setAttr(descriptor.element, 'data-swiping', null)
+          dispatchReaction(descriptor)
+          break
+        }
+
         log('swipe', '[', descriptor.direction, ']', 'delta:', descriptor.delta)
         commitLaneSwipe(descriptor.laneId, descriptor.direction)
         setAttr(descriptor.element, 'data-swiping', null)
@@ -84,6 +93,10 @@ export const renderer = {
       }
 
       case 'swipeRevert': {
+        const type = descriptor.swipeType
+        if (type === 'slider' || type === 'drag' || type === 'drag-and-drop' || type === 'dragAndDrop') {
+          break
+        }
         if (descriptor.laneId) {
           const lane = ensureLane(descriptor.laneId)
           lane.pendingDir = null

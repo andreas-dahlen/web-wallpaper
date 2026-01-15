@@ -2,8 +2,7 @@
   <!--
     InputElement.vue
     ----------------
-    This is a generic “gesture surface” element. It does not do app logic itself.
-    It declares what gestures the engine should consider and optionally emits events to Vue.
+    Generic gesture surface. Declares gestures for engine and optionally emits Vue events.
   -->
   <div
     class="input-element"
@@ -13,6 +12,7 @@
     :data-swipe="swipe ? true : null"
     :data-action="action || null"
     :data-direction="direction || null"
+    :data-swipe-type="swipeType || null"
 
     :data-react-press="reactPress ? true : null"
     :data-react-press-release="reactPressRelease ? true : null"
@@ -21,7 +21,8 @@
     :data-react-swipe-start="reactSwipeStart ? true : null"
     :data-react-swipe-commit="reactSwipeCommit ? true : null"
     :data-react-swipe-revert="reactSwipeRevert ? true : null"
-    :data-react-swipe-release="reactSwipeRelease ? true : null"
+    :data-react-selected="reactSelected ? true : null"
+    :data-react-deselected="reactDeselected ? true : null"
     v-bind="$attrs"
   >
     <slot />
@@ -36,36 +37,37 @@ defineOptions({ name: 'InputElement' })
 // -------------------------------
 // Props: configure engine eligibility
 // -------------------------------
-// press / swipe / direction -> engine checks these
-// reactPress / reactRelease / reactSwipe* / reactCancel -> controls Vue emission
 const {
   action,
   press,
   swipe,
   direction,
+  swipeType,
   reactPress,
   reactPressRelease,
   reactPressCancel,
   reactSwipe,
   reactSwipeStart,
   reactSwipeCommit,
-  reactSwipeRevert
-// -------------------------------
-// Event forwarding
-// -------------------------------
+  reactSwipeRevert,
+  reactSelected,
+  reactDeselected
 } = defineProps({
   action: String,
-  press: { type: Boolean, default: false },     // Can this element receive presses?
-  swipe: { type: Boolean, default: false },     // Can this element receive swipes?
-  direction: { type: String, default: undefined }, // Optional swipe direction constraint
+  press: { type: Boolean, default: false },
+  swipe: { type: Boolean, default: false },
+  direction: { type: String, default: undefined },
+  swipeType: { type: String, default: undefined },
 
-  reactPress: { type: Boolean, default: false },          // Should a press emit a Vue event?
-  reactPressRelease: { type: Boolean, default: false },   // Should a pressRelease emit a Vue event?
-  reactPressCancel: { type: Boolean, default: false },    // Should a pressCancel emit a Vue event?
+  reactPress: { type: Boolean, default: false },
+  reactPressRelease: { type: Boolean, default: false },
+  reactPressCancel: { type: Boolean, default: false },
   reactSwipe: { type: Boolean, default: false },
   reactSwipeStart: { type: Boolean, default: false },
   reactSwipeCommit: { type: Boolean, default: false },
-  reactSwipeRevert: { type: Boolean, default: false }
+  reactSwipeRevert: { type: Boolean, default: false },
+  reactSelected: { type: Boolean, default: false },
+  reactDeselected: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
@@ -76,14 +78,30 @@ const emit = defineEmits([
   'swipe',
   'swipeCommit',
   'swipeRevert',
+  'select',
+  'deselect'
 ])
 
 const el = ref(null)
 
+// -------------------------------
+// Handle reactions from engine
+// -------------------------------
 function handleReaction(e) {
   const type = e.detail?.type
   if (!type) return
-  // Emit the Vue event (onPress, onPressRelease, etc.)
+
+  // Only emit Vue event if corresponding react* prop is true
+  if (type === 'press' && !reactPress) return
+  if (type === 'pressRelease' && !reactPressRelease) return
+  if (type === 'pressCancel' && !reactPressCancel) return
+  if (type === 'swipeStart' && !reactSwipeStart) return
+  if (type === 'swipe' && !reactSwipe) return
+  if (type === 'swipeCommit' && !reactSwipeCommit) return
+  if (type === 'swipeRevert' && !reactSwipeRevert) return
+  if (type === 'select' && !reactSelected) return
+  if (type === 'deselect' && !reactDeselected) return
+
   emit(type, e.detail)
 }
 
@@ -101,13 +119,4 @@ onBeforeUnmount(() => {
   user-select: none;
   touch-action: none;
 }
-
-/* Optional visual hooks
-.input-element[data-press="true"][data-pressed="true"] {
-  transform: scale(0.97);
-}
-
-.input-element[data-swipe="true"][data-swiping="true"] {
-  opacity: 0.9;
-} */
 </style>

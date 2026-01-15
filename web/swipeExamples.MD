@@ -104,3 +104,28 @@
 /* ==================================================
    END REACTION MAP
    ================================================== */
+
+nonBooleanTypes!!! 
+
+function onPress() {
+    interaction.value = 'pressed'
+}
+function onPressRelease() {
+    interaction.value = 'released'
+}
+function onPressCancel() {
+    interaction.value = 'cancel'
+}
+
+
+.test-button :deep(.input-element[data-state='released']) {
+    background-color: hotPink;
+}
+
+.test-button :deep(.input-element[data-state='pressed']) {
+    background-color: chocolate;
+}
+
+.test-button :deep(.input-element[data-state='cancel']) {
+    background-color: tomato;
+}

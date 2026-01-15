@@ -3,8 +3,13 @@
  *
  * Responsibilities:
  * - Use domRegistry to resolve declared reactions at coordinates
- * - Enforce the reaction schema: press, pressRelease, pressCancel, swipeStart, swipe, swipeCommit, swipeRevert
+ * - Enforce the reaction schema: press, pressRelease, pressCancel, swipeStart, swipe, swipeCommit, swipeRevert, select, deselect
  * - Return plain descriptors only (no DOM changes, no renderer calls)
+ *
+ * Constraints:
+ * - No DOM mutation, timers, or platform branching
+ * - Swipe math remains unchanged; raw {x, y} is threaded through for consumers
+ * - Selection is visual-only and single-target; ownership never changes
  */
 import { getAxisSize, normalizeSwipeDelta } from '../../state/domState'
 import { domRegistry } from '../dom/domRegistry'
@@ -21,6 +26,7 @@ let currentTarget = {
     laneId: null,
     laneAxis: null,
     actionId: null,
+    swipeType: null,
     reactions: {}
 }
 
@@ -29,23 +35,49 @@ let swipeActive = false
 let pressedTarget = null
 let selectedElement = null
 
+function isDragType(swipeType) {
+    return swipeType === 'drag' || swipeType === 'drag-and-drop' || swipeType === 'dragAndDrop'
+}
+
+function isSliderType(swipeType) {
+    return swipeType === 'slider'
+}
+
+function directionMatches(targetDirection, axis) {
+    if (!targetDirection) return false
+    if (targetDirection === 'both') return true
+    return targetDirection === axis
+}
+
+function swipeAllowedForType(target, axis) {
+    if (!target?.element) return false
+    if (isDragType(target.swipeType)) return true
+    return directionMatches(target.laneAxis, axis)
+}
+
+// Always return either a single descriptor or a flat array (never nested).
 function mergeDescriptors(existing, extra) {
     if (!existing && !extra) return null
-    if (!existing) return extra
-    if (!extra) return existing
-    if (Array.isArray(existing)) {
-        return Array.isArray(extra) ? [...existing, ...extra] : [...existing, extra]
+    const list = []
+    const push = (value) => {
+        if (!value) return
+        if (Array.isArray(value)) {
+            list.push(...value)
+        } else {
+            list.push(value)
+        }
     }
-    if (Array.isArray(extra)) {
-        return [existing, ...extra]
-    }
-    return [existing, extra]
+    push(existing)
+    push(extra)
+    if (!list.length) return null
+    return list.length === 1 ? list[0] : list
 }
 
 function emitSelect(target) {
     if (!target?.element || selectedElement === target.element) return null
+    const deselect = emitDeselect()
     selectedElement = target.element
-    return { type: 'select', element: target.element }
+    return mergeDescriptors(deselect, { type: 'select', element: target.element })
 }
 
 function emitDeselect() {
@@ -62,13 +94,27 @@ function normalize(target) {
             laneId: null,
             laneAxis: null,
             actionId: null,
+            swipeType: null,
             reactions: {}
         }
+    }
+    const reactions = target.reactions || {}
+    const canonicalReactions = {
+        press: !!reactions.press,
+        pressRelease: !!reactions.pressRelease,
+        pressCancel: !!reactions.pressCancel,
+        swipeStart: !!reactions.swipeStart,
+        swipe: !!reactions.swipe,
+        swipeCommit: !!reactions.swipeCommit,
+        swipeRevert: !!reactions.swipeRevert,
+        select: !!reactions.select,
+        deselect: !!reactions.deselect
     }
     return {
         ...target,
         laneAxis: target.laneAxis ?? target.direction ?? null,
-        reactions: target.reactions || {}
+        swipeType: target.swipeType ?? null,
+        reactions: canonicalReactions
     }
 }
 
@@ -79,8 +125,8 @@ function withLaneReactions(target) {
             ...target.reactions,
             swipeStart: true,
             swipe: true,
-            swipeEnd: true,
-            cancel: true
+            swipeCommit: true,
+            pressCancel: true
         }
     }
 }
@@ -121,47 +167,40 @@ export const reactionResolver = {
         const deselect = hit?.element === selectedElement ? null : emitDeselect()
         const reactions = []
 
-        // Resolve correct owner (existing logic)
-        if (!currentTarget.element || currentTarget.laneAxis !== axis) {
-            const prevTarget = currentTarget
+        const existingAllowed = swipeAllowedForType(currentTarget, axis) && supports('swipeStart')
+
+        if (!existingAllowed) {
             const lane = domRegistry.findLaneByAxis(x, y, axis)
-            if (!lane) return null
+            if (!lane) {
+                if (pressActive && pressedTarget?.element) {
+                    reactions.push({
+                        type: 'pressCancel',
+                        laneId: pressedTarget.laneId,
+                        element: pressedTarget.element
+                    })
+                }
+                pressActive = false
+                pressedTarget = null
+                swipeActive = false
+                return reactions.length ? (reactions.length === 1 ? reactions[0] : reactions) : null
+            }
 
             setCurrent(withLaneReactions({
                 element: lane.element,
                 laneId: lane.laneId,
                 laneAxis: lane.direction,
+                swipeType: lane.swipeType,
                 actionId: null
             }))
-
-            if (pressActive) {
-                reactions.push({
-                    type: 'pressCancel',
-                    laneId: prevTarget.laneId,
-                    element: prevTarget.element
-                })
-                pressActive = false
-                pressedTarget = null
-            }
-
-            reactions.push({
-                type: 'swipeStart',
-                laneId: currentTarget.laneId,
-                axis,
-                element: currentTarget.element
-            })
-
-            swipeActive = true
-            return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
         }
 
         if (!supports('swipeStart')) return null
 
-        if (pressActive) {
+        if (pressActive && pressedTarget?.element) {
             reactions.push({
                 type: 'pressCancel',
-                laneId: currentTarget.laneId,
-                element: currentTarget.element
+                laneId: pressedTarget.laneId,
+                element: pressedTarget.element
             })
             pressActive = false
             pressedTarget = null
@@ -171,7 +210,10 @@ export const reactionResolver = {
             type: 'swipeStart',
             laneId: currentTarget.laneId,
             axis,
-            element: currentTarget.element
+            element: currentTarget.element,
+            swipeType: currentTarget.swipeType,
+            direction: currentTarget.laneAxis,
+            raw: { x, y }
         })
 
         swipeActive = true
@@ -189,22 +231,32 @@ export const reactionResolver = {
             type: 'swipe',
             laneId: currentTarget.laneId,
             axis: intent.axis,
-            delta: normalizeSwipeDelta(intent.delta),
-            element: currentTarget.element
+            delta: isDragType(currentTarget.swipeType)
+                ? (intent.rawDelta || intent.delta || { x: 0, y: 0 })
+                : normalizeSwipeDelta(intent.delta),
+            element: currentTarget.element,
+            swipeType: currentTarget.swipeType,
+            direction: currentTarget.laneAxis,
+            raw: intent.raw || { x: intent.x, y: intent.y }
         }
         return mergeDescriptors(swipeDescriptor, deselect)
     },
 
     onSwipeCommit(intent) {
         if (!swipeActive || !currentTarget.laneId) return null
-        if (!supports('swipeEnd')) return null
+        if (!supports('swipeCommit')) return null
         const descriptor = {
             type: 'swipeCommit',
             laneId: currentTarget.laneId,
             direction: intent.direction,
             axis: intent.axis,
-            delta: intent.delta,
-            element: currentTarget.element
+            delta: isDragType(currentTarget.swipeType)
+                ? (intent.rawDelta || intent.delta || { x: 0, y: 0 })
+                : normalizeSwipeDelta(intent.delta),
+            element: currentTarget.element,
+            swipeType: currentTarget.swipeType,
+            laneDirection: currentTarget.laneAxis,
+            commitStrategy: currentTarget.swipeType || 'default'
         }
         pressActive = false
         swipeActive = false
@@ -223,7 +275,9 @@ export const reactionResolver = {
         const descriptor = {
             type: 'swipeRevert',
             laneId: currentTarget.laneId,
-            element: currentTarget.element
+            element: currentTarget.element,
+            swipeType: currentTarget.swipeType,
+            laneDirection: currentTarget.laneAxis
         }
         pressActive = false
         swipeActive = false
@@ -239,7 +293,7 @@ export const reactionResolver = {
 
         let descriptor = null
 
-        if (sameElement && target.reactions?.release) {
+        if (sameElement && target.reactions?.pressRelease) {
             descriptor = {
                 type: 'pressRelease',
                 actionId: target.actionId || null,
@@ -262,6 +316,9 @@ export const reactionResolver = {
     },
 
     shouldStartSwipe(delta, axis) {
+        if (isDragType(currentTarget.swipeType) || isSliderType(currentTarget.swipeType)) {
+            return true
+        }
         // 1. Lane-based sizing (preferred)
         if (currentTarget.laneId && shouldStartSwipeLane(currentTarget.laneId, delta)) {
             return true
@@ -275,6 +332,9 @@ export const reactionResolver = {
     },
 
     shouldCommitSwipe(delta, axis) {
+        if (isDragType(currentTarget.swipeType) || isSliderType(currentTarget.swipeType)) {
+            return true
+        }
         // 1. Lane-based sizing (preferred)
         if (currentTarget.laneId && shouldCommitSwipeLane(currentTarget.laneId, delta)) {
             return true

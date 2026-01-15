@@ -68,6 +68,11 @@ function onMove(x, y) {
         const accepted = engineAdapter.onSwipeStart(x, y, axis)
         if (!accepted) {
             log('input', 'Swipe start rejected by adapter')
+            engineAdapter.onPressRelease({
+                type: 'pressRelease',
+                x: state.startX,
+                y: state.startY
+            })
             state.phase = 'IDLE'
             return
         }
@@ -90,7 +95,8 @@ function onMove(x, y) {
             axis: state.axis,
             x,
             y,
-            delta: state.totalDelta
+            delta: state.totalDelta,
+            raw: { x, y }
         })
     }
 }

@@ -5,6 +5,8 @@
     :style="carouselStyle"
     :data-lane="lane"
     :data-direction="direction"
+    :data-swipe-type="'carousel'"
+    :data-react-swipe-commit="reactSwipeCommit ? true : null"
   >
     <component
       v-if="totalScenes > 0"
@@ -33,6 +35,8 @@ import { ref, onMounted, onBeforeUnmount, computed, watchEffect, markRaw } from 
 import { ensureLane, setLaneCount, setLaneSize } from '../state/swipeState'
 import { APP_SETTINGS } from '../config/appSettings'
 
+const emit = defineEmits(['swipeCommit'])
+
 const carouselEl = ref(null)
 const laneSize = ref(0)
 
@@ -47,6 +51,14 @@ let observer
 onMounted(() => {
   observer = new ResizeObserver(updateLaneSize)
   observer.observe(carouselEl.value)
+  const el = carouselEl.value
+  if (el) {
+    el.addEventListener('reaction', (e) => {
+      if (!props.reactSwipeCommit) return
+      if (e.detail?.type !== 'swipeCommit') return
+      emit('swipeCommit', e.detail)
+    })
+  }
 })
 onBeforeUnmount(() => {
   observer.disconnect()
@@ -56,6 +68,7 @@ const props = defineProps({
   lane: { type: String, required: true },
   scenes: { type: Array, required: true },
   direction: { type: String, default: 'horizontal' },
+  reactSwipeCommit: { type: Boolean, default: false }
 })
 
 const horizontal = computed(() => props.direction === 'horizontal')
