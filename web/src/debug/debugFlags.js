@@ -13,5 +13,7 @@ export const DEBUG = {
 
   input: false,
 
+  adapter: true,
+
   init: 'always'
 }

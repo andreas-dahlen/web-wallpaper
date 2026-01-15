@@ -33,5 +33,15 @@ export const scale = computed(() => {
 })
 
 // CSS pixels * scale for swipe math
-export const scaledWidth = computed(() => device.value.width * scale.value)
-export const scaledHeight = computed(() => device.value.height * scale.value)
+const scaledWidth = computed(() => device.value.width * scale.value)
+const scaledHeight = computed(() => device.value.height * scale.value)
+
+export function getAxisSize(axis) {
+  if (axis === 'horizontal' || axis === 'x') return scaledWidth.value
+  if (axis === 'vertical' || axis === 'y') return scaledHeight.value
+  return 0
+}
+
+export function normalizeSwipeDelta(delta) {
+  return delta / scale.value
+}

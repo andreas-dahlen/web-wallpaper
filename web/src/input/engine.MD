@@ -334,8 +334,3 @@ Resolver: “Who is allowed to react?”
 Renderer: “Make it visible”
 
 Vue: “Do app stuff”
-
-Architecture Self-Check
-- Doc vs code gap: [reactionResolver onSwipeStart](src/input/render/reactionResolver.js#L57-L96) returns `cancel` when a press exists but never emits the subsequent `swipe-start`, so swipes after a press silently die. Contract expects cancel + swipe-start (resolver returns data only); add a follow-up swipe-start descriptor after the cancel.
-- Platform leak: [reactionResolver onDrag](src/input/render/reactionResolver.js#L98-L119) branches on `window.__DEVICE` to scale deltas. This is platform logic inside the resolver and contradicts the “no platform branching” rule; normalization should live in domState or upstream math, not here.
-- Good alignment: intentEngine stays math-only (see [src/input/engine/intentEngine.js](src/input/engine/intentEngine.js#L1-L130)) and engineAdapter is a dumb forwarder (see [src/input/engine/engineAdapter.js](src/input/engine/engineAdapter.js#L1-L70)), matching the documented responsibilities.

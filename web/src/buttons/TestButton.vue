@@ -4,11 +4,11 @@
             :data-state="interaction" 
             press 
             react-press 
-            react-release 
-            react-cancel 
+            react-press-release 
+            react-press-cancel 
             @press="onPress"
-            @release="onRelease" 
-            @cancel="onCancel">
+            @pressRelease="onPressRelease" 
+            @pressCancel="onPressCancel">
             Fire Test Action
         </InputElement>
     </div>
@@ -26,10 +26,10 @@ const interaction = ref('idle')
 function onPress() {
     interaction.value = 'pressed'
 }
-function onRelease() {
+function onPressRelease() {
     interaction.value = 'released'
 }
-function onCancel() {
+function onPressCancel() {
     interaction.value = 'cancel'
 }
 // const onSwipeStart = () => { swiping.value = true }

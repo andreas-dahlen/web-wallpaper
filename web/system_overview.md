@@ -1,30 +1,32 @@
 # System Overview
 
-## Input Pipeline
-- Pointer or Android bridge events feed [src/input/engine/inputRouter.js](src/input/engine/inputRouter.js), which normalizes callbacks to the intent layer.
-- [src/input/engine/intentEngine.js](src/input/engine/intentEngine.js) owns gesture mechanics: tracking phases, deltas, axis locking, and direction sign.
-- [src/input/engine/engineAdapter.js](src/input/engine/engineAdapter.js) relays intents to the resolver and renderer, keeping the engine decoupled from DOM and animation.
-- [src/input/render/reactionResolver.js](src/input/render/reactionResolver.js) resolves DOM targets via [src/input/dom/domRegistry.js](src/input/dom/domRegistry.js) and builds reaction descriptors.
-- [src/input/render/renderer.js](src/input/render/renderer.js) applies descriptors, updates [src/state/swipeState.js](src/state/swipeState.js), and emits component-facing events consumed by [src/components/SwipeCarousel.vue](src/components/SwipeCarousel.vue) and scenes.
+## Input Pipeline (Layers)
+- [src/input/engine/inputRouter.js](src/input/engine/inputRouter.js): Platform wiring; normalizes pointer/Android events to x/y and forwards to the engine.
+- [src/input/engine/intentEngine.js](src/input/engine/intentEngine.js): Gesture mechanics; tracks phases, deltas, axis lock, and direction; emits intents only to the adapter.
+- [src/input/engine/engineAdapter.js](src/input/engine/engineAdapter.js): Thin bridge; forwards intents to resolver/renderer and asks eligibility questions.
+- [src/input/render/reactionResolver.js](src/input/render/reactionResolver.js): Intent resolution; uses [src/input/dom/domRegistry.js](src/input/dom/domRegistry.js) to find targets/reactions and returns reaction descriptors.
+- [src/input/render/renderer.js](src/input/render/renderer.js): Side effects; applies data attributes, updates [src/state/swipeState.js](src/state/swipeState.js), dispatches reaction events to Vue/consumers.
+- State inputs: [src/state/domState.js](src/state/domState.js) supplies device/scale; [src/state/swipeState.js](src/state/swipeState.js) holds lane offsets, counts, and thresholds.
 
 ## Ownership Mapping
-- Gesture mechanics (delta, axis, direction): [src/input/engine/intentEngine.js](src/input/engine/intentEngine.js).
-- Intent resolution (what the gesture targets and which reactions exist): [src/input/render/reactionResolver.js](src/input/render/reactionResolver.js) using [src/input/dom/domRegistry.js](src/input/dom/domRegistry.js).
-- Decision thresholds (start/commit sizing): [src/state/swipeState.js](src/state/swipeState.js) with fallback sizing from [src/state/domState.js](src/state/domState.js) invoked by [src/input/render/reactionResolver.js](src/input/render/reactionResolver.js).
+- Mechanics (delta, axis, direction): [src/input/engine/intentEngine.js](src/input/engine/intentEngine.js).
+- Intent resolution and reaction eligibility: [src/input/render/reactionResolver.js](src/input/render/reactionResolver.js) with [src/input/dom/domRegistry.js](src/input/dom/domRegistry.js).
+- Threshold sizing: [src/state/swipeState.js](src/state/swipeState.js) plus viewport scale from [src/state/domState.js](src/state/domState.js).
+- Effects and state mutation: [src/input/render/renderer.js](src/input/render/renderer.js).
 
-## Data Flow Diagram
+## Flow Diagram
 ```
-pointer / Android
+platform input (pointer / Android)
    ↓
-inputRouter
+inputRouter (wire)
    ↓
-intentEngine (mechanics)
+intentEngine (detect)
    ↓
-engineAdapter
+engineAdapter (bridge)
    ↓
-reactionResolver → domRegistry (intent)
+reactionResolver → domRegistry (resolve intent)
    ↓
-renderer → swipeState (thresholds/state)
+renderer → swipeState (apply / mutate)
    ↓
-SwipeCarousel / scenes
+Vue layers (SwipeCarousel, scenes)
 ```

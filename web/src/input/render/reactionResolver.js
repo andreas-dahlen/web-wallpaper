@@ -3,10 +3,10 @@
  *
  * Responsibilities:
  * - Use domRegistry to resolve declared reactions at coordinates
- * - Enforce the reaction schema: press, release, swipe-start, swipe, swipe-end, cancel
+ * - Enforce the reaction schema: press, pressRelease, pressCancel, swipeStart, swipe, swipeCommit, swipeRevert
  * - Return plain descriptors only (no DOM changes, no renderer calls)
  */
-import { scaledWidth, scaledHeight, scale } from '../../state/domState'
+import { getAxisSize, normalizeSwipeDelta } from '../../state/domState'
 import { domRegistry } from '../dom/domRegistry'
 import { log } from '../../debug/functions'
 import {
@@ -22,6 +22,37 @@ let currentTarget = {
     laneAxis: null,
     actionId: null,
     reactions: {}
+}
+
+let pressActive = false
+let swipeActive = false
+let pressedTarget = null
+let selectedElement = null
+
+function mergeDescriptors(existing, extra) {
+    if (!existing && !extra) return null
+    if (!existing) return extra
+    if (!extra) return existing
+    if (Array.isArray(existing)) {
+        return Array.isArray(extra) ? [...existing, ...extra] : [...existing, extra]
+    }
+    if (Array.isArray(extra)) {
+        return [existing, ...extra]
+    }
+    return [existing, extra]
+}
+
+function emitSelect(target) {
+    if (!target?.element || selectedElement === target.element) return null
+    selectedElement = target.element
+    return { type: 'select', element: target.element }
+}
+
+function emitDeselect() {
+    if (!selectedElement) return null
+    const descriptor = { type: 'deselect', element: selectedElement }
+    selectedElement = null
+    return descriptor
 }
 
 function normalize(target) {
@@ -54,12 +85,6 @@ function withLaneReactions(target) {
     }
 }
 
-function axisSize(axis) {
-    if (axis === 'horizontal' || axis === 'x') return scaledWidth.value
-    if (axis === 'vertical' || axis === 'y') return scaledHeight.value
-    return 0
-}
-
 function setCurrent(target) {
     currentTarget = normalize(target)
 }
@@ -69,121 +94,171 @@ function supports(type) {
 }
 
 export const reactionResolver = {
-    onStart(x, y) {
+    onPress(x, y) {
         const intent = domRegistry.findIntentAt(x, y)
-        if (!intent) {
-            setCurrent(null)
-            return null
-        }
-
+        if (!intent) { setCurrent(null); pressedTarget = null; pressActive = false; swipeActive = false; return emitDeselect() }
         setCurrent(intent)
+        pressActive = supports('press')
+        swipeActive = false
+        pressedTarget = pressActive ? currentTarget : null
 
         if (supports('press')) {
-            return {
+            const pressDescriptor = {
                 type: 'press',
                 actionId: intent.actionId || null,
                 laneId: intent.laneId || null,
                 element: intent.element,
             }
+            const selectDescriptor = emitSelect(intent)
+            return mergeDescriptors(pressDescriptor, selectDescriptor)
         }
         log('dom', intent)
-
-        return null
+        return emitDeselect()
     },
 
     onSwipeStart(x, y, axis) {
+        const hit = domRegistry.findIntentAt(x, y)
+        const deselect = hit?.element === selectedElement ? null : emitDeselect()
+        const reactions = []
+
+        // Resolve correct owner (existing logic)
         if (!currentTarget.element || currentTarget.laneAxis !== axis) {
+            const prevTarget = currentTarget
             const lane = domRegistry.findLaneByAxis(x, y, axis)
             if (!lane) return null
+
             setCurrent(withLaneReactions({
-                ...currentTarget,
+                element: lane.element,
                 laneId: lane.laneId,
                 laneAxis: lane.direction,
+                actionId: null
             }))
+
+            if (pressActive) {
+                reactions.push({
+                    type: 'pressCancel',
+                    laneId: prevTarget.laneId,
+                    element: prevTarget.element
+                })
+                pressActive = false
+                pressedTarget = null
+            }
+
+            reactions.push({
+                type: 'swipeStart',
+                laneId: currentTarget.laneId,
+                axis,
+                element: currentTarget.element
+            })
+
+            swipeActive = true
+            return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
         }
 
-        if (!currentTarget.laneId || currentTarget.laneAxis !== axis) return null
         if (!supports('swipeStart')) return null
 
-
-        if (supports('press')) {
-            return {
-                type: 'cancel',
+        if (pressActive) {
+            reactions.push({
+                type: 'pressCancel',
                 laneId: currentTarget.laneId,
                 element: currentTarget.element
-            }
+            })
+            pressActive = false
+            pressedTarget = null
         }
 
-        return {
-            type: 'swipe-start',
+        reactions.push({
+            type: 'swipeStart',
             laneId: currentTarget.laneId,
             axis,
             element: currentTarget.element
-        }
+        })
+
+        swipeActive = true
+        return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
     },
 
-    onDrag(intent) {
-        if (!currentTarget.laneId) return null
-        if (!supports('swipe')) return null
+    onSwipe(intent) {
+        const hit = domRegistry.findIntentAt(intent.x, intent.y)
+        const deselect = hit?.element === selectedElement ? null : emitDeselect()
 
-        const delta = window.__DEVICE ? intent.delta : intent.delta / scale.value
+        if (!swipeActive || !currentTarget.laneId) return deselect
+        if (!supports('swipe')) return deselect
 
-        return {
+        const swipeDescriptor = {
             type: 'swipe',
             laneId: currentTarget.laneId,
             axis: intent.axis,
-            delta: delta,
+            delta: normalizeSwipeDelta(intent.delta),
             element: currentTarget.element
         }
+        return mergeDescriptors(swipeDescriptor, deselect)
     },
 
-    onSwipeEnd(intent) {
-        if (!currentTarget.laneId) return null
+    onSwipeCommit(intent) {
+        if (!swipeActive || !currentTarget.laneId) return null
         if (!supports('swipeEnd')) return null
         const descriptor = {
-            type: 'swipe-end',
+            type: 'swipeCommit',
             laneId: currentTarget.laneId,
             direction: intent.direction,
             axis: intent.axis,
             delta: intent.delta,
             element: currentTarget.element
         }
+        pressActive = false
+        swipeActive = false
+        pressedTarget = null
         setCurrent(null)
-        return descriptor
+        return mergeDescriptors(descriptor, emitDeselect())
     },
 
-    onSwipeCancel() {
-        if (!currentTarget.element) return null
-        if (!supports('cancel')) {
+    onSwipeRevert() {
+        if (!swipeActive || !currentTarget.element) {
+            pressActive = false
+            swipeActive = false
             setCurrent(null)
-            return null
+            return emitDeselect()
         }
         const descriptor = {
-            type: 'cancel',
+            type: 'swipeRevert',
             laneId: currentTarget.laneId,
             element: currentTarget.element
         }
+        pressActive = false
+        swipeActive = false
+        pressedTarget = null
         setCurrent(null)
-        return descriptor
+        return mergeDescriptors(descriptor, emitDeselect())
     },
 
-    onRelease(intent) {
-        const target = currentTarget.element ? currentTarget : domRegistry.findIntentAt(intent.x, intent.y)
-        if (!target) return null
+    onPressRelease(intent) {
+        const target = pressedTarget
+        const hit = domRegistry.findIntentAt(intent.x, intent.y)
+        const sameElement = target && hit?.element === target.element
 
-        if (!target.reactions?.release) {
-            setCurrent(null)
-            return null
+        let descriptor = null
+
+        if (sameElement && target.reactions?.release) {
+            descriptor = {
+                type: 'pressRelease',
+                actionId: target.actionId || null,
+                laneId: target.laneId || null,
+                element: target.element,
+            }
+        } else if (target) {
+            descriptor = {
+                type: 'pressCancel',
+                laneId: target.laneId,
+                element: target.element
+            }
         }
 
-        const descriptor = {
-            type: 'release',
-            actionId: target.actionId || null,
-            laneId: target.laneId || null,
-            element: target.element,
-        }
+        pressActive = false
+        swipeActive = false
+        pressedTarget = null
         setCurrent(null)
-        return descriptor
+        return mergeDescriptors(descriptor, emitDeselect())
     },
 
     shouldStartSwipe(delta, axis) {
@@ -194,7 +269,7 @@ export const reactionResolver = {
 
 
         // 2. Axis-based viewport fallback
-        const size = axisSize(axis)
+        const size = getAxisSize(axis)
 
         return shouldStartSwipeBySize(size, delta)
     },
@@ -206,7 +281,7 @@ export const reactionResolver = {
         }
 
         // 2. Axis-based viewport fallback
-        const size = axisSize(axis)
+        const size = getAxisSize(axis)
 
         return shouldCommitSwipeBySize(size, delta)
     }

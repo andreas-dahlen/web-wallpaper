@@ -13,40 +13,63 @@
 
 import { renderer } from '../render/renderer'
 import { reactionResolver } from '../render/reactionResolver'
+import { log } from '../../debug/functions'
 
 function forward(descriptor) {
     if (!descriptor) return
+
+    if (Array.isArray(descriptor)) {
+        for (const d of descriptor) forward(d)
+        return
+    }
+
+    if (!descriptor.type) {
+        console.warn('Invalid reaction descriptor', descriptor)
+        return
+    }
+
     renderer.handleReaction(descriptor)
 }
 
+
 export const engineAdapter = {
-    onGestureStart(x, y) {
-        forward(reactionResolver.onStart(x, y))
+    onPress(x, y) {
+        forward(reactionResolver.onPress(x, y))
+        log('adapter', '[POINTER-PRESSED]')
     },
 
     onSwipeStart(x, y, axis) {
         const descriptor = reactionResolver.onSwipeStart(x, y, axis)
         forward(descriptor)
+        log('adapter', '[SWIPE-START]')
         return !!descriptor
     },
 
-    onDrag(intent) {
-        forward(reactionResolver.onDrag(intent))
+    onSwipe(intent) {
+        forward(reactionResolver.onSwipe(intent))
     },
 
-    onSwipeEnd(intent) {
-        forward(reactionResolver.onSwipeEnd(intent))
+    onSwipeCommit(intent) {
+        forward(reactionResolver.onSwipeCommit(intent))
+        log('adapter', '[SWIPE-COMMIT]')
     },
 
-    onSwipeCancel() {
-        forward(reactionResolver.onSwipeCancel())
+    onSwipeRevert() {
+        forward(reactionResolver.onSwipeRevert())
+        log('adapter', '[SWIPE-REVERT]')
     },
 
     // Pointer-up commit when no swipe
-    onRelease(intent) {
-        forward(reactionResolver.onRelease(intent))
+    onPressRelease(intent) {
+        forward(reactionResolver.onPressRelease(intent))
+        log('adapter', '[POINTER-RELEASED]')
     },
-    
+
+    onPressCancel(intent) {
+        forward(intent)
+        log('adapter', '[PRESS-CANCEL]')
+    },
+
     shouldStartSwipe(delta, axis) {
         return reactionResolver.shouldStartSwipe(delta, axis)
     },

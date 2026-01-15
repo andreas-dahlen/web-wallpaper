@@ -15,11 +15,13 @@
     :data-direction="direction || null"
 
     :data-react-press="reactPress ? true : null"
-    :data-react-release="reactRelease ? true : null"
+    :data-react-press-release="reactPressRelease ? true : null"
+    :data-react-press-cancel="reactPressCancel ? true : null"
     :data-react-swipe="reactSwipe ? true : null"
     :data-react-swipe-start="reactSwipeStart ? true : null"
-    :data-react-swipe-end="reactSwipeEnd ? true : null"
-    :data-react-cancel="reactCancel ? true : null"
+    :data-react-swipe-commit="reactSwipeCommit ? true : null"
+    :data-react-swipe-revert="reactSwipeRevert ? true : null"
+    :data-react-swipe-release="reactSwipeRelease ? true : null"
     v-bind="$attrs"
   >
     <slot />
@@ -36,8 +38,18 @@ defineOptions({ name: 'InputElement' })
 // -------------------------------
 // press / swipe / direction -> engine checks these
 // reactPress / reactRelease / reactSwipe* / reactCancel -> controls Vue emission
-const { action, press, swipe, direction,
-        reactPress, reactRelease, reactSwipe, reactSwipeStart, reactSwipeEnd, reactCancel
+const {
+  action,
+  press,
+  swipe,
+  direction,
+  reactPress,
+  reactPressRelease,
+  reactPressCancel,
+  reactSwipe,
+  reactSwipeStart,
+  reactSwipeCommit,
+  reactSwipeRevert
 // -------------------------------
 // Event forwarding
 // -------------------------------
@@ -47,21 +59,23 @@ const { action, press, swipe, direction,
   swipe: { type: Boolean, default: false },     // Can this element receive swipes?
   direction: { type: String, default: undefined }, // Optional swipe direction constraint
 
-  reactPress: { type: Boolean, default: false },     // Should a press emit a Vue event?
-  reactRelease: { type: Boolean, default: false },   // Should a release emit a Vue event?
+  reactPress: { type: Boolean, default: false },          // Should a press emit a Vue event?
+  reactPressRelease: { type: Boolean, default: false },   // Should a pressRelease emit a Vue event?
+  reactPressCancel: { type: Boolean, default: false },    // Should a pressCancel emit a Vue event?
   reactSwipe: { type: Boolean, default: false },
   reactSwipeStart: { type: Boolean, default: false },
-  reactSwipeEnd: { type: Boolean, default: false },
-  reactCancel: { type: Boolean, default: false },
+  reactSwipeCommit: { type: Boolean, default: false },
+  reactSwipeRevert: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
   'press',
-  'release',
-  'swipe-start',
+  'pressRelease',
+  'pressCancel',
+  'swipeStart',
   'swipe',
-  'swipe-end',
-  'cancel'
+  'swipeCommit',
+  'swipeRevert',
 ])
 
 const el = ref(null)
@@ -69,7 +83,7 @@ const el = ref(null)
 function handleReaction(e) {
   const type = e.detail?.type
   if (!type) return
-  // Emit the Vue event (onPress, onRelease, etc.)
+  // Emit the Vue event (onPress, onPressRelease, etc.)
   emit(type, e.detail)
 }
 

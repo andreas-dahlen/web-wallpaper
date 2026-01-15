@@ -49,7 +49,7 @@ function onDown(x, y) {
     state.totalDelta = 0
 
     // Inform adapter of press/target resolution
-    engineAdapter.onGestureStart(x, y)
+    engineAdapter.onPress(x, y)
 }
 
 function onMove(x, y) {
@@ -85,7 +85,7 @@ function onMove(x, y) {
         state.lastAxisPos = currentAxisPos
         state.totalDelta += delta
 
-        engineAdapter.onDrag({
+        engineAdapter.onSwipe({
             type: 'swipe',
             axis: state.axis,
             x,
@@ -107,20 +107,20 @@ function onUp() {
             const direction = getSwipeDirection(state.axis, state.totalDelta)
             log('swipe', '[', direction, ']', 'delta:', state.totalDelta)
 
-            engineAdapter.onSwipeEnd({
-                type: 'swipe-end',
+            engineAdapter.onSwipeCommit({
+                type: 'swipe-commit',
                 axis: state.axis,
                 direction,
                 delta: state.totalDelta
             })
         } else {
             log('swipe', 'rejected', 'delta:', state.totalDelta)
-            engineAdapter.onSwipeCancel()
+            engineAdapter.onSwipeRevert()
         }
     } else if (state.phase === 'PENDING') {
         // Pointer up without swipe → release
-        engineAdapter.onRelease({
-            type: 'release',
+        engineAdapter.onPressRelease({
+            type: 'pressRelease',
             x: state.startX,
             y: state.startY
         })

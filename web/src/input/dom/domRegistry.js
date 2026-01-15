@@ -14,7 +14,8 @@ export const domRegistry = {
     if (!el) return null
     return {
       laneId: el.dataset.lane,
-      direction: el.dataset.direction || null
+      direction: el.dataset.direction || null,
+      element: el
     }
   },
 
@@ -24,7 +25,8 @@ export const domRegistry = {
     if (!el) return null
     return {
       laneId: el.dataset.lane,
-      direction: el.dataset.direction
+      direction: el.dataset.direction,
+      element: el
     }
   },
 

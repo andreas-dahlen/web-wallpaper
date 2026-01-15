@@ -33,13 +33,31 @@ export const renderer = {
         break
       }
 
-      case 'release': {
+      case 'pressRelease': {
         setAttr(descriptor.element, 'data-pressed', null)
         dispatchReaction(descriptor)
         break
       }
 
-      case 'swipe-start': {
+      case 'pressCancel': {
+        setAttr(descriptor.element, 'data-pressed', null)
+        dispatchReaction(descriptor)
+        break
+      }
+
+      case 'select': {
+        setAttr(descriptor.element, 'data-selected', true)
+        dispatchReaction(descriptor)
+        break
+      }
+
+      case 'deselect': {
+        setAttr(descriptor.element, 'data-selected', null)
+        dispatchReaction(descriptor)
+        break
+      }
+
+      case 'swipeStart': {
         if (!descriptor.laneId) break
         const lane = ensureLane(descriptor.laneId)
         lane.dragging = true
@@ -56,7 +74,7 @@ export const renderer = {
         break
       }
 
-      case 'swipe-end': {
+      case 'swipeCommit': {
         if (!descriptor.laneId) break
         log('swipe', '[', descriptor.direction, ']', 'delta:', descriptor.delta)
         commitLaneSwipe(descriptor.laneId, descriptor.direction)
@@ -65,15 +83,14 @@ export const renderer = {
         break
       }
 
-      case 'cancel': {
+      case 'swipeRevert': {
         if (descriptor.laneId) {
           const lane = ensureLane(descriptor.laneId)
-          lane.offset = 0
           lane.pendingDir = null
           lane.dragging = false
+          applyLaneOffset(descriptor.laneId, 0)
         }
         setAttr(descriptor.element, 'data-swiping', null)
-        setAttr(descriptor.element, 'data-pressed', null)
         dispatchReaction(descriptor)
         break
       }
