@@ -27,28 +27,15 @@ const props = defineProps({
   reactSwipeCommit: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['swipeCommit'])
-
 const sliderEl = ref(null)
 watchEffect(() => ensureLane(props.lane))
 const horizontal = computed(() => props.direction === 'horizontal')
-
-// Position state: base is committed position, offset is in-progress drag delta
-const base = ref(0)
-const offset = ref(0)
 const dragging = ref(false)
-const maxDistance = ref(0)
-
-function clamp(v, max) {
-  if (!max && max !== 0) return v
-  return Math.min(Math.max(v, -max), max)
-}
 
 function updateLaneSize() {
   if (!sliderEl.value) return
   const size = horizontal.value ? sliderEl.value.offsetWidth : sliderEl.value.offsetHeight
   setLaneSize(props.lane, size)
-  maxDistance.value = size * 0.45 // keep thumb within track bounds
 }
 
 let observer
@@ -66,11 +53,14 @@ onBeforeUnmount(() => {
  
 const thumbStyle = computed(() => ({
   transform: horizontal.value
-    ? `translate3d(${base.value + offset.value}px,0,0)`
-    : `translate3d(0,${base.value + offset.value}px,0)`,
+    ? `translate3d(${laneOffset.value}px,0,0)`
+    : `translate3d(0,${laneOffset.value}px,0)`,
   transition: dragging.value ? 'none' : 'transform 150ms ease-out',
   willChange: 'transform',
 }))
+
+const laneState = computed(() => ensureLane(props.lane))
+const laneOffset = computed(() => laneState.value.offset || 0)
 
 function handleReaction(e) {
   const detail = e.detail || {}
@@ -78,32 +68,16 @@ function handleReaction(e) {
 
   if (detail.type === 'swipeStart') {
     dragging.value = true
-    offset.value = 0
-    return
-  }
-
-  if (detail.type === 'swipe') {
-    const delta = typeof detail.delta === 'number' ? detail.delta : 0
-    const target = base.value + delta
-    const clamped = clamp(target, maxDistance.value)
-    offset.value = clamped - base.value
     return
   }
 
   if (detail.type === 'swipeCommit') {
-    const delta = typeof detail.delta === 'number' ? detail.delta : 0
-    const target = base.value + delta
-    base.value = clamp(target, maxDistance.value)
-    offset.value = 0
     dragging.value = false
-    if (props.reactSwipeCommit) emit('swipeCommit', detail)
     return
   }
 
   if (detail.type === 'swipeRevert') {
-    // Slider should never revert; ignore
     dragging.value = false
-    offset.value = 0
     return
   }
 }

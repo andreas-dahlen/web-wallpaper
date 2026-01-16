@@ -1,10 +1,12 @@
 <template>
   <div class="scene-root b">
     <SwipeDrag
+      class="drag-container"
       lane="bottom-drag"
-      :react-swipe-commit="false"
+      direction="both"
+      :reactSwipeCommit="true"
     >
-      <div class="drag-box">Drag me</div>
+      <div class="drag-content">Drag me</div>
     </SwipeDrag>
   </div>
 </template>
@@ -18,14 +20,20 @@ defineOptions({ name: 'BottomB' })
 .b {
   background: linear-gradient(135deg, #7aa2ff, #47c6ff);
 }
+.drag-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
 
-.drag-box {
-  width: 180px;
-  height: 180px;
+.drag-content {
+  width: 130px;
+  height: 130px;
   border-radius: 16px;
-  display: grid;
-  place-items: center;
   font-weight: 700;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   color: #0b1b2b;
   background: linear-gradient(135deg, #ffe28a, #ff9f68);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);

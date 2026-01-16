@@ -104,7 +104,7 @@ function onMove(x, y) {
 function onUp() {
     if (state.phase === 'SWIPING') {
         if (!state.axis) {
-            engineAdapter.onSwipeCancel()
+            engineAdapter.onSwipeRevert()
             state.phase = 'IDLE'
             return
         }
@@ -121,7 +121,17 @@ function onUp() {
             })
         } else {
             log('swipe', 'rejected', 'delta:', state.totalDelta)
-            engineAdapter.onSwipeRevert()
+            if (engineAdapter.shouldRevertSwipe()) {
+                engineAdapter.onSwipeRevert()
+            } else {
+                const direction = getSwipeDirection(state.axis, state.totalDelta)
+                engineAdapter.onSwipeCommit({
+                    type: 'swipe-commit',
+                    axis: state.axis,
+                    direction,
+                    delta: state.totalDelta
+                })
+            }
         }
     } else if (state.phase === 'PENDING') {
         // Pointer up without swipe → release

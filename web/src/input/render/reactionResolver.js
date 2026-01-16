@@ -36,7 +36,7 @@ let pressedTarget = null
 let selectedElement = null
 
 function isDragType(swipeType) {
-    return swipeType === 'drag' || swipeType === 'drag-and-drop' || swipeType === 'dragAndDrop'
+    return swipeType === 'drag'
 }
 
 function isSliderType(swipeType) {
@@ -344,5 +344,9 @@ export const reactionResolver = {
         const size = getAxisSize(axis)
 
         return shouldCommitSwipeBySize(size, delta)
+    },
+
+    shouldRevertSwipe() {
+        return !(isDragType(currentTarget.swipeType) || isSliderType(currentTarget.swipeType))
     }
 }

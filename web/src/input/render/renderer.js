@@ -10,6 +10,9 @@
 import { ensureLane, applyLaneOffset, commitLaneSwipe } from '../../state/swipeState'
 import { log } from '../../debug/functions'
 
+// Track absolute positions for drag/drag-and-drop without touching swipeState
+const dragPositions = new WeakMap()
+
 function setAttr(el, key, val) {
   if (!el) return
   if (val === false || val === null || val === undefined) {
@@ -69,9 +72,35 @@ export const renderer = {
 
       case 'swipe': {
         if (!descriptor.laneId) break
+        const type = descriptor.swipeType
+
         if (typeof descriptor.delta === 'number') {
-          applyLaneOffset(descriptor.laneId, descriptor.delta)
+          const lane = ensureLane(descriptor.laneId)
+          if (type === 'slider') {
+            const base = lane.committedOffset || 0
+            lane.offset = base + descriptor.delta
+          } else {
+            applyLaneOffset(descriptor.laneId, descriptor.delta)
+          }
+          dispatchReaction(descriptor)
+          break
         }
+
+        if (type === 'drag' || type === 'drag-and-drop' || type === 'dragAndDrop') {
+          const el = descriptor.element
+          if (el) {
+            const base = dragPositions.get(el) || { x: 0, y: 0 }
+            const delta = descriptor.delta || { x: 0, y: 0 }
+            const absolute = {
+              x: base.x + (delta.x || 0),
+              y: base.y + (delta.y || 0)
+            }
+            descriptor.absolute = absolute
+          }
+          dispatchReaction(descriptor)
+          break
+        }
+
         dispatchReaction(descriptor)
         break
       }
@@ -80,6 +109,28 @@ export const renderer = {
         if (!descriptor.laneId) break
         const type = descriptor.swipeType
         if (type === 'slider' || type === 'drag' || type === 'drag-and-drop' || type === 'dragAndDrop') {
+          const lane = ensureLane(descriptor.laneId)
+          if (type === 'slider') {
+            const base = lane.committedOffset || 0
+            const delta = typeof descriptor.delta === 'number' ? descriptor.delta : 0
+            lane.committedOffset = base + delta
+            lane.offset = lane.committedOffset
+          }
+          lane.dragging = false
+          lane.pendingDir = null
+          if (type !== 'slider') {
+            const el = descriptor.element
+            if (el) {
+              const delta = descriptor.delta || { x: 0, y: 0 }
+              const base = dragPositions.get(el) || { x: 0, y: 0 }
+              const absolute = {
+                x: base.x + (delta.x || 0),
+                y: base.y + (delta.y || 0)
+              }
+              dragPositions.set(el, absolute)
+              descriptor.absolute = absolute
+            }
+          }
           setAttr(descriptor.element, 'data-swiping', null)
           dispatchReaction(descriptor)
           break

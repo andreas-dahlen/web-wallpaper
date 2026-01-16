@@ -249,7 +249,7 @@ Lane offsets
 
 Commit thresholds
 
-Dragging state
+ging state
 
 Used by:
 

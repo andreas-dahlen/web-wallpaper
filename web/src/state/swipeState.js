@@ -32,6 +32,7 @@ export function ensureLane(laneId) {
     swipeState.lanes[laneId] = {
       index: 0,
       offset: 0,
+      committedOffset: 0,
       count: 0,
       pendingDir: null,
       dragging: false,
