@@ -16,8 +16,8 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount, watchEffect } from 'vue'
-import { ensureLane, setLaneSize } from '../state/swipeState'
+import { computed, ref } from 'vue'
+import { getLane } from '../state/swipeState'
 
 defineOptions({ name: 'SwipeSlider'})
 
@@ -28,59 +28,19 @@ const props = defineProps({
 })
 
 const sliderEl = ref(null)
-watchEffect(() => ensureLane(props.lane))
 const horizontal = computed(() => props.direction === 'horizontal')
-const dragging = ref(false)
 
-function updateLaneSize() {
-  if (!sliderEl.value) return
-  const size = horizontal.value ? sliderEl.value.offsetWidth : sliderEl.value.offsetHeight
-  setLaneSize(props.lane, size)
-}
-
-let observer
-onMounted(() => {
-  updateLaneSize()
-  observer = new ResizeObserver(updateLaneSize)
-  observer.observe(sliderEl.value)
-  sliderEl.value?.addEventListener('reaction', handleReaction)
-})
- 
-onBeforeUnmount(() => {
-  observer?.disconnect()
-  sliderEl.value?.removeEventListener('reaction', handleReaction)
-})
- 
 const thumbStyle = computed(() => ({
   transform: horizontal.value
     ? `translate3d(${laneOffset.value}px,0,0)`
     : `translate3d(0,${laneOffset.value}px,0)`,
   transition: dragging.value ? 'none' : 'transform 150ms ease-out',
-  willChange: 'transform',
+  willChange: dragging.value ? 'transform' : 'auto'
 }))
 
-const laneState = computed(() => ensureLane(props.lane))
-const laneOffset = computed(() => laneState.value.offset || 0)
-
-function handleReaction(e) {
-  const detail = e.detail || {}
-  if (!detail.type) return
-
-  if (detail.type === 'swipeStart') {
-    dragging.value = true
-    return
-  }
-
-  if (detail.type === 'swipeCommit') {
-    dragging.value = false
-    return
-  }
-
-  if (detail.type === 'swipeRevert') {
-    dragging.value = false
-    return
-  }
-}
+const laneState = computed(() => getLane(props.lane))
+const laneOffset = computed(() => laneState.value?.offset || 0)
+const dragging = computed(() => laneState.value?.dragging || false)
 </script>
 
 <style scoped>
@@ -105,7 +65,6 @@ function handleReaction(e) {
   width: 100%;
   height: 100%;
   display: flex;
-  justify-content: center;
   align-items: center;
 }
 </style>

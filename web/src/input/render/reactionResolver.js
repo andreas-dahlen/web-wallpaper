@@ -11,15 +11,22 @@
  * - Swipe math remains unchanged; raw {x, y} is threaded through for consumers
  * - Selection is visual-only and single-target; ownership never changes
  */
-import { getAxisSize, normalizeSwipeDelta } from '../../state/domState'
+import { getAxisSize, normalizeSwipeDelta } from '../../state/sizeState'
 import { domRegistry } from '../dom/domRegistry'
 import { log } from '../../debug/functions'
 import {
     shouldStartSwipeLane,
     shouldStartSwipeBySize,
     shouldCommitSwipeLane,
-    shouldCommitSwipeBySize
+    shouldCommitSwipeBySize,
+    beginGesture,
+    updateGesturePosition,
+    getGestureDeltas,
+    endGesture,
+    getLane,
+    swipeState
 } from '../../state/swipeState'
+import { clampAxisDelta, clampDragDelta, getSwipeBases } from './swipeMath'
 
 let currentTarget = {
     element: null,
@@ -216,6 +223,10 @@ export const reactionResolver = {
             raw: { x, y }
         })
 
+        const lane = getLane(currentTarget.laneId)
+        const { baseAxis, basePoint } = getSwipeBases(lane, currentTarget.swipeType)
+        beginGesture({ x, y, axis, laneId: currentTarget.laneId, swipeType: currentTarget.swipeType, baseAxis, basePoint })
+
         swipeActive = true
         return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
     },
@@ -227,17 +238,31 @@ export const reactionResolver = {
         if (!swipeActive || !currentTarget.laneId) return deselect
         if (!supports('swipe')) return deselect
 
+        const rawPoint = intent.raw || { x: intent.x, y: intent.y }
+        const { rawDelta, axisDelta } = updateGesturePosition(rawPoint)
+        const lane = getLane(currentTarget.laneId)
+        const baseAxis = swipeState.gesture.baseAxis || 0
+        const basePoint = swipeState.gesture.basePoint || { x: 0, y: 0 }
+
+        const swipeDelta = isDragType(currentTarget.swipeType)
+            ? clampDragDelta({ lane, basePoint, delta: rawDelta })
+            : normalizeSwipeDelta(clampAxisDelta({
+                delta: axisDelta ?? intent.delta ?? 0,
+                lane,
+                swipeType: currentTarget.swipeType,
+                axisSize: getAxisSize(intent.axis),
+                baseAxis
+            }))
+
         const swipeDescriptor = {
             type: 'swipe',
             laneId: currentTarget.laneId,
             axis: intent.axis,
-            delta: isDragType(currentTarget.swipeType)
-                ? (intent.rawDelta || intent.delta || { x: 0, y: 0 })
-                : normalizeSwipeDelta(intent.delta),
+            delta: swipeDelta,
             element: currentTarget.element,
             swipeType: currentTarget.swipeType,
             direction: currentTarget.laneAxis,
-            raw: intent.raw || { x: intent.x, y: intent.y }
+            raw: rawPoint
         }
         return mergeDescriptors(swipeDescriptor, deselect)
     },
@@ -245,23 +270,36 @@ export const reactionResolver = {
     onSwipeCommit(intent) {
         if (!swipeActive || !currentTarget.laneId) return null
         if (!supports('swipeCommit')) return null
+
+        const { rawDelta, axisDelta } = getGestureDeltas()
+        const lane = getLane(currentTarget.laneId)
+        const baseAxis = swipeState.gesture.baseAxis || 0
+        const basePoint = swipeState.gesture.basePoint || { x: 0, y: 0 }
+
+        const commitDelta = isDragType(currentTarget.swipeType)
+            ? clampDragDelta({ lane, basePoint, delta: rawDelta })
+            : normalizeSwipeDelta(clampAxisDelta({
+                delta: axisDelta ?? intent.delta ?? 0,
+                lane,
+                swipeType: currentTarget.swipeType,
+                axisSize: getAxisSize(intent.axis),
+                baseAxis
+            }))
+
         const descriptor = {
             type: 'swipeCommit',
             laneId: currentTarget.laneId,
             direction: intent.direction,
             axis: intent.axis,
-            delta: isDragType(currentTarget.swipeType)
-                ? (intent.rawDelta || intent.delta || { x: 0, y: 0 })
-                : normalizeSwipeDelta(intent.delta),
+            delta: commitDelta,
             element: currentTarget.element,
-            swipeType: currentTarget.swipeType,
-            laneDirection: currentTarget.laneAxis,
-            commitStrategy: currentTarget.swipeType || 'default'
+            swipeType: currentTarget.swipeType
         }
         pressActive = false
         swipeActive = false
         pressedTarget = null
         setCurrent(null)
+        endGesture()
         return mergeDescriptors(descriptor, emitDeselect())
     },
 
@@ -283,6 +321,7 @@ export const reactionResolver = {
         swipeActive = false
         pressedTarget = null
         setCurrent(null)
+        endGesture()
         return mergeDescriptors(descriptor, emitDeselect())
     },
 

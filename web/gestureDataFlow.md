@@ -6,13 +6,15 @@
 
 2) Policy/bridge → reaction resolution
 - engineAdapter forwards intents to reactionResolver.
-- For drag swipeTypes, engineAdapter tracks gesture start (x,y) and injects `rawDelta: { x: currentX - startX, y: currentY - startY }` into swipe and swipeCommit intents.
-- reactionResolver resolves intent to reaction descriptors (press/swipe/select), choosing numeric deltas for axis-locked swipeTypes and `{x,y}` deltas for drag when `rawDelta` exists.
+- swipeState tracks gesture start/last/axis/base positions during swipeStart; resolver derives deltas (numeric for axis-locked, `{x,y}` for drag) using that gesture state and clamps them to lane sizes/bounds (sizeState scaling for axis deltas).
+- reactionResolver resolves intent to reaction descriptors (press/swipe/select), choosing numeric deltas for axis-locked swipeTypes and `{x,y}` deltas for drag, already clamped before renderer.
 
 3) Renderer side-effects
 - renderer receives descriptors only from engineAdapter and is the sole DOM/swipeState mutator.
-- Numeric deltas (carousel/slider) update swipeState offsets. Slider persists `committedOffset`; carousel animates via pendingDir.
-- Drag descriptors are not written to swipeState; renderer derives `absolute = base + delta` using a WeakMap of per-element positions and attaches it to the dispatched descriptor.
+- Renderer measures lane metrics from descriptor.element (size/bounds/direction; lane count via data-lane-count) on swipeStart/commit before applying state changes.
+- Numeric deltas (carousel/slider) update swipeState offsets. Slider persists `committedOffset`; carousel animates via pendingDir and renderer finalizes index/reset on transitionend.
+- Drag descriptors update swipeState dragPosition; renderer derives `absolute = dragPosition + delta` and attaches it to the dispatched descriptor. Slider swipe adds `absolute = committedOffset + delta` for convenience.
+- !!Drag absolute is ephemeral during swipe and persisted to swipeState.dragPosition only on swipeCommit!!For sliders, absolute is a derived convenience value; committedOffset remains the sole persisted state.!!
 - Renderer dispatches `CustomEvent('reaction', { detail: descriptor })` to the target element.
 
 4) Vue/component consumption

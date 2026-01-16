@@ -5,6 +5,7 @@
 - Declarative reactions: pointer input → descriptors → renderer side-effects.
 - Deterministic, layered responsibilities to keep logic localized and testable.
 - No UI components participate in gesture math or policy; they only render and listen.
+- Previous architectures stored partial gesture math upstream; now all gesture bookkeeping is centralized in swipeState and lane offsets persist in renderer only, with clamping performed before renderer dispatch.
 
 ## 2. Mental Model
 Raw pointer events flow through a fixed pipeline (inputRouter → intentEngine → engineAdapter → reactionResolver → renderer), producing canonical reaction descriptors. The renderer alone mutates DOM and shared swipe state, while Vue components react to dispatched events and CSS hooks without performing gesture logic.
@@ -26,33 +27,33 @@ Raw pointer events flow through a fixed pipeline (inputRouter → intentEngine �
 - Allowed knowledge: reactionResolver responses, renderer entry points.
 
 ### reactionResolver.js
-- Does: resolve intent to reaction descriptors using domRegistry, swipeState sizing, domState metrics; enforce reaction schema and swipeType eligibility.
-- Must not: mutate DOM, mutate state, call renderer, dispatch events.
-- Allowed knowledge: DOM structure via domRegistry, device/scale via domState, thresholds via swipeState.
+- Does: resolve intent to reaction descriptors using domRegistry, swipeState sizing/gesture state, sizeState metrics; clamp deltas to lane bounds before renderer; enforce reaction schema and swipeType eligibility.
+- Must not: mutate DOM, mutate state outside swipeState gesture bookkeeping, call renderer, dispatch events.
+- Allowed knowledge: DOM structure via domRegistry, device/scale via sizeState, thresholds and gesture start/axis/bounds via swipeState. Drag and slider gestures never emit swipeRevert; they always resolve via swipeCommit.
 
 ### renderer.js
-- Does: apply side-effects from descriptors (set data-* flags, mutate swipeState offsets, dispatch CustomEvent('reaction')).
+- Does: apply side-effects from descriptors (set data-* flags, mutate swipeState offsets/indices, measure lane metrics from DOM, dispatch CustomEvent('reaction')).
 - Must not: perform gesture detection, intent logic, pointer math, platform logic.
-- Allowed knowledge: swipeState structure, descriptor fields.
+- Allowed knowledge: swipeState structure, descriptor fields, lane metrics measured from descriptor.element (size/bounds/count via data-lane-count, direction via data-direction), transitionend timing for commit finalization.
 
 ### domRegistry.js
 - Does: read data-* to find lanes/actions/declared reactions, validate lane metadata (direction + swipeType).
 - Must not: mutate DOM, trigger callbacks, apply logic beyond discovery.
 - Allowed knowledge: document structure and dataset attributes.
 
-### domState.js
+### sizeState.js
 - Does: provide viewport/device metrics and scaling helpers.
 - Must not: store gesture state, mutate DOM.
 - Allowed knowledge: window dimensions, injected device info.
 
 ### swipeState.js
-- Does: hold lane state (size, offset, index, dragging, pendingDir), provide threshold helpers (start/commit by size).
+- Does: hold lane state (size, offset, index, dragging, pendingDir), drag bounds/positions, and gesture bookkeeping (start/last, axis, swipeType, base positions), provide threshold helpers (start/commit by size). Renderer owns mutations via ensureLane/updateLaneMetrics/applyLaneOffset/commitLaneSwipe/completeLaneCommit.
 - Must not: read DOM, decide gesture policy.
-- Allowed knowledge: numeric offsets, sizes, thresholds.
+- Allowed knowledge: numeric offsets, sizes, thresholds, gesture coordinates, per-lane drag positions.
 
 ### Vue Components
-- Does: render visuals, listen to CustomEvent('reaction'), apply transforms/styles based on renderer-emitted state/events.
-- Must not: compute gesture math, clamp offsets, decide commit/revert, mutate swipeState directly.
+- Does: render visuals, listen to CustomEvent('reaction'), apply transforms/styles based on renderer-emitted state/events, declare lanes via data attributes (data-lane, data-direction, data-swipe-type, optional data-lane-count).
+- Must not: compute gesture math, clamp offsets, decide commit/revert, mutate swipeState directly; they are read-only consumers of swipeState if needed.
 - Allowed knowledge: their own props/slots, reaction event payloads, CSS hooks.
 
 ## 4. Gesture Lifecycle
@@ -61,6 +62,7 @@ Raw pointer events flow through a fixed pipeline (inputRouter → intentEngine �
 - Swipe update: intentEngine onMove emits swipe intent → adapter.onSwipe → resolver emits swipe → renderer applies lane offset (numeric only) and dispatches reaction.
 - Swipe commit: intentEngine onUp calls adapter.shouldCommitSwipe → adapter.onSwipeCommit → resolver emits swipeCommit → renderer applies commit side-effect per swipeType and dispatches reaction.
 - Swipe revert: intentEngine onUp calls adapter.shouldRevertSwipe, if allowed → adapter.onSwipeRevert → resolver emits swipeRevert → renderer reverts only carousel lanes.
+- Carousel commit finalization: renderer listens for transitionend on the lane element; when transform finishes, renderer updates lane.index, clears pendingDir, and resets offset to 0.
 - Release (no swipe): intentEngine onUp emits pressRelease → adapter → resolver emits pressRelease → renderer clears data-pressed and dispatches reaction.
 
 ## 5. Reaction Descriptor Contract
@@ -81,35 +83,37 @@ Raw pointer events flow through a fixed pipeline (inputRouter → intentEngine �
 
 ### Reaction Event Data (emitted via CustomEvent('reaction'))
 - swipeStart: `type`, `element`, `laneId`, `axis`, `direction`, `swipeType`, `raw` (viewport coords at start, optional), ownership: resolver builds descriptor, renderer dispatches unchanged.
-- swipe: `type`, `element`, `laneId`, `axis`, `swipeType`, `direction`, `delta` (number for axis-locked, `{x,y}` for drag), optional `absolute` (renderer-added for drag), ownership: intentEngine computes deltas, adapter may add `rawDelta` for drag, resolver selects correct delta form, renderer may attach `absolute`.
-- swipeCommit: `type`, `element`, `laneId`, `axis`, `direction`, `swipeType`, `laneDirection`, `delta` (number or `{x,y}`), optional `absolute` (renderer-added for drag), ownership: intentEngine provides totals, adapter may add `rawDelta`, resolver passes through, renderer applies policy and may attach `absolute`.
+- swipe: `type`, `element`, `laneId`, `axis`, `swipeType`, `direction`, `delta` (number for axis-locked, `{x,y}` for drag), optional `absolute` (renderer-added for drag/slider), ownership: intentEngine streams raw points, resolver computes and clamps deltas using swipeState gesture state + lane bounds, renderer may attach `absolute`.
+- swipeCommit: `type`, `element`, `laneId`, `axis`, `direction`, `swipeType`, `laneDirection`, `delta` (number or `{x,y}`), optional `absolute` (renderer-added for drag/slider), ownership: intentEngine provides totals, resolver computes and clamps deltas using swipeState gesture state + lane bounds, renderer applies policy, may attach `absolute`, and triggers commit animation/transition tracking.
 - swipeRevert: `type`, `element`, `laneId`, `swipeType`, `laneDirection`, ownership: resolver emits, renderer may ignore for slider/drag; no absolute added.
-- Coordinate space: `x`,`y`,`raw`,`rawDelta`,`absolute` are in viewport client pixels; axis deltas are scalar along detected axis.
-- Axis rules: axis-locked swipeTypes use numeric delta along `axis`; drag/drag-and-drop use two-axis `{x,y}` displacement.
+- Coordinate space: `x`,`y`,`raw`,`absolute` are in viewport client pixels; axis deltas are scalar along the detected axis and originate from resolver-computed (and clamped) gesture deltas using swipeState lane sizes/bounds.
+- Axis rules: axis-locked swipeTypes use numeric delta along `axis`; drag use two-axis `{x,y}` displacement.
 
 
 ## 6. Swipe Type Semantics
 - carousel: axis-locked; may commit or revert based on thresholds; renderer animates via swipeState offsets and pendingDir.
 - slider: axis-locked; never reverts; commit acts as release and position persists.
-- drag / drag-and-drop: free {x,y}; never reverts; commit acts as release and position persists.
+- drag: free {x,y}; never reverts; commit acts as release and position persists (stored in swipeState per lane).
 - intentEngine is swipeType-agnostic; swipeType gating/behavior is handled by resolver + renderer policy.
-- All descriptors emitted by reactionResolver must express movement as delta.
+- All descriptors emitted by reactionResolver must express movement as delta, clamped to lane size/bounds before renderer. Renderer measures lane metrics at swipeStart/commit and updates swipeState accordingly; components expose lane count via data-lane-count for carousel commits.
 - Absolute positions may be attached by renderer only, as a derived field.
 - No upstream layer (engine, adapter, resolver) may emit absolute coordinates.
 - Components must prefer `detail.absolute` when present, otherwise fall back to `detail.delta`.
+- For drag swipeTypes, renderer computes absolute positions from swipeState lane dragPosition plus clamped delta and emits them in descriptors. Drag positions persist in swipeState.
 
 
 ## 7. State Ownership Rules
 - DOM mutation (data-pressed, data-swiping, data-selected) lives only in renderer.
-- Swipe offsets and lane state live only in swipeState, mutated only by renderer.
+- Swipe offsets and lane state (including drag positions) live only in swipeState, mutated only by renderer.
 - Pressed/swiping flags are set/cleared only by renderer.
 - Components may apply local transforms/styles in response to reaction events or CSS hooks but never compute gesture deltas.
 - Lanes must be created via ensureLane before any swipe interaction.
 - Renderer may assume lane existence for any descriptor with laneId.
-- Lane size must be known before commit decisions; otherwise swipe must not commit.
+- Lane size must be known before commit decisions; renderer measures descriptor.element when swipeStart/commit arrives and writes size/bounds/count into swipeState before applying side effects.
 - Animation timing and easing are owned by CSS and components.
 - Renderer only sets numeric state and flags; it never animates.
 - No JS-driven animation loops are allowed in gesture handling.
+- Each lane is tracked independently via laneId. Vue components consume per-lane descriptors and must not assume gestures affect other lanes.
 
 
 ## 8. Forbidden Patterns
@@ -125,8 +129,8 @@ Raw pointer events flow through a fixed pipeline (inputRouter → intentEngine �
 - intentEngine performs math only and never touches DOM or swipeType policy.
 - reactionResolver emits descriptors only; no side effects.
 - renderer is the sole mutator of DOM and swipeState.
-- swipeState holds numeric offsets for axis-locked lanes; drag offsets are not stored there.
-- slider/drag swipeTypes never revert and stay where released.
+- swipeState holds numeric offsets for axis-locked lanes and drag positions for freeform types; renderer mutates these with clamped values only (resolver is read-only over swipeState lanes).
+- slider/drag swipeTypes never revert and stay where released, using clamped positions.
 - carousel swipeType may commit or revert; others must not revert.
 - data-* attributes are declarative; missing lane direction/swipeType invalidates lane intent.
 - Vue components do not perform gesture logic; they consume reactions and CSS hooks only.

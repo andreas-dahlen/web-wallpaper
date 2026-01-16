@@ -19,7 +19,8 @@
 </template>
 
 <script setup>
-import { ref, computed, markRaw, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, markRaw, onMounted, onBeforeUnmount, watchEffect } from 'vue'
+import { getLane, ensureLane, setLaneBounds, setDragPosition } from '../state/swipeState'
 
 const dragEl = ref(null)
 const dragItem = ref(null)
@@ -32,9 +33,11 @@ const props = defineProps({
   reactSwipeCommit: { type: Boolean, default: false }
 })
 
-const hasScenes = computed(() => props.scenes.length > 0)
-const safeScenes = computed(() => props.scenes.map(s => markRaw(s)))
-const currentScene = computed(() => safeScenes.value[0] || null)
+// const hasScenes = computed(() => props.scenes.length > 0)
+// const safeScenes = computed(() => props.scenes.map(s => markRaw(s)))
+// const currentScene = computed(() => safeScenes.value[0] || null)
+
+watchEffect(() => ensureLane(props.lane))
 
 const position = ref({ x: 0, y: 0 })
 const dragging = ref(false)
@@ -55,42 +58,61 @@ const surfaceStyle = computed(() => ({
 }))
 
 onMounted(() => {
+  updateBounds()
+  boundsObserver = new ResizeObserver(updateBounds)
+  if (dragEl.value) boundsObserver.observe(dragEl.value)
   dragItem.value?.addEventListener('reaction', handleReaction)
+})
+
+onBeforeUnmount(() => {
+  boundsObserver?.disconnect()
+  dragItem.value?.removeEventListener('reaction', handleReaction)
 })
 
 function handleReaction(e) {
   const detail = e.detail || {}
   if (!detail.type) return
 
-  if (detail.type === 'swipeStart') {
-    dragging.value = true
-    return
-  }
+  const lane = getLane(props.lane)
 
-  if (detail.type === 'swipe') {
-    const abs = detail.absolute || detail.delta || { x: 0, y: 0 }
-    position.value = { x: abs.x || 0, y: abs.y || 0 }
-    console.log(position.value)
-    return
-  }
+  switch(detail.type) {
+    case 'swipeStart': {
+      const base = lane?.dragPosition || { x: 0, y: 0 }
+      position.value = { ...base }
+      dragging.value = true
+      break
+    }
 
-  if (detail.type === 'swipeCommit') {
-    const abs = detail.absolute || detail.delta || { x: 0, y: 0 }
-    position.value = { x: abs.x || 0, y: abs.y || 0 }
-    dragging.value = false
-    if (props.reactSwipeCommit) emit('swipeCommit', detail)
-    return
-  }
+    case 'swipe': {
+      const abs = detail.absolute || detail.delta || { x: 0, y: 0 }
+      position.value = { x: abs.x, y: abs.y }
+      break
+    }
 
-  if (detail.type === 'swipeRevert') {
-    dragging.value = false
-    return
+    case 'swipeCommit': {
+      const final = detail.absolute || detail.delta || { x: 0, y: 0 }
+      position.value = { x: final.x, y: final.y }
+      setDragPosition(props.lane, position.value)
+      dragging.value = false
+      if (props.reactSwipeCommit) emit('swipeCommit', detail)
+      break
+    }
+
+    case 'swipeRevert': {
+      const base = lane?.dragPosition || { x: 0, y: 0 }
+      position.value = { ...base }
+      dragging.value = true
+      // Let transition animate back; a follow-up commit/complete will clear dragging via renderer if needed
+      break
+    }
   }
 }
-
-onBeforeUnmount(() => {
-  dragItem.value?.removeEventListener('reaction', handleReaction)
-})
+let boundsObserver
+function updateBounds() {
+  if (!dragEl.value) return
+  const rect = dragEl.value.getBoundingClientRect()
+  setLaneBounds(props.lane, rect.width, rect.height)
+}
 </script>
 
 <style scoped>

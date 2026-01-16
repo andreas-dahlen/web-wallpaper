@@ -7,6 +7,7 @@
     :data-direction="direction"
     :data-swipe-type="'carousel'"
     :data-react-swipe-commit="reactSwipeCommit ? true : null"
+    :data-lane-count="scenes.length"
   >
     <component
       v-if="totalScenes > 0"
@@ -19,7 +20,6 @@
       :is="currentScene"
       class="scene"
       :style="currentStyle"
-      @transitionend="onTransitionEnd"
     />
     <component
       v-if="totalScenes > 0"
@@ -31,38 +31,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, watchEffect, markRaw } from 'vue'
-import { ensureLane, setLaneCount, setLaneSize } from '../state/swipeState'
+import { ref, onMounted, onBeforeUnmount, computed, markRaw } from 'vue'
+import { getLane, ensureLane } from '../state/swipeState'
 import { APP_SETTINGS } from '../config/appSettings'
 
 const emit = defineEmits(['swipeCommit'])
-
-const carouselEl = ref(null)
-const laneSize = ref(0)
-
-function updateLaneSize() {
-  if (!carouselEl.value) return
-  const size = horizontal.value ? carouselEl.value.offsetWidth : carouselEl.value.offsetHeight
-  laneSize.value = size
-  setLaneSize(props.lane, laneSize.value)
-}
-
-let observer
-onMounted(() => {
-  observer = new ResizeObserver(updateLaneSize)
-  observer.observe(carouselEl.value)
-  const el = carouselEl.value
-  if (el) {
-    el.addEventListener('reaction', (e) => {
-      if (!props.reactSwipeCommit) return
-      if (e.detail?.type !== 'swipeCommit') return
-      emit('swipeCommit', e.detail)
-    })
-  }
-})
-onBeforeUnmount(() => {
-  observer.disconnect()
-})
 
 const props = defineProps({
   lane: { type: String, required: true },
@@ -71,18 +44,16 @@ const props = defineProps({
   reactSwipeCommit: { type: Boolean, default: false }
 })
 
+const carouselEl = ref(null)
+const laneState = computed(() => ensureLane(props.lane) || getLane(props.lane) || {})
 const horizontal = computed(() => props.direction === 'horizontal')
-const laneState = computed(() => ensureLane(props.lane))
-
-watchEffect(() => {
-  setLaneCount(props.lane, props.scenes.length)
-})
+const laneSize = computed(() => laneState.value?.size || 0)
 
 /* -------------------------
    Scene indexes
 -------------------------- */
 const totalScenes = computed(() => props.scenes.length)
-const index = computed(() => laneState.value.index)
+const index = computed(() => laneState.value?.index ?? 0)
 
 const prevIndex = computed(() =>
   totalScenes.value ? (index.value - 1 + totalScenes.value) % totalScenes.value : 0
@@ -97,25 +68,18 @@ const prevScene = computed(() => safeScenes.value[prevIndex.value] || null)
 const nextScene = computed(() => safeScenes.value[nextIndex.value] || null)
 
 /* -------------------------
-   Movement math - OPTIMIZED
-   
-   Performance notes:
-   - Use translate3d() to force GPU compositing layer
-   - Disable transition during drag (dragging=true) for instant response
-   - Only apply transition when animating to final position
+   Movement math
 -------------------------- */
-const delta = computed(() => laneState.value.offset)
-const isDragging = computed(() => laneState.value.dragging)
+const delta = computed(() => laneState.value?.offset || 0)
+const isDragging = computed(() => laneState.value?.dragging ?? false)
+const transition = computed(() =>
+  isDragging.value
+    ? 'none'
+    : `transform ${APP_SETTINGS.swipeAnimationMs}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`
+)
 
-// CSS transition: none during drag, eased during animation
-const transition = computed(() => {
-  if (isDragging.value) return 'none'
-  return `transform ${APP_SETTINGS.swipeAnimationMs}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`
-})
-
-// Use translate3d for GPU acceleration
-const translate = (v) => horizontal.value 
-  ? `translate3d(${v}px, 0, 0)` 
+const translate = (v) => horizontal.value
+  ? `translate3d(${v}px, 0, 0)`
   : `translate3d(0, ${v}px, 0)`
 
 const baseStyle = { 
@@ -153,38 +117,31 @@ const carouselStyle = computed(() => ({
 }))
 
 /* -------------------------
-   Commit after transition
+   External swipeCommit emit
 -------------------------- */
-function onTransitionEnd(e) {
-  if (e.propertyName !== 'transform') return
-
-  const lane = laneState.value
-  if (!lane.pendingDir) return
-
-  // 'right'/'down' offset shows PREVIOUS scene, so DECREMENT index
-  if (lane.pendingDir === 'right' || lane.pendingDir === 'down') lane.index--
-  // 'left'/'up' offset shows NEXT scene, so INCREMENT index
-  if (lane.pendingDir === 'left' || lane.pendingDir === 'up') lane.index++
-
-  // Wrap around
-  lane.index = (lane.index + lane.count) % lane.count
-
-  lane.offset = 0
-  lane.pendingDir = null
+function handleReaction(e) {
+  if (!props.reactSwipeCommit) return
+  if (e.detail?.type !== 'swipeCommit') return
+  emit('swipeCommit', e.detail)
 }
+
+onMounted(() => {
+  carouselEl.value?.addEventListener('reaction', handleReaction)
+})
+onBeforeUnmount(() => {
+  carouselEl.value?.removeEventListener('reaction', handleReaction)
+})
 </script>
 
 <style scoped>
 .carousel { 
   touch-action: none;
-  /* GPU compositing hints */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
 }
 
 .scene { 
   user-select: none;
-  /* Prevent layout thrashing */
   contain: layout style paint;
 }
 </style>
