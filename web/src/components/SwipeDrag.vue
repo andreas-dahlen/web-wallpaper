@@ -2,7 +2,6 @@
   <div
     ref="dragEl"
     class="drag-surface"
-    :style="surfaceStyle"
   >
     <div
       ref="dragItem"
@@ -19,24 +18,19 @@
 </template>
 
 <script setup>
-import { ref, computed, markRaw, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { setDragPosition, getDragPosition } from '../state/gestureState'
 
 const dragEl = ref(null)
 const dragItem = ref(null)
-
 const emit = defineEmits(['swipeCommit'])
 
 const props = defineProps({
   lane: { type: String, required: true },
-  scenes: { type: Array, default: () => [] },
   reactSwipeCommit: { type: Boolean, default: false }
 })
 
-const hasScenes = computed(() => props.scenes.length > 0)
-const safeScenes = computed(() => props.scenes.map(s => markRaw(s)))
-const currentScene = computed(() => safeScenes.value[0] || null)
-
-const position = ref({ x: 0, y: 0 })
+const position = ref(getDragPosition(props.lane))
 const dragging = ref(false)
 
 const itemStyle = computed(() => ({
@@ -45,52 +39,43 @@ const itemStyle = computed(() => ({
   willChange: 'transform'
 }))
 
-const surfaceStyle = computed(() => ({
-  width: '100%',
-  height: '100%',
-  position: 'relative',
-  overflow: 'hidden',
-  touchAction: 'none',
-  transform: 'translateZ(0)'
-}))
-
-onMounted(() => {
-  dragItem.value?.addEventListener('reaction', handleReaction)
-})
+let startPos = { x: 0, y: 0 } // local start of gesture
 
 function handleReaction(e) {
   const detail = e.detail || {}
   if (!detail.type) return
 
-  if (detail.type === 'swipeStart') {
-    dragging.value = true
-    return
-  }
+  switch (detail.type) {
+    case 'swipeStart':
+      startPos = { ...getDragPosition(props.lane) } // remember where we start
+      dragging.value = true
+      break
 
-  if (detail.type === 'swipe') {
-    const abs = detail.absolute || detail.delta || { x: 0, y: 0 }
-    position.value = { x: abs.x || 0, y: abs.y || 0 }
-    console.log(position.value)
-    return
-  }
+    case 'swipe':
+      const delta = detail.delta || { x: 0, y: 0 }
+      const absolute = {
+        x: startPos.x + (delta.x || 0),
+        y: startPos.y + (delta.y || 0)
+      }
+      position.value = absolute
+      setDragPosition(props.lane, absolute)
+      break
 
-  if (detail.type === 'swipeCommit') {
-    const abs = detail.absolute || detail.delta || { x: 0, y: 0 }
-    position.value = { x: abs.x || 0, y: abs.y || 0 }
-    dragging.value = false
-    if (props.reactSwipeCommit) emit('swipeCommit', detail)
-    return
-  }
-
-  if (detail.type === 'swipeRevert') {
-    dragging.value = false
-    return
+    case 'swipeCommit':
+      // just confirm final position
+      const finalPos = position.value
+      setDragPosition(props.lane, finalPos)
+      dragging.value = false
+      if (props.reactSwipeCommit) emit('swipeCommit', detail)
+      break
   }
 }
 
-onBeforeUnmount(() => {
-  dragItem.value?.removeEventListener('reaction', handleReaction)
+onMounted(() => {
+  position.value = getDragPosition(props.lane)
+  dragItem.value?.addEventListener('reaction', handleReaction)
 })
+onBeforeUnmount(() => dragItem.value?.removeEventListener('reaction', handleReaction))
 </script>
 
 <style scoped>

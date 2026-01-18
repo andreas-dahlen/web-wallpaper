@@ -9,11 +9,11 @@ export const DEBUG = {
 
   swipe: false,
 
-  dom: true,
+  dom: false,
 
   input: false,
 
-  adapter: true,
+  adapter: false,
 
   init: 'always'
 }

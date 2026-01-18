@@ -4,7 +4,7 @@ import { reactive } from 'vue'
 /* -------------------------
    Central swipe state
 -------------------------- */
-export const swipeState = reactive({
+export const carouselState = reactive({
   lanes: {}
 })
 
@@ -12,13 +12,13 @@ export const swipeState = reactive({
    Swipe thresholds
 -------------------------- */
 export function shouldStartSwipeLane(laneId, delta) {
-  const lane = swipeState.lanes[laneId]
+  const lane = carouselState.lanes[laneId]
   if (!lane) return false
   return shouldStartSwipeBySize(lane.size, delta)
 }
 
 export function shouldCommitSwipeLane(laneId, delta) {
-  const lane = swipeState.lanes[laneId]
+  const lane = carouselState.lanes[laneId]
   if (!lane) return false
 
   return shouldCommitSwipeBySize(lane.size, delta)
@@ -28,8 +28,8 @@ export function shouldCommitSwipeLane(laneId, delta) {
    Lane helpers (unchanged)
 -------------------------- */
 export function ensureLane(laneId) {
-  if (!swipeState.lanes[laneId]) {
-    swipeState.lanes[laneId] = {
+  if (!carouselState.lanes[laneId]) {
+    carouselState.lanes[laneId] = {
       index: 0,
       offset: 0,
       committedOffset: 0,
@@ -39,7 +39,7 @@ export function ensureLane(laneId) {
       size: 0 // width or height of lane
     }
   }
-  return swipeState.lanes[laneId]
+  return carouselState.lanes[laneId]
 }
 
 export function setLaneCount(laneId, count) {

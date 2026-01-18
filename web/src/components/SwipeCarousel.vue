@@ -32,7 +32,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watchEffect, markRaw } from 'vue'
-import { ensureLane, setLaneCount, setLaneSize } from '../state/swipeState'
+import { ensureLane, setLaneCount, setLaneSize } from '../state/carouselState'
 import { APP_SETTINGS } from '../config/appSettings'
 
 const emit = defineEmits(['swipeCommit'])
@@ -84,17 +84,20 @@ watchEffect(() => {
 const totalScenes = computed(() => props.scenes.length)
 const index = computed(() => laneState.value.index)
 
-const prevIndex = computed(() =>
-  totalScenes.value ? (index.value - 1 + totalScenes.value) % totalScenes.value : 0
-)
-const nextIndex = computed(() =>
-  totalScenes.value ? (index.value + 1) % totalScenes.value : 0
-)
-
 const safeScenes = computed(() => props.scenes.map(s => markRaw(s)))
 const currentScene = computed(() => safeScenes.value[index.value] || null)
-const prevScene = computed(() => safeScenes.value[prevIndex.value] || null)
-const nextScene = computed(() => safeScenes.value[nextIndex.value] || null)
+
+const prevScene = computed(() => {
+  if (!totalScenes.value) return null
+  const prevIdx = (index.value - 1 + totalScenes.value) % totalScenes.value
+  return safeScenes.value[prevIdx] || null
+})
+
+const nextScene = computed(() => {
+  if (!totalScenes.value) return null
+  const nextIdx = (index.value + 1) % totalScenes.value
+  return safeScenes.value[nextIdx] || null
+})
 
 /* -------------------------
    Movement math - OPTIMIZED
@@ -104,7 +107,7 @@ const nextScene = computed(() => safeScenes.value[nextIndex.value] || null)
    - Disable transition during drag (dragging=true) for instant response
    - Only apply transition when animating to final position
 -------------------------- */
-const delta = computed(() => laneState.value.offset)
+const delta = computed(() => laneState.value.offset || 0)
 const isDragging = computed(() => laneState.value.dragging)
 
 // CSS transition: none during drag, eased during animation
@@ -161,13 +164,17 @@ function onTransitionEnd(e) {
   const lane = laneState.value
   if (!lane.pendingDir) return
 
-  // 'right'/'down' offset shows PREVIOUS scene, so DECREMENT index
-  if (lane.pendingDir === 'right' || lane.pendingDir === 'down') lane.index--
-  // 'left'/'up' offset shows NEXT scene, so INCREMENT index
-  if (lane.pendingDir === 'left' || lane.pendingDir === 'up') lane.index++
-
-  // Wrap around
-  lane.index = (lane.index + lane.count) % lane.count
+  // Commit index based on pendingDir
+  switch (lane.pendingDir) {
+    case 'right':
+    case 'down':
+      lane.index = (lane.index - 1 + lane.count) % lane.count
+      break
+    case 'left':
+    case 'up':
+      lane.index = (lane.index + 1) % lane.count
+      break
+  }
 
   lane.offset = 0
   lane.pendingDir = null
