@@ -197,13 +197,12 @@ onSwipeStart(x, y, axis) {
   const deselect = hit?.element === selectedElement ? null : emitDeselect()
   const reactions = []
 
-  // Check if current target can swipe or needs a lane
-  const canSwipe = domRegistry.swipeAllowedForType(currentTarget, axis)
+  // Force lane acquisition if currentTarget cannot actually swipe
+  const existingAllowed = domRegistry.swipeAllowedForType(currentTarget, axis) && supports('swipeStart')
 
-  if (!canSwipe) {
+  if (!existingAllowed) {
     const lane = domRegistry.findLaneForSwipe(x, y, axis)
     if (!lane) {
-      // Cancel press if needed
       if (pressActive && pressedTarget?.element) {
         reactions.push({
           type: 'pressCancel',
@@ -214,10 +213,9 @@ onSwipeStart(x, y, axis) {
       pressActive = false
       pressedTarget = null
       swipeActive = false
-      return reactions.length === 1 ? reactions[0] : reactions.length ? reactions : null
+      return reactions.length ? (reactions.length === 1 ? reactions[0] : reactions) : null
     }
 
-    // Acquire lane and transfer ownership
     setCurrent(withLaneReactions({
       element: lane.element,
       laneId: lane.laneId,
@@ -227,8 +225,8 @@ onSwipeStart(x, y, axis) {
     }))
   }
 
-  // At this point, currentTarget is either original swipe-capable or acquired lane
-  // Cancel press when swipe begins
+  if (!supports('swipeStart')) return null
+
   if (pressActive && pressedTarget?.element) {
     reactions.push({
       type: 'pressCancel',
@@ -239,7 +237,6 @@ onSwipeStart(x, y, axis) {
     pressedTarget = null
   }
 
-  // Always emit swipeStart for lane (even if original was press-only)
   reactions.push({
     type: 'swipeStart',
     laneId: currentTarget.laneId,
@@ -253,10 +250,7 @@ onSwipeStart(x, y, axis) {
   swipeActive = true
   beginGestureTracking(x, y, currentTarget.swipeType)
 
-  return mergeDescriptors(
-    reactions.length === 1 ? reactions[0] : reactions,
-    deselect
-  )
+  return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
 },
 
   onSwipe(intent) {
