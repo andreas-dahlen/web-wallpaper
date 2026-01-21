@@ -44,24 +44,37 @@ let selectedElement = null
 function buildSwipeBase(target) {
   const { laneId, swipeType } = target
 
-  if (swipeType === 'drag') {
-    return {
-      drag: {
-        [laneId]: getDragBase(laneId)
+  if (!laneId) return null
+
+  switch (swipeType) {
+    case 'drag':
+      return {
+        drag: {
+          [laneId]: getDragBase(laneId) // already authoritative
+        }
+      }
+
+    case 'slider':
+    case 'carousel': {
+      const lane = getLane(laneId)
+      if (!lane) return null
+
+      return {
+        axis: {
+          [laneId]: lane.offset // current lane offset
+        },
+        size: {
+          [laneId]: lane.size
+        },
+        // Include committed offset for carousel for accurate clamping
+        committedOffset: swipeType === 'carousel'
+          ? { [laneId]: lane.committedOffset ?? lane.offset }
+          : undefined
       }
     }
-  }
 
-  const lane = getLane(laneId)
-  if (!lane) return null
-
-  return {
-    axis: {
-      [laneId]: lane.offset
-    },
-    size: {
-      [laneId]: lane.size
-    }
+    default:
+      return null
   }
 }
 
@@ -261,10 +274,15 @@ export const reactionResolver = {
     const base = buildSwipeBase(currentTarget)
     if (!base) return deselect
 
+    // Pass carousel offsets and drag bases to reactionSwipe
     const deltaResult = computeSwipeDelta({
       payload,
       target: currentTarget,
-      base
+      base,
+      parent: {
+        width: getAxisSize('x'),
+        height: getAxisSize('y')
+      }
     })
 
     if (!deltaResult) return deselect
@@ -307,7 +325,11 @@ export const reactionResolver = {
     const deltaResult = computeCommitDelta({
       payload,
       target: currentTarget,
-      base
+      base,
+      parent: {
+        width: getAxisSize('x'),
+        height: getAxisSize('y')
+      }
     })
 
     const descriptor = {
@@ -385,28 +407,43 @@ export const reactionResolver = {
   },
 
   shouldStartSwipe(delta, axis) {
-    if (currentTarget.swipeType === 'drag') return true
-    if (currentTarget.swipeType === 'slider') {
-      return currentTarget.laneId != null
-    }
+    if (!currentTarget.laneId) return false
 
-    if (currentTarget.laneId && shouldStartSwipeLane(currentTarget.laneId, delta)) {
-      return true
-    }
+    switch (currentTarget.swipeType) {
+      case 'drag':
+        return true // drags are always allowed once lane is acquired
 
-    const size = getAxisSize(axis)
-    return shouldStartSwipeBySize(size, delta)
+      case 'slider':
+        // Only start if we have a lane and authoritative base
+        return !!getLane(currentTarget.laneId)
+
+      case 'carousel':
+        // Use carouselState thresholds
+        if (shouldStartSwipeLane(currentTarget.laneId, delta)) return true
+        const size = getAxisSize(axis)
+        return shouldStartSwipeBySize(size, delta)
+
+      default:
+        return false
+    }
   },
 
   shouldCommitSwipe(delta, axis) {
-    if (currentTarget.swipeType !== 'carousel') return false
+    if (!currentTarget.laneId) return false
 
-    if (currentTarget.laneId && shouldCommitSwipeLane(currentTarget.laneId, delta)) {
-      return true
+    switch (currentTarget.swipeType) {
+      case 'drag':
+      case 'slider':
+        return true // always commitable once started
+
+      case 'carousel':
+        if (shouldCommitSwipeLane(currentTarget.laneId, delta)) return true
+        const size = getAxisSize(axis)
+        return shouldCommitSwipeBySize(size, delta)
+
+      default:
+        return false
     }
-
-    const size = getAxisSize(axis)
-    return shouldCommitSwipeBySize(size, delta)
   },
 
   shouldRevertSwipe() {

@@ -1,41 +1,44 @@
 <template>
   <div class="scene-root b">
-    <SwipeDrag
-      class="drag-container"
-      lane="bottom-drag"
-      direction="both"
+    <SwipeSlider
+      class="swipe-slider"
+      lane="slider2"
+      direction="vertical"
       :reactSwipeCommit="true"
     >
-      <div class="drag-content">Drag me</div>
-    </SwipeDrag>
+      <div class="slider-content">Slide Me!</div>
+    </SwipeSlider>
   </div>
 </template>
 
 <script setup>
-import SwipeDrag from '../../../components/SwipeDrag.vue'
-defineOptions({ name: 'BottomB' })
+import SwipeSlider from '../../../components/SwipeSlider.vue'
+
+defineOptions({ name: 'bottomB' })
+
 </script>
 
 <style scoped>
 .b {
   background: linear-gradient(135deg, #7aa2ff, #47c6ff);
 }
-.drag-container {
-  width: 100%;
-  height: 100%;
-  position: relative;
+.swipe-slider {
+  height: 90%;
+  width: 70px;
 }
 
-.drag-content {
-  width: 130px;
-  height: 130px;
-  border-radius: 16px;
-  font-weight: 700;
+.slider-content {
   display: flex;
-  justify-content: center;
   align-items: center;
-  color: #0b1b2b;
-  background: linear-gradient(135deg, #ffe28a, #ff9f68);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  justify-content: center;
+  height: 40%;
+  width: 90%;
+  color: white;
+  font-weight: bold;
+}
+
+.slider-content {
+  background: #4285f4;
+  border-radius: 10px;
 }
 </style>
