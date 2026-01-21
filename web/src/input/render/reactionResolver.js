@@ -20,7 +20,8 @@ import {
   getDragBase,
   resetGestureTracking,
   attachDragRawDelta,
-  beginGestureTracking
+  beginGestureTracking,
+  snapshotDragBase
 } from '../../state/gestureState'
 import {
   computeSwipeDelta,
@@ -192,66 +193,68 @@ export const reactionResolver = {
     return emitDeselect()
   },
 
-onSwipeStart(x, y, axis) {
-  const hit = domRegistry.findIntentAt(x, y)
-  const deselect = hit?.element === selectedElement ? null : emitDeselect()
-  const reactions = []
+  onSwipeStart(x, y, axis) {
+    const hit = domRegistry.findIntentAt(x, y)
+    const deselect = hit?.element === selectedElement ? null : emitDeselect()
+    const reactions = []
 
-  // Force lane acquisition if currentTarget cannot actually swipe
-  const existingAllowed = domRegistry.swipeAllowedForType(currentTarget, axis) && supports('swipeStart')
+    // Force lane acquisition if currentTarget cannot actually swipe
+    const existingAllowed = domRegistry.swipeAllowedForType(currentTarget, axis) && supports('swipeStart')
 
-  if (!existingAllowed) {
-    const lane = domRegistry.findLaneForSwipe(x, y, axis)
-    if (!lane) {
-      if (pressActive && pressedTarget?.element) {
-        reactions.push({
-          type: 'pressCancel',
-          laneId: pressedTarget.laneId,
-          element: pressedTarget.element
-        })
+    if (!existingAllowed) {
+      const lane = domRegistry.findLaneForSwipe(x, y, axis)
+      if (!lane) {
+        if (pressActive && pressedTarget?.element) {
+          reactions.push({
+            type: 'pressCancel',
+            laneId: pressedTarget.laneId,
+            element: pressedTarget.element
+          })
+        }
+        pressActive = false
+        pressedTarget = null
+        swipeActive = false
+        return reactions.length ? (reactions.length === 1 ? reactions[0] : reactions) : null
       }
-      pressActive = false
-      pressedTarget = null
-      swipeActive = false
-      return reactions.length ? (reactions.length === 1 ? reactions[0] : reactions) : null
+
+      setCurrent(withLaneReactions({
+        element: lane.element,
+        laneId: lane.laneId,
+        laneAxis: lane.direction,
+        swipeType: lane.swipeType,
+        actionId: null
+      }))
     }
 
-    setCurrent(withLaneReactions({
-      element: lane.element,
-      laneId: lane.laneId,
-      laneAxis: lane.direction,
-      swipeType: lane.swipeType,
-      actionId: null
-    }))
-  }
+    if (!currentTarget.laneId) return null
 
- if (!currentTarget.laneId) return null
+    if (pressActive && pressedTarget?.element) {
+      reactions.push({
+        type: 'pressCancel',
+        laneId: pressedTarget.laneId,
+        element: pressedTarget.element
+      })
+      pressActive = false
+      pressedTarget = null
+    }
 
-  if (pressActive && pressedTarget?.element) {
     reactions.push({
-      type: 'pressCancel',
-      laneId: pressedTarget.laneId,
-      element: pressedTarget.element
+      type: 'swipeStart',
+      laneId: currentTarget.laneId,
+      axis,
+      element: currentTarget.element,
+      swipeType: currentTarget.swipeType,
+      direction: currentTarget.laneAxis,
+      raw: { x, y }
     })
-    pressActive = false
-    pressedTarget = null
-  }
 
-  reactions.push({
-    type: 'swipeStart',
-    laneId: currentTarget.laneId,
-    axis,
-    element: currentTarget.element,
-    swipeType: currentTarget.swipeType,
-    direction: currentTarget.laneAxis,
-    raw: { x, y }
-  })
-
-  swipeActive = true
-  beginGestureTracking(x, y, currentTarget.swipeType)
-
-  return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
-},
+    swipeActive = true
+    beginGestureTracking(x, y, currentTarget.swipeType)
+    if (currentTarget.swipeType === 'drag') {
+      snapshotDragBase(currentTarget.laneId)
+    }
+    return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
+  },
 
   onSwipe(intent) {
     const hit = domRegistry.findIntentAt(intent.x, intent.y)

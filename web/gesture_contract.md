@@ -25,6 +25,14 @@
 - carouselState: DO own lane bases (index, offset, committedOffset, size, count, dragging, pendingDir) and thresholds; renderer is sole mutator; MUST NOT be touched by components/engine/resolver.
 - renderer: DO consume descriptors, set data-* flags, mutate carouselState, compute drag absolute from renderer-held/snapshotted bases, dispatch reaction events; MUST NOT change semantic descriptor fields or depend on component state.
 - Vue components (SwipeCarousel/Slider/Drag/etc.): DO listen to reaction events and render transforms/styles; MUST NOT compute gesture math, clamp, or mutate gestureState/carouselState (SwipeDrag must not call setDragPosition during gesture frames).
+- sizeState: DO expose device dimensions, injected __DEVICE, and scale factor; MUST NOT store gesture data or perform policy; provides canonical axis sizes for clamping.
+
+## Coordinate Spaces & Scaling
+- One math space: scaled CSS pixels = device CSS size × sizeState.scale; all deltas/bases/thresholds must live here.
+- Raw viewport coords from intentEngine must be normalized before math (e.g., divide by scale for design-space deltas) so they match drag bases and lane offsets.
+- gestureState.dragBases and carouselState offsets/committedOffset must remain in scaled space; do not mix physical pixels, density pixels, or unscaled viewport units.
+- APK must inject window.__DEVICE with CSS pixel width/height + density; Web fallback uses APP_SETTINGS.rawPhoneValues ÷ density; log a warning and bail from gesture math if __DEVICE is missing fields.
+- Threshold helpers (shouldStart/shouldCommit) and clamp functions assume deltas are in the same scaled units as lane sizes returned by sizeState.getAxisSize.
 
 ## Gesture Lifecycle (canonical)
 - Press: intentEngine.onDown → adapter.onPress → resolver emits press/select → renderer sets data-pressed and dispatches.
@@ -41,6 +49,7 @@
 - raw/rawDelta are viewport pixels from engine/gestureState; no upstream absolute positions.
 - Renderer may add read-only absolute (drag only) and may forward normalized fields from reactionSwipe for slider; renderer must not alter delta/type/direction/swipeType.
 - Descriptors are read-only to consumers (Vue).
+- Delta fields must already be clamped/normalized by reactionSwipe; resolver must not forward unclamped raw totals.
 
 ## Swipe Type Semantics & Bases
 - Carousel: axis-locked; may commit or revert; deltas numeric; bases from carouselState.offset/committedOffset/size; renderer mutates carouselState; no absolute field.
@@ -72,3 +81,4 @@
 - data-* lanes require direction + swipeType; missing metadata invalidates swipe intent.
 - gestureState tracks pointer lifecycle; no other module mutates lifecycle fields.
 - Components are render-only consumers of reaction events and CSS hooks.
+- Resolver must use per-gesture snapshots (drag bases, committed offsets) rather than live renderer-mutated offsets when computing deltas to avoid double-applying totals.

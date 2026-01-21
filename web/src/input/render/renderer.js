@@ -10,7 +10,6 @@
 import { ensureLane, applyLaneOffset, commitLaneSwipe } from '../../state/carouselState'
 import { 
   setDragPosition, 
-  snapshotDragBase, 
   getDragBase, 
   clearDragBase 
 } from '../../state/gestureState'
@@ -46,11 +45,6 @@ function handleSelectDescriptor(descriptor) {
 // ----------------- Swipe Start -----------------
 function handleSwipeStart(descriptor) {
   if (!descriptor.laneId) return
-
-  // Snapshot drag base for 'drag' swipes
-  if (descriptor.swipeType === 'drag') {
-    snapshotDragBase(descriptor.laneId)
-  }
 
   const lane = ensureLane(descriptor.laneId)
   lane.dragging = true

@@ -60,14 +60,15 @@ function onDown(x, y) {
 function onMove(x, y) {
     if (state.phase === 'IDLE') return
     drawDots(x, y, 'yellow')
-
+    const deltaX = x - state.startX
+    const deltaY = y - state.startY
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+    
     // Detect swipe axis
     if (state.phase === 'PENDING') {
-        const deltaX = x - state.startX
-        const deltaY = y - state.startY
-        const absX = Math.abs(deltaX)
-        const absY = Math.abs(deltaY)
         const axis = absX > absY ? 'horizontal' : 'vertical'
+
         // Escalate purely on movement; adapter decides ownership
         const accepted = engineAdapter.onSwipeStart(x, y, axis)
         if (!accepted) {
@@ -80,8 +81,8 @@ function onMove(x, y) {
             state.phase = 'IDLE'
             return
         }
-// intentEngine only detects gesture intent.
-// It must not check swipe capability or target policy.
+        // intentEngine only detects gesture intent.
+        // It must not check swipe capability or target policy.
         state.phase = 'SWIPING'
         state.axis = axis
         state.lastAxisPos = axis === 'horizontal' ? state.startX : state.startY
@@ -94,14 +95,16 @@ function onMove(x, y) {
         const delta = currentAxisPos - state.lastAxisPos
         state.lastAxisPos = currentAxisPos
         state.totalDelta += delta
-
         engineAdapter.onSwipe({
             type: 'swipe',
             axis: state.axis,
             x,
             y,
-            delta: state.totalDelta, // numeric total only
-            raw: { x, y }            // reference coords only
+            delta: state.totalDelta, // keep numeric total for 1D swipes
+            rawDelta: {
+                x: deltaX,
+                y: deltaY
+            }
         })
     }
 }

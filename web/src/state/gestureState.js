@@ -44,15 +44,20 @@ export function beginGestureTracking(x, y, swipeType) {
 export function attachDragRawDelta(intent) {
   if (!gestureState.active || gestureState.swipeType !== 'drag') return intent
 
+  const base = getDragBase(intent.laneId) || { x: 0, y: 0 }
+
+  const rawDelta = {
+    x: intent.x - base.x,
+    y: intent.y - base.y
+  }
+
   gestureState.lastX = intent.x
   gestureState.lastY = intent.y
 
   return {
     ...intent,
-    rawDelta: {
-      x: intent.x - gestureState.startX,
-      y: intent.y - gestureState.startY
-    }
+    rawDelta,
+    delta: rawDelta // some code expects numeric delta object
   }
 }
 

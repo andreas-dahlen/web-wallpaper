@@ -1,30 +1,61 @@
 import { clampSwipe, clampDelta2D } from '../engine/gestureBounds'
+import { log } from '../../debug/functions'
+import { scale } from '../../state/sizeState'
 
 /**
  * Compute clamped swipe delta for all swipe types
  * @param {Object} params
- * @param {Object} params.payload - { delta, rawDelta, axis }
+ * @param {Object} params.payload - { delta, rawDelta, raw, axis }
  * @param {Object} params.target - { swipeType, laneId }
  * @param {Object} params.base - { axis, drag, size }
  * @param {Object} [params.parent] - viewport/container bounds
- * @returns {number|Object} - numeric for axis swipes, {x,y} for drag, optionally normalized for slider
+ * @returns {number|Object} - numeric for axis swipes, {x,y,delta} for drag, optionally normalized for slider
  */
 export function computeSwipeDelta({ payload, target, base, parent }) {
   if (!target) return null
   const { swipeType, laneId } = target
 
-  // DRAG: 2D delta clamped to viewport/container bounds
+  // -------------------------
+  // DRAG: 2D delta
+  // -------------------------
   if (swipeType === 'drag') {
-    const raw = payload.rawDelta || payload.delta || { x: 0, y: 0 }
-    return clampDelta2D({
+    const basePos = base.drag?.[laneId]
+    const raw = payload.raw || payload.rawDelta
+
+    if (!basePos || !raw) return null
+
+    // Convert raw pointer to scaled CSS pixels
+    const scaledRaw = {
+      x: raw.x,
+      y: raw.y
+    }
+
+    // Delta relative to gesture start/base
+    const delta = {
+      x: scaledRaw.x - (basePos.x || 0),
+      y: scaledRaw.y - (basePos.y || 0)
+    }
+
+    log('swipe', { raw, scaledRaw, delta })
+
+    const clamped = clampDelta2D({
       type: 'swipeDrag',
-      delta: raw,
-      base: base.drag?.[laneId],
-      parent // viewport/container
+      delta,
+      base: basePos,
+      parent
     }).clamped
+
+    // Return clamped absolute position plus delta for Drag.vue
+    return {
+      x: clamped.x,
+      y: clamped.y,
+      delta: { ...delta } // optional: raw delta for renderer logic
+    }
   }
 
+  // -------------------------
   // SLIDER or CAROUSEL: 1D delta
+  // -------------------------
   const { clampedDelta, normalized } = clampSwipe({
     type: swipeType === 'slider' ? 'swipeSlider' : 'swipeCarousel',
     axis: payload.axis,
@@ -34,7 +65,6 @@ export function computeSwipeDelta({ payload, target, base, parent }) {
     parentSize: parent?.[payload.axis === 'x' ? 'width' : 'height']
   })
 
-  // Slider exposes normalized progress, carousel is numeric passthrough
   return swipeType === 'slider'
     ? { delta: clampedDelta, normalized }
     : clampedDelta
@@ -42,7 +72,6 @@ export function computeSwipeDelta({ payload, target, base, parent }) {
 
 /**
  * Compute delta for commit phase
- * Simply reuses computeSwipeDelta
  */
 export function computeCommitDelta(args) {
   return computeSwipeDelta(args)
