@@ -6,6 +6,7 @@
  * - Resolve elements and declared reactions
  * - Never mutates DOM, never triggers callbacks
  */
+import { log } from '../../debug/functions'
 
 export const domRegistry = {
   // ------------------------
@@ -14,6 +15,7 @@ export const domRegistry = {
   findLaneAt(x, y) {
     const elements = document.elementsFromPoint(x, y)
     const el = elements.find(el => el.dataset?.lane)
+    log('dom', 'Element not found')
     if (!el) return null
     const dir = el.dataset.direction
     const type = el.dataset.swipeType
@@ -21,6 +23,7 @@ export const domRegistry = {
       console.warn('[domRegistry] lane missing direction/swipeType', el)
       return null
     }
+    log('dom', 'found lane: ', el)
     return {
       laneId: el.dataset.lane,
       direction: dir,
@@ -47,6 +50,7 @@ export const domRegistry = {
       console.warn('[domRegistry] lane missing direction/swipeType', el)
       return null
     }
+    log('dom', 'found lane by axis: ', dir, el)
     return {
       laneId: el.dataset.lane,
       direction: dir,
@@ -62,6 +66,7 @@ export const domRegistry = {
     const elements = document.elementsFromPoint(x, y)
     const el = elements.find(el => el.dataset?.action)
     if (!el) return null
+    log('dom', 'found action at: ', el, el.dataset.action)
     return {
       actionId: el.dataset.action,
       element: el

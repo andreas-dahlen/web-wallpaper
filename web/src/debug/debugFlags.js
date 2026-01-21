@@ -9,7 +9,7 @@ export const DEBUG = {
 
   swipe: false,
 
-  dom: false,
+  dom: true,
 
   input: false,
 
