@@ -192,75 +192,72 @@ export const reactionResolver = {
     return emitDeselect()
   },
 
-  onSwipeStart(x, y, axis) {
-    const hit = domRegistry.findIntentAt(x, y)
-    const deselect = hit?.element === selectedElement ? null : emitDeselect()
-    const reactions = []
+onSwipeStart(x, y, axis) {
+  const hit = domRegistry.findIntentAt(x, y)
+  const deselect = hit?.element === selectedElement ? null : emitDeselect()
+  const reactions = []
 
-    let target = currentTarget
+  // Check if current target can swipe or needs a lane
+  const canSwipe = domRegistry.swipeAllowedForType(currentTarget, axis)
 
-    // If current target cannot swipe, try to acquire a lane
-    if (!supports('swipeStart')) {
-      const lane = domRegistry.findLaneByAxis(x, y, axis)
-      if (!lane) {
-        // Cancel press if we were pressing something
-        if (pressActive && pressedTarget?.element) {
-          reactions.push({
-            type: 'pressCancel',
-            laneId: pressedTarget.laneId,
-            element: pressedTarget.element
-          })
-        }
-
-        pressActive = false
-        pressedTarget = null
-        swipeActive = false
-
-        return reactions.length ? reactions[0] : null
+  if (!canSwipe) {
+    const lane = domRegistry.findLaneForSwipe(x, y, axis)
+    if (!lane) {
+      // Cancel press if needed
+      if (pressActive && pressedTarget?.element) {
+        reactions.push({
+          type: 'pressCancel',
+          laneId: pressedTarget.laneId,
+          element: pressedTarget.element
+        })
       }
-
-      target = withLaneReactions({
-        element: lane.element,
-        laneId: lane.laneId,
-        laneAxis: lane.direction,
-        swipeType: lane.swipeType,
-        actionId: null
-      })
-
-      setCurrent(target)
-    }
-
-    if (!supports('swipeStart')) return null
-
-    // Cancel press when swipe begins
-    if (pressActive && pressedTarget?.element) {
-      reactions.push({
-        type: 'pressCancel',
-        laneId: pressedTarget.laneId,
-        element: pressedTarget.element
-      })
       pressActive = false
       pressedTarget = null
+      swipeActive = false
+      return reactions.length === 1 ? reactions[0] : reactions.length ? reactions : null
     }
 
+    // Acquire lane and transfer ownership
+    setCurrent(withLaneReactions({
+      element: lane.element,
+      laneId: lane.laneId,
+      laneAxis: lane.direction,
+      swipeType: lane.swipeType,
+      actionId: null
+    }))
+  }
+
+  // At this point, currentTarget is either original swipe-capable or acquired lane
+  // Cancel press when swipe begins
+  if (pressActive && pressedTarget?.element) {
     reactions.push({
-      type: 'swipeStart',
-      laneId: currentTarget.laneId,
-      axis,
-      element: currentTarget.element,
-      swipeType: currentTarget.swipeType,
-      direction: currentTarget.laneAxis,
-      raw: { x, y }
+      type: 'pressCancel',
+      laneId: pressedTarget.laneId,
+      element: pressedTarget.element
     })
+    pressActive = false
+    pressedTarget = null
+  }
 
-    swipeActive = true
-    beginGestureTracking(x, y, currentTarget.swipeType)
+  // Always emit swipeStart for lane (even if original was press-only)
+  reactions.push({
+    type: 'swipeStart',
+    laneId: currentTarget.laneId,
+    axis,
+    element: currentTarget.element,
+    swipeType: currentTarget.swipeType,
+    direction: currentTarget.laneAxis,
+    raw: { x, y }
+  })
 
-    return mergeDescriptors(
-      reactions.length === 1 ? reactions[0] : reactions,
-      deselect
-    )
-  },
+  swipeActive = true
+  beginGestureTracking(x, y, currentTarget.swipeType)
+
+  return mergeDescriptors(
+    reactions.length === 1 ? reactions[0] : reactions,
+    deselect
+  )
+},
 
   onSwipe(intent) {
     const hit = domRegistry.findIntentAt(intent.x, intent.y)

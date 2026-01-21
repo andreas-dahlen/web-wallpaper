@@ -9,6 +9,28 @@
 import { log } from '../../debug/functions'
 
 export const domRegistry = {
+    // ------------------------
+  // Lane-switch helpers
+  // ------------------------
+    swipeAllowedForType(target, axis) {
+  if (!target?.element) return false
+  if (target.swipeType === 'drag') return true
+  const dir = target.laneAxis ?? target.direction
+
+  // Allow press-only elements to yield to lanes
+  if (!dir && target.reactions?.press) return true
+
+  if (dir === 'both') return true
+  return dir === axis
+},
+  
+  // Optional helper: check if a lane under the pointer can accept a swipe for this axis
+  findLaneForSwipe(x, y, axis) {
+    const lane = this.findLaneByAxis(x, y, axis)
+    if (!lane) return null
+    return lane
+  },
+
   // ------------------------
   // Lane-based helpers
   // ------------------------
