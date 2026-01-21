@@ -1,84 +1,70 @@
-# Gesture System Contract
+# Gesture System Contract (Simplified)
 
 ## Design Goals
-- Single, platform-agnostic pipeline (Web + Android WebView) with identical semantics.
-- Declarative reactions: input → intents → reaction descriptors → renderer side-effects → Vue rendering only.
-- Strict module boundaries and single-writer ownership for every piece of state.
-- Components are render-only; all gesture math, clamping, and policy live in engine/resolver/swipe helpers/renderer.
+- Keep sliders/carousels on simple 1D delta flow; make drags 2D using last-known absolute position.
+- Maintain single, platform-agnostic pipeline (Web + Android WebView) with shared semantics.
+- Preserve strict module boundaries and single-writer rules for state.
+- Components remain render-only; math stays in engine/resolver/swipe helpers/renderer.
 
 ## Authoritative Data Flow
-1) inputRouter normalizes platform events and forwards (x, y) to intentEngine.
-2) intentEngine detects axis, keeps numeric total delta (no clamping), and calls engineAdapter hooks.
-3) engineAdapter calls reactionResolver; resolver uses domRegistry hits, carouselState lane metadata, gestureState payloads, and reactionSwipe (which calls gestureBounds) to build descriptors.
-4) renderer consumes descriptors, mutates DOM + carouselState, derives drag absolute positions, and dispatches CustomEvent('reaction').
-5) Vue components listen and render only; no gesture math or state mutation.
+1) inputRouter normalizes platform events → intentEngine.
+2) intentEngine detects axis, tracks numeric total delta, calls engineAdapter.
+3) engineAdapter invokes reactionResolver; resolver reads domRegistry, carouselState, gestureState, and calls reactionSwipe/gestureBounds for clamped deltas.
+4) renderer consumes descriptors, mutates carouselState + drag persistence, dispatches CustomEvent('reaction').
+5) Vue components render from events only.
 
 ## Module Responsibilities (Do / Must Not)
-- inputRouter: DO register platform listeners and forward coords; MUST NOT touch DOM/renderer/Vue or do math.
-- intentEngine: DO pointer state machine (phase, axis lock, numeric total delta); MUST NOT query DOM, know swipeType policy, clamp, or emit absolute.
-- engineAdapter: DO bridge engine → resolver → renderer and expose policy hooks; MUST NOT store state, access DOM, or alter descriptors.
-- domRegistry: DO read data-* for lane/action/intent metadata; MUST NOT mutate DOM or decide policy.
-- reactionResolver: DO build descriptors, pull lane bases/size from carouselState, pull drag payloads from gestureState, call reactionSwipe for all delta math/clamping; MUST NOT mutate DOM/state or add absolute.
-- reactionSwipe: DO pure delta computation per swipeType, clamped via gestureBounds; MUST NOT mutate payload/state or emit descriptors.
-- gestureBounds: DO clamp numeric/2D deltas by swipeType and bounds; MUST stay pure.
-- gestureState: DO track lifecycle (active/start/last/swipeType) and attach rawDelta for drag only; hold dragPositions for persistence (renderer-owned); MUST NOT be mutated by components or perform policy/DOM.
-- carouselState: DO own lane bases (index, offset, committedOffset, size, count, dragging, pendingDir) and thresholds; renderer is sole mutator; MUST NOT be touched by components/engine/resolver.
-- renderer: DO consume descriptors, set data-* flags, mutate carouselState, compute drag absolute from renderer-held/snapshotted bases, dispatch reaction events; MUST NOT change semantic descriptor fields or depend on component state.
-- Vue components (SwipeCarousel/Slider/Drag/etc.): DO listen to reaction events and render transforms/styles; MUST NOT compute gesture math, clamp, or mutate gestureState/carouselState (SwipeDrag must not call setDragPosition during gesture frames).
-- sizeState: DO expose device dimensions, injected __DEVICE, and scale factor; MUST NOT store gesture data or perform policy; provides canonical axis sizes for clamping.
+- inputRouter: DO forward raw coords; MUST NOT touch DOM/renderer or do math.
+- intentEngine: DO state machine + numeric totals; MUST NOT clamp or access DOM/policy.
+- engineAdapter: DO bridge to resolver/renderer; MUST NOT mutate descriptors or store state.
+- domRegistry: DO read data-* intent metadata; MUST NOT mutate DOM.
+- reactionResolver: DO build descriptors, use gestureState for drag deltas, carouselState for lane bases, reactionSwipe for clamping; MUST NOT mutate DOM/state.
+- reactionSwipe: DO pure delta/clamp math; MUST NOT mutate payload/state.
+- gestureBounds: DO clamp deltas by type/bounds; stay pure.
+- gestureState: DO track lifecycle (active/start/last/swipeType) and per-key last-known drag positions; DO expose optional locks; MUST NOT be mutated by components/DOM.
+- carouselState: DO own lane offsets/commits/sizes; renderer is sole mutator.
+- renderer: DO apply deltas (translate/offset), set data-* flags, persist drag positions on commit; MUST NOT alter semantic descriptor fields.
+- sizeState: DO expose device + scale; MUST NOT store gesture data.
+- Vue components: render-only consumers of reaction events and CSS hooks.
 
 ## Coordinate Spaces & Scaling
-- One math space: scaled CSS pixels = device CSS size × sizeState.scale; all deltas/bases/thresholds must live here.
-- Raw viewport coords from intentEngine must be normalized before math (e.g., divide by scale for design-space deltas) so they match drag bases and lane offsets.
-- gestureState.dragBases and carouselState offsets/committedOffset must remain in scaled space; do not mix physical pixels, density pixels, or unscaled viewport units.
-- APK must inject window.__DEVICE with CSS pixel width/height + density; Web fallback uses APP_SETTINGS.rawPhoneValues ÷ density; log a warning and bail from gesture math if __DEVICE is missing fields.
-- Threshold helpers (shouldStart/shouldCommit) and clamp functions assume deltas are in the same scaled units as lane sizes returned by sizeState.getAxisSize.
+- All math in scaled CSS pixels: device CSS size × sizeState.scale.
+- Pointer coords entering resolver/gestureState must be in the same scaled space; clamps use sizeState.getAxisSize.
+- Drag last-known positions and carousel offsets share this space; avoid mixing density pixels or unscaled viewport units.
+- APK injects window.__DEVICE; Web falls back to APP_SETTINGS.rawPhoneValues/density. Invalid payloads fall back with a log.
 
 ## Gesture Lifecycle (canonical)
-- Press: intentEngine.onDown → adapter.onPress → resolver emits press/select → renderer sets data-pressed and dispatches.
-- Swipe start: intentEngine detects axis, asks shouldStartSwipe → adapter.onSwipeStart → resolver emits swipeStart with raw coords → renderer sets dragging/data-swiping and snapshots bases (including drag base).
-- Swipe update: intentEngine emits numeric total delta → adapter.onSwipe → resolver adds rawDelta for drag only → reactionSwipe clamps via gestureBounds → descriptor carries clamped delta → renderer applies lane offset (carousel/slider) or drag absolute (base snapshot + clamped delta) → dispatch.
-- Swipe commit: intentEngine onUp calls shouldCommitSwipe → adapter.onSwipeCommit → resolver computes clamped commit delta via reactionSwipe → renderer commits (carousel/slider) or persists drag position; renderer may add absolute for drag only.
-- Swipe revert: allowed only for carousel; resolver emits swipeRevert; renderer clears pendingDir/dragging/data-swiping.
-- Press release (no swipe): intentEngine onUp → adapter.onPressRelease → resolver emits pressRelease; renderer clears data-pressed.
+- Press: onDown → adapter.onPress → resolver emits press/select → renderer sets data-pressed.
+- Swipe start: intentEngine axis lock → adapter.onSwipeStart → resolver emits swipeStart; for slider/carousel snapshot numeric bases; drags rely on last-known position only.
+- Swipe update: intentEngine sends total delta → resolver attaches drag delta (2D: (current-start)+lastKnown) or passes numeric for slider/carousel → reactionSwipe clamps → renderer applies offset/translate and dispatches reaction.
+- Swipe commit: intentEngine onUp → resolver computes commit delta (same bases) → renderer persists drag position (2D absolute) or commits slider/carousel offset.
+- Swipe revert: carousel only.
+- Press release: onUp without swipe → pressRelease.
 
 ## Reaction Descriptor Contract
-- Shape (immutable before renderer): { type, element?, laneId?, axis?, direction?, delta?, actionId?, swipeType?, laneDirection?, commitStrategy?, raw?, rawDelta?, normalized?, normalizedPercent? }.
-- Required: press/pressRelease/pressCancel need type + element; swipeStart needs laneId/axis/element/swipeType/direction; swipe/swipeCommit need laneId/axis/delta/element/swipeType/direction; swipeCommit also laneDirection; swipeRevert needs laneId/element/swipeType/laneDirection.
-- Delta ownership: reactionSwipe computes all deltas post-clamp via gestureBounds; axis-locked deltas are numeric; drag deltas are {x,y}.
-- raw/rawDelta are viewport pixels from engine/gestureState; no upstream absolute positions.
-- Renderer may add read-only absolute (drag only) and may forward normalized fields from reactionSwipe for slider; renderer must not alter delta/type/direction/swipeType.
-- Descriptors are read-only to consumers (Vue).
-- Delta fields must already be clamped/normalized by reactionSwipe; resolver must not forward unclamped raw totals.
+- Shape: { type, element?, laneId?, axis?, direction?, delta?, actionId?, swipeType?, laneDirection?, commitStrategy?, normalized?, normalizedPercent?, absolute?, dragKey? }.
+- Deltas: numeric for slider/carousel; {x,y} (and optional absolute) for drag.
+- Resolver supplies already-clamped deltas; renderer may add read-only absolute for drags if needed.
 
 ## Swipe Type Semantics & Bases
-- Carousel: axis-locked; may commit or revert; deltas numeric; bases from carouselState.offset/committedOffset/size; renderer mutates carouselState; no absolute field.
-- Slider: axis-locked; never reverts; deltas numeric; clamped to lane size via gestureBounds; bases from carouselState; renderer persists committedOffset.
-- Drag/Drag-and-drop: free {x,y}; never reverts; clamped to viewport via gestureBounds; bases are renderer-held snapshots of gestureState dragPositions; renderer adds absolute and writes persistence on commit only.
-- Start/commit thresholds use carouselState size-based helpers unless swipeType is explicitly always-allow; slider/drag still clamp even if start/commit are permissive.
+- Carousel: 1D numeric; bases from committed offsets; may commit/revert.
+- Slider: 1D numeric; clamped to lane size; commits offset; never reverts.
+- Drag: 2D; delta = (current-start)+lastKnown; lastKnown persists on commit; future hooks may lock or snap.
 
 ## State Ownership & Mutation Rules
-- Renderer is sole writer of DOM data-* flags, carouselState offsets/commits/pendingDir, and dragPositions persistence.
-- gestureState lifecycle fields are written by intentEngine/resolver helpers only; dragPositions writes occur in renderer; components have read-only access.
-- reactionResolver emits descriptors only; no side-effects or DOM.
-- reactionSwipe + gestureBounds own all clamping; no clamping elsewhere.
-- Lanes must exist in carouselState before renderer applies offsets; lane size must be known before commit (otherwise reject/defer commit).
-- No JS animation loops in gesture handling; timing/easing live in CSS/components.
-- Only renderer dispatches CustomEvent('reaction'); no other module dispatches UI events.
+- Renderer is sole writer of carouselState and dragPositions persistence.
+- gestureState lifecycle and drag keys are written via resolver/intent helpers only.
+- reactionResolver is side-effect free; reactionSwipe/gestureBounds stay pure.
+- Lanes must exist with size before swipe commit; missing size aborts swipe.
 
 ## Forbidden Patterns
-- Gesture math or clamping inside Vue components.
-- DOM access in intentEngine, engineAdapter, reactionResolver, reactionSwipe, gestureBounds, gestureState, carouselState.
-- Mutating gestureState.dragPositions outside renderer commit path; writing non-numeric offsets to carouselState.
-- Emitting swipeRevert for slider/drag; calling renderer outside engineAdapter; emitting absolute upstream of renderer; mutating descriptors after dispatch.
+- DOM mutations in engine/resolver/gesture/state files.
+- Mixing unscaled coords with scaled bases.
+- Writing gestureState.dragPositions from components.
+- Emitting absolute upstream of renderer for non-drag types.
 
 ## Non-Negotiable Invariants
-- reactionResolver is side-effect free; renderer is the sole side-effect sink.
-- All deltas are clamped in reactionSwipe via gestureBounds before reaching renderer.
-- carouselState stores numeric offsets only; drag offsets never stored there.
-- Drag absolute is renderer-derived (base snapshot + clamped delta) and dispatched read-only.
-- Slider/drag swipeTypes never revert; carousel may commit or revert only when size is known.
-- data-* lanes require direction + swipeType; missing metadata invalidates swipe intent.
-- gestureState tracks pointer lifecycle; no other module mutates lifecycle fields.
-- Components are render-only consumers of reaction events and CSS hooks.
-- Resolver must use per-gesture snapshots (drag bases, committed offsets) rather than live renderer-mutated offsets when computing deltas to avoid double-applying totals.
+- All deltas are clamped before renderer.
+- carouselState stores numeric offsets only.
+- Drag persistence happens on commit; lastKnown positions are the base for the next drag.
+- data-* lanes require direction + swipeType metadata.

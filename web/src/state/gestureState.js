@@ -1,13 +1,13 @@
 import { reactive } from 'vue'
 
 /**
- * gestureState.js - Shared pointer gesture tracking
+ * gestureState.js - Unified gesture tracking
  *
- * Responsibilities:
- * - Track global gesture (active, start/end positions, swipeType)
- * - Track per-lane drag positions (renderer owns write access)
- * - Provide snapshots for renderer/reactionSwipe
- * - Track element-local absolute positions via WeakMap to avoid jumps
+ * Simplifications:
+ * - No WeakMaps or element snapshots; use a simple keyed state for last-known positions.
+ * - Drag math is delta-from-gesture-start applied on top of last-known position.
+ * - Sliders/carousels keep existing 1D delta behavior; drags use both axes.
+ * - Hooks are present for future locking/snapping without changing callers.
  */
 
 /* -------------------------
@@ -21,31 +21,37 @@ export const gestureState = reactive({
   lastY: 0,
   swipeType: null,
 
-  // Per-lane/drag tracking
-  lanes: {},
-  dragPositions: {},   // last committed positions (renderer writes)
+  // Per-lane or per-element persisted drag positions (last-known absolute)
+  dragPositions: {},
 
-  // Per-gesture snapshots
-  swipeBases: {}       // numeric swipes (slider/carousel)
+  // Per-gesture bases for numeric swipes (slider/carousel)
+  swipeBases: {},
+
+  // Optional locking hooks for future features
+  locks: {}
 })
 
 /* -------------------------
-   WeakMap to track element positions
+   Internal helpers
 -------------------------- */
-const elementPositions = new WeakMap()
+const ZERO_POS = { x: 0, y: 0 }
 
-export function setElementPosition(el, pos) {
-  if (!el || !pos) return
-  elementPositions.set(el, { ...pos })
+function keyFromIntent(intent) {
+  // Prefer explicit dragId, fall back to laneId, else a shared key
+  return intent?.dragId || intent?.laneId || 'default'
 }
 
-export function getElementPosition(el) {
-  if (!el) return { x: 0, y: 0 }
-  return elementPositions.get(el) || { x: 0, y: 0 }
+function getLastKnown(key) {
+  return gestureState.dragPositions[key] || ZERO_POS
+}
+
+function setLastKnown(key, pos) {
+  if (!key || !pos) return
+  gestureState.dragPositions[key] = { x: pos.x ?? 0, y: pos.y ?? 0 }
 }
 
 /* -------------------------
-   Core gesture functions
+   Core gesture lifecycle
 -------------------------- */
 export function resetGestureTracking() {
   gestureState.active = false
@@ -63,7 +69,7 @@ export function beginGestureTracking(x, y, swipeType) {
 }
 
 /* -------------------------
-   Swipe base snapshot (numeric swipes)
+   Numeric swipe snapshots (slider/carousel stay 1D)
 -------------------------- */
 export function snapshotSwipeBase(lane, snapshot) {
   if (!lane || !snapshot) return
@@ -80,21 +86,21 @@ export function clearSwipeBase(lane) {
 }
 
 /* -------------------------
-   Drag delta helpers
+   Drag delta helpers (2D)
 -------------------------- */
-export function attachDragRawDelta(intent) {
+/**
+ * Attaches a 2D delta based on gesture start and last-known absolute position.
+ * Delta is simple: (current - start) + lastKnown.
+ */
+export function attachDragDelta(intent) {
   if (!gestureState.active || gestureState.swipeType !== 'drag') return intent
 
-  // Always try element first, then fallback to lane
-  const base = intent.element
-    ? getElementPosition(intent.element)
-    : intent.laneId
-      ? gestureState.dragPositions[intent.laneId] || { x: 0, y: 0 }
-      : { x: 0, y: 0 }
+  const key = keyFromIntent(intent)
+  const base = getLastKnown(key)
 
-  const rawDelta = {
-    x: intent.x - base.x,
-    y: intent.y - base.y
+  const delta = {
+    x: (intent.x - gestureState.startX) + base.x,
+    y: (intent.y - gestureState.startY) + base.y
   }
 
   gestureState.lastX = intent.x
@@ -102,54 +108,39 @@ export function attachDragRawDelta(intent) {
 
   return {
     ...intent,
-    rawDelta,
-    delta: rawDelta
+    delta,
+    dragKey: key,
+    absolute: delta // same as delta for clarity; represents applied position
   }
 }
 
 /* -------------------------
-   Drag position helpers
+   Drag position persistence
 -------------------------- */
-export function setDragPosition(lane, pos, element) {
-  if (lane) gestureState.dragPositions[lane] = { ...pos }
-  if (element) setElementPosition(element, pos)
+// Renderer should call this on commit/release to persist absolute position.
+export function setDragPosition(keyOrLane, pos) {
+  const key = keyOrLane || 'default'
+  setLastKnown(key, pos || ZERO_POS)
 }
 
-export function getDragPosition(lane) {
-  return gestureState.dragPositions[lane] || { x: 0, y: 0 }
+export function getDragPosition(keyOrLane) {
+  const key = keyOrLane || 'default'
+  return getLastKnown(key)
 }
 
 /* -------------------------
-   Drag base snapshot (per-gesture)
+   Optional locking/snapping hooks (no-ops for now)
 -------------------------- */
-export function snapshotDragBase(lane, element) {
-  if (!lane && !element) return
-
-  const pos = element
-    ? getElementPosition(element)
-    : lane
-      ? gestureState.dragPositions[lane] || { x: 0, y: 0 }
-      : { x: 0, y: 0 }
-
-  if (lane) gestureState.dragPositions[lane] = { ...pos }
-  if (element) setElementPosition(element, pos)
+export function lockDrag(key) {
+  if (!key) return
+  gestureState.locks[key] = true
 }
 
-export function getDragBase(elOrLane) {
-  if (!elOrLane) return { x: 0, y: 0 }
-
-  // If it is a DOM element, use WeakMap; else fallback to lane
-  return elOrLane?.nodeType === 1 // checks for HTMLElement
-    ? getElementPosition(elOrLane)
-    : gestureState.dragPositions[elOrLane] || { x: 0, y: 0 }
+export function unlockDrag(key) {
+  if (!key) return
+  delete gestureState.locks[key]
 }
 
-export function clearDragBase(laneOrElement) {
-  if (!laneOrElement) return
-
-  if (laneOrElement?.nodeType === 1) {
-    elementPositions.delete(laneOrElement)
-  } else {
-    delete gestureState.dragPositions[laneOrElement]
-  }
+export function isDragLocked(key) {
+  return !!gestureState.locks[key]
 }

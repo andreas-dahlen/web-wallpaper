@@ -17,14 +17,13 @@ import {
   shouldCommitSwipeBySize
 } from '../../state/carouselState'
 import {
-  getDragBase,
   resetGestureTracking,
-  attachDragRawDelta,
+  attachDragDelta,
   beginGestureTracking,
-  snapshotDragBase,
   snapshotSwipeBase,
   getSwipeBase,
-  clearSwipeBase
+  clearSwipeBase,
+  getDragPosition
 } from '../../state/gestureState'
 import {
   computeSwipeDelta,
@@ -54,7 +53,7 @@ function buildSwipeBase(target) {
     case 'drag':
       return {
         drag: {
-          [laneId]: getDragBase(laneId) // already authoritative
+          [laneId]: getDragPosition(laneId) // last-known absolute position
         }
       }
 
@@ -261,9 +260,7 @@ export const reactionResolver = {
 
     swipeActive = true
     beginGestureTracking(x, y, currentTarget.swipeType)
-    if (currentTarget.swipeType === 'drag') {
-      snapshotDragBase(currentTarget.laneId, currentTarget.element)
-    } else if (currentTarget.swipeType === 'slider' || currentTarget.swipeType === 'carousel') {
+    if (currentTarget.swipeType === 'slider' || currentTarget.swipeType === 'carousel') {
       const lane = getLane(currentTarget.laneId)
       // Snapshot numeric bases so math stays tied to gesture-start offsets
       snapshotSwipeBase(currentTarget.laneId, {
@@ -279,7 +276,7 @@ export const reactionResolver = {
     const hit = domRegistry.findIntentAt(intent.x, intent.y)
     const deselect = hit?.element === selectedElement ? null : emitDeselect()
 
-    const payload = attachDragRawDelta(intent)
+    const payload = attachDragDelta(intent)
 
     if (!swipeActive || !currentTarget.laneId) return deselect
     if (!supports('swipe')) return deselect
@@ -326,7 +323,7 @@ export const reactionResolver = {
     return mergeDescriptors(swipeDescriptor, deselect)
   },
   onSwipeCommit(intent) {
-    const payload = attachDragRawDelta(intent)
+    const payload = attachDragDelta(intent)
 
     if (!swipeActive || !currentTarget.laneId) {
       resetGestureTracking()
