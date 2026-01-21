@@ -1,6 +1,14 @@
 import { reactive } from 'vue'
 
-// Pointer gesture tracking shared across engine/renderer
+/**
+ * gestureState.js - Shared pointer gesture tracking
+ *
+ * Responsibilities:
+ * - Track global gesture (active, start/end positions, swipeType)
+ * - Track per-lane drag positions (renderer owns write access)
+ * - Provide snapshots for renderer/reactionSwipe
+ */
+
 export const gestureState = reactive({
   // Global gesture tracking
   active: false,
@@ -12,7 +20,8 @@ export const gestureState = reactive({
 
   // Per-lane/drag tracking
   lanes: {},
-  dragPositions: {} // store last positions per lane
+  dragPositions: {},   // last committed positions (renderer writes)
+  dragBases: {}        // per-gesture snapshot for absolute calculations
 })
 
 /* -------------------------
@@ -50,10 +59,43 @@ export function attachDragRawDelta(intent) {
 /* -------------------------
    Drag position helpers
 -------------------------- */
+
+/**
+ * Renderer-only: commit drag position for lane
+ */
 export function setDragPosition(lane, pos) {
   gestureState.dragPositions[lane] = { ...pos }
 }
 
+/**
+ * Read-only getter for components
+ */
 export function getDragPosition(lane) {
   return gestureState.dragPositions[lane] || { x: 0, y: 0 }
+}
+
+/* -------------------------
+   Drag base snapshot (per-gesture)
+-------------------------- */
+
+/**
+ * Take snapshot for current lane at start of gesture
+ * Used by renderer/reactionSwipe to compute absolute positions
+ */
+export function snapshotDragBase(lane) {
+  gestureState.dragBases[lane] = getDragPosition(lane)
+}
+
+/**
+ * Retrieve snapshot for lane
+ */
+export function getDragBase(lane) {
+  return gestureState.dragBases[lane] || null
+}
+
+/**
+ * Clear snapshot (on commit, revert, reset)
+ */
+export function clearDragBase(lane) {
+  delete gestureState.dragBases[lane]
 }

@@ -19,7 +19,6 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { setDragPosition, getDragPosition } from '../state/gestureState'
 
 const dragEl = ref(null)
 const dragItem = ref(null)
@@ -30,7 +29,7 @@ const props = defineProps({
   reactSwipeCommit: { type: Boolean, default: false }
 })
 
-const position = ref(getDragPosition(props.lane))
+const position = ref({ x: 0, y: 0 })
 const dragging = ref(false)
 
 const itemStyle = computed(() => ({
@@ -39,7 +38,7 @@ const itemStyle = computed(() => ({
   willChange: 'transform'
 }))
 
-let startPos = { x: 0, y: 0 } // local start of gesture
+let startPos = { x: 0, y: 0 }
 
 function handleReaction(e) {
   const detail = e.detail || {}
@@ -47,39 +46,36 @@ function handleReaction(e) {
 
   switch (detail.type) {
     case 'swipeStart':
-      startPos = { ...getDragPosition(props.lane) } // remember where we start
+      // Start from the absolute position provided by renderer or default 0
+      startPos = detail.absolute || { x: 0, y: 0 }
       dragging.value = true
       break
 
     case 'swipe':
-      const delta = detail.delta || { x: 0, y: 0 }
-      const absolute = {
-        x: startPos.x + (delta.x || 0),
-        y: startPos.y + (delta.y || 0)
+      // Use absolute if provided, otherwise fallback to delta
+      const absolute = detail.absolute || {
+        x: startPos.x + (detail.delta?.x || 0),
+        y: startPos.y + (detail.delta?.y || 0)
       }
       position.value = absolute
-      setDragPosition(props.lane, absolute)
       break
 
     case 'swipeCommit':
-      // just confirm final position
-      const finalPos = position.value
-      setDragPosition(props.lane, finalPos)
       dragging.value = false
+      // Update final visual position
+      position.value = detail.absolute || position.value
       if (props.reactSwipeCommit) emit('swipeCommit', detail)
       break
   }
 }
 
 onMounted(() => {
-  position.value = getDragPosition(props.lane)
   dragItem.value?.addEventListener('reaction', handleReaction)
 })
 onBeforeUnmount(() => dragItem.value?.removeEventListener('reaction', handleReaction))
 </script>
 
 <style scoped>
-
 .drag-surface {
   position: relative;
   width: 100%;
@@ -93,5 +89,4 @@ onBeforeUnmount(() => dragItem.value?.removeEventListener('reaction', handleReac
   pointer-events: auto; /* 👈 only this receives input */
   contain: layout style paint;
 }
-
 </style>

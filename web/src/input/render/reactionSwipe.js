@@ -1,29 +1,41 @@
-import { normalizeSwipeDelta } from '../../state/sizeState'
+import { clampSwipe, clampDelta2D } from '../engine/gestureBounds'
 
-function isDragType(swipeType) {
-  return swipeType === 'drag'
-}
+export function computeSwipeDelta({ payload, target, base }) {
+  if (!target) return null
 
-function isSliderType(swipeType) {
-  return swipeType === 'slider'
-}
+  const { swipeType, laneId } = target
 
-function computeDelta(payload, swipeType) {
-  if (isDragType(swipeType)) {
-    return payload.rawDelta || payload.delta || { x: 0, y: 0 }
+  // DRAG: 2D, clamped to viewport
+  if (swipeType === 'drag') {
+    const raw = payload.rawDelta || payload.delta || { x: 0, y: 0 }
+
+    return clampDelta2D({
+      type: 'swipeDrag',
+      delta: raw,
+      base: base.drag[laneId]
+    }).clamped
   }
-  return normalizeSwipeDelta(payload.delta)
+
+  // SLIDER or CAROUSEL: 1D
+  const { clampedDelta, normalized } = clampSwipe({
+    type: swipeType === 'slider' ? 'swipeSlider' : 'swipeCarousel',
+    axis: payload.axis,
+    delta: payload.delta,
+    base: base.axis[laneId],
+    size: base.size[laneId]
+  })
+
+  // Slider exposes normalized progress, carousel does not
+  return swipeType === 'slider'
+    ? { delta: clampedDelta, normalized }
+    : clampedDelta
 }
 
-export function computeSwipeDelta({ payload, target }) {
-  return computeDelta(payload, target?.swipeType)
-}
-
-export function computeCommitDelta({ payload, target }) {
-  return computeDelta(payload, target?.swipeType)
+export function computeCommitDelta(args) {
+  return computeSwipeDelta(args)
 }
 
 export function swipeAlwaysAllowed(target) {
   const swipeType = target?.swipeType
-  return isDragType(swipeType) || isSliderType(swipeType)
+  return swipeType === 'drag' || swipeType === 'slider'
 }

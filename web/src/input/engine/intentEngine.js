@@ -15,6 +15,11 @@
  *   - press: on pointer down
  *   - release: pointer up without swipe commit
  *   - swipe-start / swipe / swipe-end / cancel via adapter callbacks
+ *
+ * Notes:
+ * - Only numeric deltas are tracked internally (`totalDelta`)
+ * - Absolute positions are **not emitted**; raw pointer coords are passed for reference
+ * - Drag raw deltas attached via gestureState/resolver only
  */
 
 import { log, drawDots } from '../../debug/functions'
@@ -95,8 +100,8 @@ function onMove(x, y) {
             axis: state.axis,
             x,
             y,
-            delta: state.totalDelta,
-            raw: { x, y }
+            delta: state.totalDelta, // numeric total only
+            raw: { x, y }            // reference coords only
         })
     }
 }

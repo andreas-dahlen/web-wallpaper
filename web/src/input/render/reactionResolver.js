@@ -6,17 +6,18 @@
  * - Coordinate gesture lifecycle and selection
  * - Assemble plain reaction descriptors (no DOM/state mutation)
  */
-
 import { getAxisSize } from '../../state/sizeState'
 import { domRegistry } from '../dom/domRegistry'
 import { log } from '../../debug/functions'
 import {
+  getLane,
   shouldStartSwipeLane,
   shouldStartSwipeBySize,
   shouldCommitSwipeLane,
   shouldCommitSwipeBySize
 } from '../../state/carouselState'
 import {
+  getDragBase,
   resetGestureTracking,
   attachDragRawDelta,
   beginGestureTracking
@@ -24,7 +25,6 @@ import {
 import {
   computeSwipeDelta,
   computeCommitDelta,
-  swipeAlwaysAllowed
 } from './reactionSwipe'
 
 let currentTarget = {
@@ -41,16 +41,28 @@ let swipeActive = false
 let pressedTarget = null
 let selectedElement = null
 
-function directionMatches(targetDirection, axis) {
-  if (!targetDirection) return false
-  if (targetDirection === 'both') return true
-  return targetDirection === axis
-}
+function buildSwipeBase(target) {
+  const { laneId, swipeType } = target
 
-function swipeAllowedForType(target, axis) {
-  if (!target?.element) return false
-  if (target.swipeType === 'drag') return true
-  return directionMatches(target.laneAxis, axis)
+  if (swipeType === 'drag') {
+    return {
+      drag: {
+        [laneId]: getDragBase(laneId)
+      }
+    }
+  }
+
+  const lane = getLane(laneId)
+  if (!lane) return null
+
+  return {
+    axis: {
+      [laneId]: lane.offset
+    },
+    size: {
+      [laneId]: lane.size
+    }
+  }
 }
 
 // Always return either a single descriptor or a flat array (never nested).
@@ -172,11 +184,13 @@ export const reactionResolver = {
     const deselect = hit?.element === selectedElement ? null : emitDeselect()
     const reactions = []
 
-    const existingAllowed = swipeAllowedForType(currentTarget, axis) && supports('swipeStart')
+    let target = currentTarget
 
-    if (!existingAllowed) {
+    // If current target cannot swipe, try to acquire a lane
+    if (!supports('swipeStart')) {
       const lane = domRegistry.findLaneByAxis(x, y, axis)
       if (!lane) {
+        // Cancel press if we were pressing something
         if (pressActive && pressedTarget?.element) {
           reactions.push({
             type: 'pressCancel',
@@ -184,23 +198,28 @@ export const reactionResolver = {
             element: pressedTarget.element
           })
         }
+
         pressActive = false
         pressedTarget = null
         swipeActive = false
-        return reactions.length ? (reactions.length === 1 ? reactions[0] : reactions) : null
+
+        return reactions.length ? reactions[0] : null
       }
 
-      setCurrent(withLaneReactions({
+      target = withLaneReactions({
         element: lane.element,
         laneId: lane.laneId,
         laneAxis: lane.direction,
         swipeType: lane.swipeType,
         actionId: null
-      }))
+      })
+
+      setCurrent(target)
     }
 
     if (!supports('swipeStart')) return null
 
+    // Cancel press when swipe begins
     if (pressActive && pressedTarget?.element) {
       reactions.push({
         type: 'pressCancel',
@@ -223,7 +242,11 @@ export const reactionResolver = {
 
     swipeActive = true
     beginGestureTracking(x, y, currentTarget.swipeType)
-    return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
+
+    return mergeDescriptors(
+      reactions.length === 1 ? reactions[0] : reactions,
+      deselect
+    )
   },
 
   onSwipe(intent) {
@@ -235,19 +258,34 @@ export const reactionResolver = {
     if (!swipeActive || !currentTarget.laneId) return deselect
     if (!supports('swipe')) return deselect
 
+    const base = buildSwipeBase(currentTarget)
+    if (!base) return deselect
+
+    const deltaResult = computeSwipeDelta({
+      payload,
+      target: currentTarget,
+      base
+    })
+
+    if (!deltaResult) return deselect
+
     const swipeDescriptor = {
       type: 'swipe',
       laneId: currentTarget.laneId,
       axis: payload.axis,
-      delta: computeSwipeDelta({ payload, target: currentTarget }),
       element: currentTarget.element,
       swipeType: currentTarget.swipeType,
       direction: currentTarget.laneAxis,
-      raw: payload.raw || { x: payload.x, y: payload.y }
+      ...(typeof deltaResult === 'object'
+        ? deltaResult
+        : { delta: deltaResult }),
+      ...(currentTarget.swipeType === 'drag'
+        ? { raw: payload.raw || { x: payload.x, y: payload.y } }
+        : null)
     }
+
     return mergeDescriptors(swipeDescriptor, deselect)
   },
-
   onSwipeCommit(intent) {
     const payload = attachDragRawDelta(intent)
 
@@ -259,25 +297,40 @@ export const reactionResolver = {
       resetGestureTracking()
       return null
     }
+
+    const base = buildSwipeBase(currentTarget)
+    if (!base) {
+      resetGestureTracking()
+      return null
+    }
+
+    const deltaResult = computeCommitDelta({
+      payload,
+      target: currentTarget,
+      base
+    })
+
     const descriptor = {
       type: 'swipeCommit',
       laneId: currentTarget.laneId,
-      direction: payload.direction,
       axis: payload.axis,
-      delta: computeCommitDelta({ payload, target: currentTarget }),
+      direction: payload.direction,
       element: currentTarget.element,
       swipeType: currentTarget.swipeType,
       laneDirection: currentTarget.laneAxis,
-      commitStrategy: currentTarget.swipeType || 'default'
+      ...(typeof deltaResult === 'object'
+        ? deltaResult
+        : { delta: deltaResult })
     }
+
     pressActive = false
     swipeActive = false
     pressedTarget = null
     setCurrent(null)
     resetGestureTracking()
+
     return mergeDescriptors(descriptor, emitDeselect())
   },
-
   onSwipeRevert() {
     if (!swipeActive || !currentTarget.element) {
       pressActive = false
@@ -332,7 +385,11 @@ export const reactionResolver = {
   },
 
   shouldStartSwipe(delta, axis) {
-    if (swipeAlwaysAllowed(currentTarget)) return true
+    if (currentTarget.swipeType === 'drag') return true
+    if (currentTarget.swipeType === 'slider') {
+      return currentTarget.laneId != null
+    }
+
     if (currentTarget.laneId && shouldStartSwipeLane(currentTarget.laneId, delta)) {
       return true
     }
@@ -342,7 +399,8 @@ export const reactionResolver = {
   },
 
   shouldCommitSwipe(delta, axis) {
-    if (swipeAlwaysAllowed(currentTarget)) return true
+    if (currentTarget.swipeType !== 'carousel') return false
+
     if (currentTarget.laneId && shouldCommitSwipeLane(currentTarget.laneId, delta)) {
       return true
     }
@@ -352,6 +410,6 @@ export const reactionResolver = {
   },
 
   shouldRevertSwipe() {
-    return !swipeAlwaysAllowed(currentTarget)
+    return currentTarget?.swipeType === 'carousel'
   }
 }

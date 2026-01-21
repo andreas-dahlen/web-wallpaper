@@ -9,23 +9,7 @@ export const carouselState = reactive({
 })
 
 /* -------------------------
-   Swipe thresholds
--------------------------- */
-export function shouldStartSwipeLane(laneId, delta) {
-  const lane = carouselState.lanes[laneId]
-  if (!lane) return false
-  return shouldStartSwipeBySize(lane.size, delta)
-}
-
-export function shouldCommitSwipeLane(laneId, delta) {
-  const lane = carouselState.lanes[laneId]
-  if (!lane) return false
-
-  return shouldCommitSwipeBySize(lane.size, delta)
-}
-
-/* -------------------------
-   Lane helpers (unchanged)
+   Lane helpers
 -------------------------- */
 export function ensureLane(laneId) {
   if (!carouselState.lanes[laneId]) {
@@ -72,7 +56,7 @@ export function applyLaneOffset(laneId, offset) {
 -------------------------- */
 export function commitLaneSwipe(laneId, dir) {
   const lane = ensureLane(laneId)
-  if (!lane.count || !lane.size) return
+  if (!lane.count || !lane.size) return // fail gracefully
 
   lane.pendingDir = dir
   lane.dragging = false
@@ -82,18 +66,61 @@ export function commitLaneSwipe(laneId, dir) {
     dir === 'left' || dir === 'up'   ? -lane.size : 0
 }
 
+/* -------------------------
+   Lane accessors (read-only)
+-------------------------- */
+export function getLane(laneId) {
+  return carouselState.lanes[laneId] || null
+}
+
+export function getLaneBase(laneId) {
+  const lane = getLane(laneId)
+  if (!lane) return { committedOffset: 0, offset: 0, size: 0 }
+  return {
+    committedOffset: lane.committedOffset,
+    offset: lane.offset,
+    size: lane.size
+  }
+}
+
+export function getLaneOffset(laneId) {
+  const lane = getLane(laneId)
+  return lane ? lane.offset : 0
+}
+
+export function getLaneCommittedOffset(laneId) {
+  const lane = getLane(laneId)
+  return lane ? lane.committedOffset : 0
+}
+
+export function getLaneSize(laneId) {
+  const lane = getLane(laneId)
+  return lane ? lane.size : 0
+}
+
+/* -------------------------
+   Swipe thresholds
+-------------------------- */
+export function shouldStartSwipeLane(laneId, delta) {
+  const lane = getLane(laneId)
+  if (!lane) return false
+  return shouldStartSwipeBySize(lane.size, delta)
+}
+
+export function shouldCommitSwipeLane(laneId, delta) {
+  const lane = getLane(laneId)
+  if (!lane) return false
+  return shouldCommitSwipeBySize(lane.size, delta)
+}
+
 export function shouldStartSwipeBySize(size, delta) {
   if (!size) return false
-
-  return Math.abs(delta) >=
-    size * APP_SETTINGS.swipeThresholdRatio
+  return Math.abs(delta) >= size * APP_SETTINGS.swipeThresholdRatio
 }
 
 export function shouldCommitSwipeBySize(size, delta) {
   if (!size) return false
-
-  return Math.abs(delta) >=
-    size * APP_SETTINGS.swipeCommitRatio
+  return Math.abs(delta) >= size * APP_SETTINGS.swipeCommitRatio
 }
 
 /* -------------------------

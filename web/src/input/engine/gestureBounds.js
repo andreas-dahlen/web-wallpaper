@@ -10,13 +10,9 @@
 
 import { getAxisSize } from '../../state/sizeState'
 
-/**
- * Clamp a value between min and max
- * @param {number} value
- * @param {number} min
- * @param {number} max
- * @returns {number}
- */
+/* -------------------------
+   Helpers
+-------------------------- */
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
 }
@@ -25,9 +21,15 @@ function clamp01(value) {
   return clamp(value, 0, 1)
 }
 
-// Clamp a delta by first converting it to absolute space, then returning the
-// delta needed to reach the clamped absolute. This keeps relative deltas out
-// of the clamp math and preserves the base snapshot the renderer owns.
+// Map axis aliases to canonical axis keys
+function normalizeAxis(axis) {
+  if (!axis) return 'x'
+  if (axis === 'horizontal') return 'x'
+  if (axis === 'vertical') return 'y'
+  return axis // assume 'x' or 'y'
+}
+
+// Clamp a delta relative to a base and return clamped delta + absolute
 function clampDeltaAgainstBounds(base, delta, min, max) {
   const absolute = base + delta
   const clampedAbsolute = clamp(absolute, min, max)
@@ -37,60 +39,76 @@ function clampDeltaAgainstBounds(base, delta, min, max) {
   }
 }
 
+/* -------------------------
+   Main clamping
+-------------------------- */
+
 /**
- * Bounds a swipe based on its type
+ * Clamp a single-axis swipe
  * @param {Object} params
  * @param {string} params.type - 'swipeCarousel' | 'swipeSlider' | 'swipeDrag'
  * @param {string} params.axis - 'x' | 'y' | 'horizontal' | 'vertical'
- * @param {number} params.delta - Current delta
- * @param {number} params.base - Base position (e.g., lane drag start)
- * @param {number} [params.parentSize] - Parent container size (for slider)
- * @returns {{clampedDelta: number, normalized?: number, normalizedPercent?: number}}
+ * @param {number} params.delta - Delta to clamp
+ * @param {number} params.base - Base position
+ * @param {number} [params.parentSize] - Size for slider
+ * @param {number} [params.size] - Lane size for slider
+ * @returns {{clampedDelta:number, normalized?:number, normalizedPercent?:number}}
  */
 export function clampSwipe({ type, axis, delta, base, parentSize, size }) {
+  const ax = normalizeAxis(axis)
   const baseValue = typeof base === 'number' ? base : 0
   const deltaValue = typeof delta === 'number' ? delta : 0
 
   if (type === 'swipeCarousel') {
-    // Carousel is unbounded
-    return { clampedDelta: deltaValue }
+    return { clampedDelta: deltaValue } // unbounded
   }
 
   if (type === 'swipeSlider') {
-    // Slider is clamped to provided size (lane), then axis size fallback
-    const axisSize = getAxisSize(axis)
-    const boundSize =
-      typeof size === 'number' ? size :
-      typeof parentSize === 'number' ? parentSize :
-      (typeof axisSize === 'number' ? axisSize : 0)
+    const axisSize = getAxisSize(ax)
+    const boundSize = typeof size === 'number'
+      ? size
+      : typeof parentSize === 'number'
+      ? parentSize
+      : typeof axisSize === 'number'
+      ? axisSize
+      : 0
 
-    // Use delta as-is so axis direction (horizontal or vertical) is preserved before clamping
-    const { clampedDelta, clampedAbsolute } = clampDeltaAgainstBounds(baseValue, deltaValue, 0, boundSize)
+    const { clampedDelta, clampedAbsolute } = clampDeltaAgainstBounds(
+      baseValue,
+      deltaValue,
+      0,
+      boundSize
+    )
+
     const normalized = boundSize > 0 ? clamp01(clampedAbsolute / boundSize) : 0
     const normalizedPercent = normalized * 100
+
     return { clampedDelta, normalized, normalizedPercent }
   }
 
   if (type === 'swipeDrag') {
-    // Drag is clamped to viewport size
-    const axisSize = getAxisSize(axis)
+    const axisSize = getAxisSize(ax)
     const boundSize = typeof axisSize === 'number' ? axisSize : 0
     const { clampedDelta } = clampDeltaAgainstBounds(baseValue, deltaValue, 0, boundSize)
     return { clampedDelta }
   }
 
-  // Default fallback
+  // fallback
   return { clampedDelta: deltaValue }
 }
 
+/* -------------------------
+   2D deltas
+-------------------------- */
+
 /**
- * Clamp a 2D delta object {x, y} according to type
+ * Clamp a 2D delta object
  * @param {Object} params
  * @param {string} params.type
  * @param {{x:number, y:number}} params.delta
  * @param {{x:number, y:number}} params.base
- * @param {{width?:number, height?:number}} [params.parent] - For slider
- * @returns {{clamped: {x:number, y:number}, normalized?: {x:number, y:number}}}
+ * @param {{width?:number, height?:number}} [params.parent]
+ * @returns {{clamped:{x:number, y:number}, normalized?:{x:number, y:number}}}
  */
 export function clampDelta2D({ type, delta, base, parent }) {
   const resultX = clampSwipe({
@@ -100,6 +118,7 @@ export function clampDelta2D({ type, delta, base, parent }) {
     base: base?.x ?? 0,
     parentSize: parent?.width
   })
+
   const resultY = clampSwipe({
     type,
     axis: 'y',
