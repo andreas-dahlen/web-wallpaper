@@ -59,8 +59,15 @@ export function clampSwipe({ type, axis, delta, base, parentSize, size }) {
   const baseValue = typeof base === 'number' ? base : 0
   const deltaValue = typeof delta === 'number' ? delta : 0
 
+  if (!Number.isFinite(baseValue) || !Number.isFinite(deltaValue)) {
+    return { clampedDelta: 0 }
+  }
+
   if (type === 'swipeCarousel') {
-    const max = typeof size === 'number' ? size : Infinity
+    const max = Number.isFinite(size) ? size : Infinity
+    if (!Number.isFinite(max)) {
+      return { clampedDelta: 0 }
+    }
     const { clampedDelta } = clampDeltaAgainstBounds(baseValue, deltaValue, -Infinity, max)
     return { clampedDelta }
   }
@@ -74,6 +81,10 @@ export function clampSwipe({ type, axis, delta, base, parentSize, size }) {
         : typeof axisSize === 'number'
           ? axisSize
           : 0
+
+    if (!Number.isFinite(boundSize) || boundSize <= 0) {
+      return { clampedDelta: 0, normalized: 0, normalizedPercent: 0 }
+    }
 
     const { clampedDelta, clampedAbsolute } = clampDeltaAgainstBounds(
       baseValue,
@@ -90,7 +101,10 @@ export function clampSwipe({ type, axis, delta, base, parentSize, size }) {
 
   // Drag delta clamping should prefer parent bounds
 if (type === 'swipeDrag') {
-  const boundSize = typeof parentSize === 'number' ? parentSize : (typeof getAxisSize(ax) === 'number' ? getAxisSize(ax) : 0)
+  const boundSize = Number.isFinite(parentSize) ? parentSize : (Number.isFinite(getAxisSize(ax)) ? getAxisSize(ax) : 0)
+  if (!Number.isFinite(boundSize) || boundSize <= 0) {
+    return { clampedDelta: 0 }
+  }
   const { clampedDelta } = clampDeltaAgainstBounds(baseValue, deltaValue, 0, boundSize)
   return { clampedDelta }
 }

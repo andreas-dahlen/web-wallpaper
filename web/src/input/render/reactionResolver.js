@@ -21,7 +21,10 @@ import {
   resetGestureTracking,
   attachDragRawDelta,
   beginGestureTracking,
-  snapshotDragBase
+  snapshotDragBase,
+  snapshotSwipeBase,
+  getSwipeBase,
+  clearSwipeBase
 } from '../../state/gestureState'
 import {
   computeSwipeDelta,
@@ -60,16 +63,24 @@ function buildSwipeBase(target) {
       const lane = getLane(laneId)
       if (!lane) return null
 
+      // Use per-gesture snapshot to avoid double-applying offsets mutated by renderer during swipe
+      const snap = getSwipeBase(laneId) || {
+        offset: lane.offset,
+        committedOffset: lane.committedOffset ?? lane.offset,
+        size: lane.size
+      }
+
       return {
         axis: {
-          [laneId]: lane.offset // current lane offset
+          // Use committed offset for carousel so clamp/commit stay symmetric
+          [laneId]: swipeType === 'carousel' ? snap.committedOffset : snap.offset
         },
         size: {
-          [laneId]: lane.size
+          [laneId]: snap.size
         },
         // Include committed offset for carousel for accurate clamping
         committedOffset: swipeType === 'carousel'
-          ? { [laneId]: lane.committedOffset ?? lane.offset }
+          ? { [laneId]: snap.committedOffset }
           : undefined
       }
     }
@@ -251,7 +262,15 @@ export const reactionResolver = {
     swipeActive = true
     beginGestureTracking(x, y, currentTarget.swipeType)
     if (currentTarget.swipeType === 'drag') {
-      snapshotDragBase(currentTarget.laneId)
+      snapshotDragBase(currentTarget.laneId, currentTarget.element)
+    } else if (currentTarget.swipeType === 'slider' || currentTarget.swipeType === 'carousel') {
+      const lane = getLane(currentTarget.laneId)
+      // Snapshot numeric bases so math stays tied to gesture-start offsets
+      snapshotSwipeBase(currentTarget.laneId, {
+        offset: lane?.offset ?? 0,
+        committedOffset: lane?.committedOffset ?? lane?.offset ?? 0,
+        size: lane?.size ?? 0
+      })
     }
     return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
   },
@@ -267,6 +286,14 @@ export const reactionResolver = {
 
     const base = buildSwipeBase(currentTarget)
     if (!base) return deselect
+
+    if ((currentTarget.swipeType === 'slider' || currentTarget.swipeType === 'carousel')) {
+      const size = base.size?.[currentTarget.laneId]
+      if (!size || !Number.isFinite(size)) {
+        log('swipe', '[resolver] Missing lane size, skipping swipe', { laneId: currentTarget.laneId, size })
+        return deselect
+      }
+    }
 
     // Pass carousel offsets and drag bases to reactionSwipe
     const deltaResult = computeSwipeDelta({
@@ -316,6 +343,16 @@ export const reactionResolver = {
       return null
     }
 
+    if ((currentTarget.swipeType === 'slider' || currentTarget.swipeType === 'carousel')) {
+      const size = base.size?.[currentTarget.laneId]
+      if (!size || !Number.isFinite(size)) {
+        log('swipe', '[resolver] Missing lane size on commit, aborting', { laneId: currentTarget.laneId, size })
+        resetGestureTracking()
+        clearSwipeBase(currentTarget.laneId)
+        return null
+      }
+    }
+
     const deltaResult = computeCommitDelta({
       payload,
       target: currentTarget,
@@ -344,6 +381,7 @@ export const reactionResolver = {
     pressedTarget = null
     setCurrent(null)
     resetGestureTracking()
+    clearSwipeBase(currentTarget.laneId)
 
     return mergeDescriptors(descriptor, emitDeselect())
   },
@@ -367,6 +405,7 @@ export const reactionResolver = {
     pressedTarget = null
     setCurrent(null)
     resetGestureTracking()
+    clearSwipeBase(currentTarget.laneId)
     return mergeDescriptors(descriptor, emitDeselect())
   },
 

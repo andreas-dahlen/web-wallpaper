@@ -7,10 +7,13 @@ import { reactive } from 'vue'
  * - Track global gesture (active, start/end positions, swipeType)
  * - Track per-lane drag positions (renderer owns write access)
  * - Provide snapshots for renderer/reactionSwipe
+ * - Track element-local absolute positions via WeakMap to avoid jumps
  */
 
+/* -------------------------
+   Global reactive state
+-------------------------- */
 export const gestureState = reactive({
-  // Global gesture tracking
   active: false,
   startX: 0,
   startY: 0,
@@ -21,8 +24,25 @@ export const gestureState = reactive({
   // Per-lane/drag tracking
   lanes: {},
   dragPositions: {},   // last committed positions (renderer writes)
-  dragBases: {}        // per-gesture snapshot for absolute calculations
+
+  // Per-gesture snapshots
+  swipeBases: {}       // numeric swipes (slider/carousel)
 })
+
+/* -------------------------
+   WeakMap to track element positions
+-------------------------- */
+const elementPositions = new WeakMap()
+
+export function setElementPosition(el, pos) {
+  if (!el || !pos) return
+  elementPositions.set(el, { ...pos })
+}
+
+export function getElementPosition(el) {
+  if (!el) return { x: 0, y: 0 }
+  return elementPositions.get(el) || { x: 0, y: 0 }
+}
 
 /* -------------------------
    Core gesture functions
@@ -30,6 +50,7 @@ export const gestureState = reactive({
 export function resetGestureTracking() {
   gestureState.active = false
   gestureState.swipeType = null
+  gestureState.swipeBases = {}
 }
 
 export function beginGestureTracking(x, y, swipeType) {
@@ -41,10 +62,35 @@ export function beginGestureTracking(x, y, swipeType) {
   gestureState.swipeType = swipeType || null
 }
 
+/* -------------------------
+   Swipe base snapshot (numeric swipes)
+-------------------------- */
+export function snapshotSwipeBase(lane, snapshot) {
+  if (!lane || !snapshot) return
+  gestureState.swipeBases[lane] = { ...snapshot }
+}
+
+export function getSwipeBase(lane) {
+  return gestureState.swipeBases[lane] || null
+}
+
+export function clearSwipeBase(lane) {
+  if (!lane) return
+  delete gestureState.swipeBases[lane]
+}
+
+/* -------------------------
+   Drag delta helpers
+-------------------------- */
 export function attachDragRawDelta(intent) {
   if (!gestureState.active || gestureState.swipeType !== 'drag') return intent
 
-  const base = getDragBase(intent.laneId) || { x: 0, y: 0 }
+  // Always try element first, then fallback to lane
+  const base = intent.element
+    ? getElementPosition(intent.element)
+    : intent.laneId
+      ? gestureState.dragPositions[intent.laneId] || { x: 0, y: 0 }
+      : { x: 0, y: 0 }
 
   const rawDelta = {
     x: intent.x - base.x,
@@ -57,24 +103,18 @@ export function attachDragRawDelta(intent) {
   return {
     ...intent,
     rawDelta,
-    delta: rawDelta // some code expects numeric delta object
+    delta: rawDelta
   }
 }
 
 /* -------------------------
    Drag position helpers
 -------------------------- */
-
-/**
- * Renderer-only: commit drag position for lane
- */
-export function setDragPosition(lane, pos) {
-  gestureState.dragPositions[lane] = { ...pos }
+export function setDragPosition(lane, pos, element) {
+  if (lane) gestureState.dragPositions[lane] = { ...pos }
+  if (element) setElementPosition(element, pos)
 }
 
-/**
- * Read-only getter for components
- */
 export function getDragPosition(lane) {
   return gestureState.dragPositions[lane] || { x: 0, y: 0 }
 }
@@ -82,25 +122,34 @@ export function getDragPosition(lane) {
 /* -------------------------
    Drag base snapshot (per-gesture)
 -------------------------- */
+export function snapshotDragBase(lane, element) {
+  if (!lane && !element) return
 
-/**
- * Take snapshot for current lane at start of gesture
- * Used by renderer/reactionSwipe to compute absolute positions
- */
-export function snapshotDragBase(lane) {
-  gestureState.dragBases[lane] = getDragPosition(lane)
+  const pos = element
+    ? getElementPosition(element)
+    : lane
+      ? gestureState.dragPositions[lane] || { x: 0, y: 0 }
+      : { x: 0, y: 0 }
+
+  if (lane) gestureState.dragPositions[lane] = { ...pos }
+  if (element) setElementPosition(element, pos)
 }
 
-/**
- * Retrieve snapshot for lane
- */
-export function getDragBase(lane) {
-  return gestureState.dragBases[lane] || null
+export function getDragBase(elOrLane) {
+  if (!elOrLane) return { x: 0, y: 0 }
+
+  // If it is a DOM element, use WeakMap; else fallback to lane
+  return elOrLane?.nodeType === 1 // checks for HTMLElement
+    ? getElementPosition(elOrLane)
+    : gestureState.dragPositions[elOrLane] || { x: 0, y: 0 }
 }
 
-/**
- * Clear snapshot (on commit, revert, reset)
- */
-export function clearDragBase(lane) {
-  delete gestureState.dragBases[lane]
+export function clearDragBase(laneOrElement) {
+  if (!laneOrElement) return
+
+  if (laneOrElement?.nodeType === 1) {
+    elementPositions.delete(laneOrElement)
+  } else {
+    delete gestureState.dragPositions[laneOrElement]
+  }
 }

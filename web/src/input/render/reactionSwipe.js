@@ -2,6 +2,17 @@ import { clampSwipe, clampDelta2D } from '../engine/gestureBounds'
 import { log } from '../../debug/functions'
 import { scale } from '../../state/sizeState'
 
+// Normalize numbers and surface bad inputs early
+function safeNumber(value, fallback = 0) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function safeScale() {
+  const s = safeNumber(scale.value, 1)
+  return s > 0 ? s : 1
+}
+
 /**
  * Compute clamped swipe delta for all swipe types
  * @param {Object} params
@@ -14,6 +25,7 @@ import { scale } from '../../state/sizeState'
 export function computeSwipeDelta({ payload, target, base, parent }) {
   if (!target) return null
   const { swipeType, laneId } = target
+  const scaleFactor = safeScale()
 
   // -------------------------
   // DRAG: 2D delta
@@ -24,50 +36,71 @@ export function computeSwipeDelta({ payload, target, base, parent }) {
 
     if (!basePos || !raw) return null
 
-    // Convert raw pointer to scaled CSS pixels
+    // Normalize pointer to scaled CSS pixels to match renderer-held bases
     const scaledRaw = {
-      x: raw.x,
-      y: raw.y
+      x: safeNumber(raw.x) / scaleFactor,
+      y: safeNumber(raw.y) / scaleFactor
     }
 
-    // Delta relative to gesture start/base
+    const scaledBase = {
+      x: safeNumber(basePos.x) / scaleFactor,
+      y: safeNumber(basePos.y) / scaleFactor
+    }
+
+    // Delta relative to gesture start/base in unified scaled space
     const delta = {
-      x: scaledRaw.x - (basePos.x || 0),
-      y: scaledRaw.y - (basePos.y || 0)
+      x: scaledRaw.x - scaledBase.x,
+      y: scaledRaw.y - scaledBase.y
     }
 
     log('swipe', { raw, scaledRaw, delta })
 
+    const normalizedParent = parent
+      ? {
+          width: safeNumber(parent.width) / scaleFactor,
+          height: safeNumber(parent.height) / scaleFactor
+        }
+      : undefined
+
     const clamped = clampDelta2D({
       type: 'swipeDrag',
       delta,
-      base: basePos,
-      parent
+      base: scaledBase,
+      parent: normalizedParent
     }).clamped
 
     // Return clamped absolute position plus delta for Drag.vue
     return {
-      x: clamped.x,
-      y: clamped.y,
-      delta: { ...delta } // optional: raw delta for renderer logic
+      x: clamped.x * scaleFactor,
+      y: clamped.y * scaleFactor,
+      delta: {
+        x: delta.x * scaleFactor,
+        y: delta.y * scaleFactor
+      }
     }
   }
 
   // -------------------------
   // SLIDER or CAROUSEL: 1D delta
   // -------------------------
+  const axisKey = payload.axis === 'y' || payload.axis === 'vertical' ? 'y' : 'x'
+  const deltaScaled = safeNumber(payload.delta) / scaleFactor
+  const baseAxis = safeNumber(base.axis[laneId]) / scaleFactor
+  const sizeAxis = safeNumber(base.size[laneId]) / scaleFactor
+  const parentSize = safeNumber(parent?.[axisKey === 'x' ? 'width' : 'height']) / scaleFactor
+
   const { clampedDelta, normalized } = clampSwipe({
     type: swipeType === 'slider' ? 'swipeSlider' : 'swipeCarousel',
-    axis: payload.axis,
-    delta: payload.delta,
-    base: base.axis[laneId],
-    size: base.size[laneId],
-    parentSize: parent?.[payload.axis === 'x' ? 'width' : 'height']
+    axis: axisKey,
+    delta: deltaScaled,
+    base: baseAxis,
+    size: sizeAxis,
+    parentSize
   })
 
   return swipeType === 'slider'
-    ? { delta: clampedDelta, normalized }
-    : clampedDelta
+    ? { delta: clampedDelta * scaleFactor, normalized }
+    : clampedDelta * scaleFactor
 }
 
 /**
