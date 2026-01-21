@@ -68,8 +68,7 @@ function onMove(x, y) {
         const absX = Math.abs(deltaX)
         const absY = Math.abs(deltaY)
         const axis = absX > absY ? 'horizontal' : 'vertical'
-        const delta = axis === 'horizontal' ? deltaX : deltaY
-        if (!engineAdapter.shouldStartSwipe(delta, axis)) return
+        // Escalate purely on movement; adapter decides ownership
         const accepted = engineAdapter.onSwipeStart(x, y, axis)
         if (!accepted) {
             log('input', 'Swipe start rejected by adapter')
@@ -81,7 +80,8 @@ function onMove(x, y) {
             state.phase = 'IDLE'
             return
         }
-
+// intentEngine only detects gesture intent.
+// It must not check swipe capability or target policy.
         state.phase = 'SWIPING'
         state.axis = axis
         state.lastAxisPos = axis === 'horizontal' ? state.startX : state.startY

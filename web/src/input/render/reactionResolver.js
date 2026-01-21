@@ -225,7 +225,7 @@ onSwipeStart(x, y, axis) {
     }))
   }
 
-  if (!supports('swipeStart')) return null
+ if (!currentTarget.laneId) return null
 
   if (pressActive && pressedTarget?.element) {
     reactions.push({
