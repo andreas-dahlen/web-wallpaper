@@ -27,12 +27,16 @@ import { engineAdapter } from './engineAdapter'
 
 // Gesture state (no DOM refs)
 const state = {
-    phase: 'IDLE', // 'IDLE' | 'PENDING' | 'SWIPING'
-    startX: 0,
+    phase: 'IDLE',        // lifecycle of the gesture recognizer
+    startX: 0,            // pointer position at press
     startY: 0,
-    lastAxisPos: 0,
-    axis: null, // 'horizontal' | 'vertical' | null
-    totalDelta: 0,
+    lastX: 0,
+    lastY: 0,            // pointer position at press
+    mode: null,           // 'horizontal' | 'vertical' | 'both'
+    totalDelta: {
+        x: 0,
+        y: 0
+    }   // total accumulated movement {x, y}
 }
 
 export const intentEngine = {
@@ -49,29 +53,32 @@ function onDown(x, y) {
     state.phase = 'PENDING'
     state.startX = x
     state.startY = y
-    state.lastAxisPos = 0
-    state.axis = null
-    state.totalDelta = 0
+    state.lastX = x
+    state.lastY = y
+    state.mode = null
+    state.totalDelta.x = 0
+    state.totalDelta.y = 0
 
     // Inform adapter of press/target resolution
-    engineAdapter.onPress(x, y)
+    engineAdapter.onPress({ x, y })
 }
 
 function onMove(x, y) {
     if (state.phase === 'IDLE') return
+
     drawDots(x, y, 'yellow')
-    const deltaX = x - state.startX
-    const deltaY = y - state.startY
+    const deltaX = x - state.lastX
+    const deltaY = y - state.lastY
     const absX = Math.abs(deltaX)
     const absY = Math.abs(deltaY)
-    
+
     // Detect swipe axis
     if (state.phase === 'PENDING') {
-        const axis = absX > absY ? 'horizontal' : 'vertical'
+        const lockedAxis = absX > absY ? 'horizontal' : 'vertical'
 
         // Escalate purely on movement; adapter decides ownership
-        const accepted = engineAdapter.onSwipeStart(x, y, axis)
-        if (!accepted) {
+        const result = engineAdapter.onSwipeStart({ x, y, lockedAxis })
+        if (!result.accepted) {
             log('input', 'Swipe start rejected by adapter')
             engineAdapter.onPressRelease({
                 type: 'pressRelease',
@@ -79,69 +86,60 @@ function onMove(x, y) {
                 y: state.startY
             })
             state.phase = 'IDLE'
+            state.mode = null    
+            state.lastX = null
+            state.lastY = null
             return
         }
         // intentEngine only detects gesture intent.
         // It must not check swipe capability or target policy.
         state.phase = 'SWIPING'
-        state.axis = axis
-        state.lastAxisPos = axis === 'horizontal' ? state.startX : state.startY
-        log('swipe', 'Swiping started, axis:', state.axis)
+        state.mode = result.mode
+        log('swipe', 'Swiping started, mode:', state.mode)
     }
 
     // Track swipe delta on locked axis
     if (state.phase === 'SWIPING') {
-        const currentAxisPos = state.axis === 'horizontal' ? x : y
-        const delta = currentAxisPos - state.lastAxisPos
-        state.lastAxisPos = currentAxisPos
-        state.totalDelta += delta
+        const deltaX = x - (state.lastX ?? state.startX)
+        const deltaY = y - (state.lastY ?? state.startY)
+
+        state.lastX = x
+        state.lastY = y
+
+        if (state.mode === 'horizontal') {
+            state.totalDelta.x += deltaX
+        } else if (state.mode === 'vertical') {
+            state.totalDelta.y += deltaY
+        } else if (state.mode === 'both') {
+            state.totalDelta.x += deltaX
+            state.totalDelta.y += deltaY
+        }
+
         engineAdapter.onSwipe({
             type: 'swipe',
-            axis: state.axis,
-            x,
-            y,
-            delta: state.totalDelta, // keep numeric total for 1D swipes
-            rawDelta: {
-                x: deltaX,
-                y: deltaY
-            }
+            mode: state.mode,
+            totalDelta: state.totalDelta
         })
     }
 }
 
 function onUp() {
-    if (state.phase === 'SWIPING') {
-        if (!state.axis) {
-            engineAdapter.onSwipeRevert()
-            state.phase = 'IDLE'
-            return
-        }
+    if (state.phase !== 'SWIPING' && state.phase !== 'PENDING') {
+        log('init', 'state.phase error: ', state.phase)
+        state.phase = 'IDLE'
+        state.mode = null
+        state.lastX = null
+        state.lastY = null
+        return
+    }
+    if (state.phase === 'SWIPING')
+        engineAdapter.onSwipeEnd({
+            type: 'swipe-end',
+            mode: state.mode,
+            totalDelta: state.totalDelta
+        })
 
-        if (engineAdapter.shouldCommitSwipe(state.totalDelta, state.axis)) {
-            const direction = getSwipeDirection(state.axis, state.totalDelta)
-            log('swipe', '[', direction, ']', 'delta:', state.totalDelta)
-
-            engineAdapter.onSwipeCommit({
-                type: 'swipe-commit',
-                axis: state.axis,
-                direction,
-                delta: state.totalDelta
-            })
-        } else {
-            log('swipe', 'rejected', 'delta:', state.totalDelta)
-            if (engineAdapter.shouldRevertSwipe()) {
-                engineAdapter.onSwipeRevert()
-            } else {
-                const direction = getSwipeDirection(state.axis, state.totalDelta)
-                engineAdapter.onSwipeCommit({
-                    type: 'swipe-commit',
-                    axis: state.axis,
-                    direction,
-                    delta: state.totalDelta
-                })
-            }
-        }
-    } else if (state.phase === 'PENDING') {
+    else if (state.phase === 'PENDING') {
         // Pointer up without swipe → release
         engineAdapter.onPressRelease({
             type: 'pressRelease',
@@ -149,14 +147,16 @@ function onUp() {
             y: state.startY
         })
     }
-
     state.phase = 'IDLE'
-    state.axis = null
+    state.mode = null
+    state.lastX = null
+    state.lastY = null
 }
 
-function getSwipeDirection(axis, delta) {
-    if (axis === 'horizontal') {
-        return delta > 0 ? 'right' : 'left'
-    }
-    return delta > 0 ? 'down' : 'up'
-}
+// function getSwipeDirection(axis, delta) {
+//     if (axis === 'horizontal') {
+//         return delta > 0 ? 'right' : 'left'
+//     }
+//     return delta > 0 ? 'down' : 'up'
+// }
+//DEPRECATED FUCNTION. WILL BE MOVED BASICALLY...

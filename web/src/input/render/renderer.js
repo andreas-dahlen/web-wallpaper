@@ -8,10 +8,9 @@
  */
 
 import { ensureLane, applyLaneOffset, commitLaneSwipe } from '../../state/carouselState'
-import { 
-  setDragPosition, 
-  getDragBase, 
-  clearDragBase 
+import {
+  setDragPosition,
+  clearDragBase
 } from '../../state/gestureState'
 import { log } from '../../debug/functions'
 
@@ -26,6 +25,18 @@ function setAttr(el, key, val) {
 
 function dispatchReaction(descriptor) {
   const target = descriptor.element || window
+
+    if (descriptor.swipeType === 'drag') {
+    log('drag', 'WORKING! dispatchReaction', {
+      dragKey: descriptor.dragKey,
+      absolute: descriptor.absolute,
+      element: descriptor.element
+    })
+  }
+
+
+
+
   target.dispatchEvent(new CustomEvent('reaction', { detail: descriptor }))
 }
 
@@ -44,8 +55,13 @@ function handleSelectDescriptor(descriptor) {
 
 // ----------------- Swipe Start -----------------
 function handleSwipeStart(descriptor) {
-  if (!descriptor.laneId) return
+  if (descriptor.swipeType === 'drag') {
+    setAttr(descriptor.element, 'data-swiping', true)
+    dispatchReaction(descriptor)
+    return
+  }
 
+  if (!descriptor.laneId) return
   const lane = ensureLane(descriptor.laneId)
   lane.dragging = true
   lane.pendingDir = null
@@ -55,10 +71,21 @@ function handleSwipeStart(descriptor) {
 
 // ----------------- Swipe / Drag -----------------
 function handleSwipe(descriptor) {
-  if (!descriptor.laneId) return
   const type = descriptor.swipeType
 
-  // Number delta (slider / carousel)
+  // ---- DRAG (2D, no lane) ----
+  if (type === 'drag') {
+    if (!descriptor.dragKey || !descriptor.absolute) {
+      log('drag', 'Invalid drag frame', descriptor)
+      return
+    }
+    dispatchReaction(descriptor)
+    return
+  }
+
+  // ---- LANE-BASED (1D) ----
+  if (!descriptor.laneId) return
+
   if (typeof descriptor.delta === 'number') {
     const lane = ensureLane(descriptor.laneId)
     if (type === 'slider') {
@@ -68,76 +95,46 @@ function handleSwipe(descriptor) {
       applyLaneOffset(descriptor.laneId, descriptor.delta)
     }
     dispatchReaction(descriptor)
-    return
   }
-
-  // Drag object delta
-  if (type === 'drag') {
-    const base = getDragBase(descriptor.laneId)
-    if (!base) {
-      log('drag', 'Missing drag base snapshot', descriptor.laneId)
-      return
-    }
-    const delta = descriptor.delta || { x: 0, y: 0 }
-
-    // Compute absolute from snapshot (renderer-only)
-    const absolute = {
-      x: base.x + delta.x,
-      y: base.y + delta.y
-    }
-
-    // Persist absolute for read-only drag frames
-    descriptor.absolute = absolute
-
-    dispatchReaction(descriptor)
-    return
-  }
-
-  dispatchReaction(descriptor)
 }
 
 // ----------------- Swipe Commit -----------------
 function handleSwipeCommit(descriptor) {
-  if (!descriptor.laneId) return
   const type = descriptor.swipeType
-  const lane = ensureLane(descriptor.laneId)
 
-  if (type === 'slider' || type === 'drag') {
-    // Slider commit
-    if (type === 'slider') {
-      const base = lane.committedOffset || 0
-      const delta = typeof descriptor.delta === 'number' ? descriptor.delta : 0
-      lane.committedOffset = base + delta
-      lane.offset = lane.committedOffset
+  // ---- DRAG COMMIT ----
+  if (type === 'drag') {
+    if (!descriptor.dragKey || !descriptor.absolute) {
+      log('drag', 'Missing drag data on commit', descriptor)
+      return
     }
 
-    lane.dragging = false
-    lane.pendingDir = null
-
-    // Drag commit
-    if (type === 'drag') {
-      const base = getDragBase(descriptor.laneId)
-      if (!base) {
-        log('drag', 'Missing drag base on commit', descriptor.laneId)
-        return
-      }
-      const delta = descriptor.delta || { x: 0, y: 0 }
-      const absolute = {
-        x: base.x + delta.x,
-        y: base.y + delta.y
-      }
-      // Renderer is sole writer of drag persistence
-      setDragPosition(descriptor.laneId, absolute)
-      descriptor.absolute = absolute
-      clearDragBase(descriptor.laneId)
-    }
+    setDragPosition(descriptor.dragKey, descriptor.absolute)
+    clearDragBase(descriptor.dragKey)
 
     setAttr(descriptor.element, 'data-swiping', null)
     dispatchReaction(descriptor)
     return
   }
 
-  // Carousel commit
+  // ---- SLIDER COMMIT ----
+  if (type === 'slider') {
+    if (!descriptor.laneId) return
+    const lane = ensureLane(descriptor.laneId)
+    const base = lane.committedOffset || 0
+    const delta = typeof descriptor.delta === 'number' ? descriptor.delta : 0
+    lane.committedOffset = base + delta
+    lane.offset = lane.committedOffset
+    lane.dragging = false
+    lane.pendingDir = null
+
+    setAttr(descriptor.element, 'data-swiping', null)
+    dispatchReaction(descriptor)
+    return
+  }
+
+  // ---- CAROUSEL COMMIT ----
+  if (!descriptor.laneId) return
   log('swipe', '[', descriptor.direction, ']', 'delta:', descriptor.delta)
   commitLaneSwipe(descriptor.laneId, descriptor.direction)
   setAttr(descriptor.element, 'data-swiping', null)
@@ -147,20 +144,25 @@ function handleSwipeCommit(descriptor) {
 // ----------------- Swipe Revert -----------------
 function handleSwipeRevert(descriptor) {
   const type = descriptor.swipeType
-  if (type === 'slider' || type === 'drag') {
-    // drag/slider already handled via delta reset in resolver
-    if (type === 'drag') clearDragBase(descriptor.laneId)
+
+  if (type === 'drag') {
+    if (descriptor.dragKey) {
+      clearDragBase(descriptor.dragKey)
+    }
+    setAttr(descriptor.element, 'data-swiping', null)
+    dispatchReaction(descriptor)
     return
   }
+
   if (descriptor.laneId) {
     const lane = ensureLane(descriptor.laneId)
     lane.pendingDir = null
     lane.dragging = false
     applyLaneOffset(descriptor.laneId, 0)
   }
+
   setAttr(descriptor.element, 'data-swiping', null)
   dispatchReaction(descriptor)
-  clearDragBase(descriptor.laneId)
 }
 
 // ----------------- Renderer Export -----------------

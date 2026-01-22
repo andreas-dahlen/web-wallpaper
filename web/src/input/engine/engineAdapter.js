@@ -1,5 +1,5 @@
 /**
- * engineAdapter.js - Intent Bridge
+ * engineAdapter.js - Intent Bridge (updated)
  *
  * Responsibilities:
  * - Receive intent from intentEngine
@@ -31,55 +31,32 @@ function forward(descriptor) {
     renderer.handleReaction(descriptor)
 }
 
-
 export const engineAdapter = {
-    onPress(x, y) {
-        forward(reactionResolver.onPress(x, y))
-        log('adapter', '[POINTER-PRESSED]')
+    onPress(intent) {
+        forward(reactionResolver.onPress(intent))
+        log('adapter', '[POINTER-PRESSED]', intent)
     },
 
-    onSwipeStart(x, y, axis) {
-        const descriptor = reactionResolver.onSwipeStart(x, y, axis)
+    onSwipeStart(intent) {
+        const descriptor = reactionResolver.onSwipeStart(intent)
         forward(descriptor)
-        log('adapter', '[SWIPE-START]')
-        return !!descriptor
+        log('adapter', '[SWIPE-START]', intent)
+        // Must return accepted + mode for intentEngine
+        return { accepted: !!descriptor, mode: intent.mode ?? 'both' }
     },
 
     onSwipe(intent) {
         forward(reactionResolver.onSwipe(intent))
+        log('adapter', '[SWIPE]', intent)
     },
 
-    onSwipeCommit(intent) {
-        forward(reactionResolver.onSwipeCommit(intent))
-        log('adapter', '[SWIPE-COMMIT]')
+    onSwipeEnd(intent) {
+        forward(reactionResolver.onSwipeEnd(intent))
+        log('adapter', '[SWIPE-END]', intent)
     },
 
-    onSwipeRevert() {
-        forward(reactionResolver.onSwipeRevert())
-        log('adapter', '[SWIPE-REVERT]')
-    },
-
-    // Pointer-up commit when no swipe
     onPressRelease(intent) {
         forward(reactionResolver.onPressRelease(intent))
-        log('adapter', '[POINTER-RELEASED]')
-    },
-
-    onPressCancel(intent) {
-        forward(intent)
-        log('adapter', '[PRESS-CANCEL]')
-    },
-
-    shouldStartSwipe(delta, axis) {
-        return reactionResolver.shouldStartSwipe(delta, axis)
-    },
-
-    shouldCommitSwipe(delta, axis) {
-        return reactionResolver.shouldCommitSwipe(delta, axis)
-    },
-
-    shouldRevertSwipe() {
-        return reactionResolver.shouldRevertSwipe()
+        log('adapter', '[POINTER-RELEASED]', intent)
     }
 }
-

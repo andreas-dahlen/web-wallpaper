@@ -96,7 +96,7 @@ export function attachDragDelta(intent) {
   if (!gestureState.active || gestureState.swipeType !== 'drag') return intent
 
   const key = keyFromIntent(intent)
-  const base = getLastKnown(key)
+  const base = getLastKnown(key) || ZERO_POS
 
   const delta = {
     x: (intent.x - gestureState.startX) + base.x,
@@ -131,16 +131,25 @@ export function getDragPosition(keyOrLane) {
 /* -------------------------
    Optional locking/snapping hooks (no-ops for now)
 -------------------------- */
-export function lockDrag(key) {
-  if (!key) return
-  gestureState.locks[key] = true
-}
+// export function lockDrag(key) {
+//   if (!key) return
+//   gestureState.locks[key] = true
+// }
 
-export function unlockDrag(key) {
-  if (!key) return
-  delete gestureState.locks[key]
-}
+// export function unlockDrag(key) {
+//   if (!key) return
+//   delete gestureState.locks[key]
+// }
 
-export function isDragLocked(key) {
-  return !!gestureState.locks[key]
+// export function isDragLocked(key) {
+//   return !!gestureState.locks[key]
+// }
+/* -------------------------
+   Drag base cleanup (compat / no-op)
+-------------------------- */
+// In the simplified model, drag bases are implicit (lastKnown).
+// This exists to satisfy renderer cleanup calls.
+export function clearDragBase(key) {
+  // no-op by design
+  key
 }

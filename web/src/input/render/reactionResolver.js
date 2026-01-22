@@ -305,20 +305,18 @@ export const reactionResolver = {
 
     if (!deltaResult) return deselect
 
-    const swipeDescriptor = {
-      type: 'swipe',
-      laneId: currentTarget.laneId,
-      axis: payload.axis,
-      element: currentTarget.element,
-      swipeType: currentTarget.swipeType,
-      direction: currentTarget.laneAxis,
-      ...(typeof deltaResult === 'object'
-        ? deltaResult
-        : { delta: deltaResult }),
-      ...(currentTarget.swipeType === 'drag'
-        ? { raw: payload.raw || { x: payload.x, y: payload.y } }
-        : null)
-    }
+const swipeDescriptor = {
+  type: 'swipe',
+  laneId: currentTarget.laneId,
+  axis: payload.axis,
+  element: currentTarget.element,
+  swipeType: currentTarget.swipeType,
+  direction: currentTarget.laneAxis,
+  ...(typeof deltaResult === 'object' ? deltaResult : { delta: deltaResult }),
+  ...(currentTarget.swipeType === 'drag'
+    ? { raw: payload.raw || { x: payload.x, y: payload.y }, dragKey: payload.dragKey, absolute: payload.absolute }
+    : null)
+}
 
     return mergeDescriptors(swipeDescriptor, deselect)
   },
@@ -360,18 +358,17 @@ export const reactionResolver = {
       }
     })
 
-    const descriptor = {
-      type: 'swipeCommit',
-      laneId: currentTarget.laneId,
-      axis: payload.axis,
-      direction: payload.direction,
-      element: currentTarget.element,
-      swipeType: currentTarget.swipeType,
-      laneDirection: currentTarget.laneAxis,
-      ...(typeof deltaResult === 'object'
-        ? deltaResult
-        : { delta: deltaResult })
-    }
+const descriptor = {
+  type: 'swipeCommit',
+  laneId: currentTarget.laneId,
+  axis: payload.axis,
+  direction: payload.direction,
+  element: currentTarget.element,
+  swipeType: currentTarget.swipeType,
+  laneDirection: currentTarget.laneAxis,
+  ...(typeof deltaResult === 'object' ? deltaResult : { delta: deltaResult }),
+  ...(currentTarget.swipeType === 'drag' ? { dragKey: payload.dragKey, absolute: payload.absolute } : null)
+}
 
     pressActive = false
     swipeActive = false
