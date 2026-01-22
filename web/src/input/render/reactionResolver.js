@@ -1,36 +1,27 @@
-/**
- * reactionResolver.js - Intent → reaction descriptors
- *
- * Responsibilities:
- * - Resolve intents via domRegistry
- * - Coordinate gesture lifecycle and selection
- * - Assemble plain reaction descriptors (no DOM/state mutation)
- */
-import { getAxisSize } from '../../state/sizeState'
+import { APP_SETTINGS } from '../../config/appSettings'
+import { getAxisSize, scale } from '../../state/sizeState'
 import { domRegistry } from '../dom/domRegistry'
-import { log } from '../../debug/functions'
-import {
-  getLane,
-  shouldStartSwipeLane,
-  shouldStartSwipeBySize,
-  shouldCommitSwipeLane,
-  shouldCommitSwipeBySize
-} from '../../state/carouselState'
+// import { log } from '../../debug/functions'
+import { getLane } from '../../state/carouselState'
 import {
   resetGestureTracking,
-  attachDragDelta,
   beginGestureTracking,
   snapshotSwipeBase,
   getSwipeBase,
   clearSwipeBase,
-  getDragPosition
+  getDragPosition,
+  getGestureStart
 } from '../../state/gestureState'
 import {
   computeSwipeDelta,
   computeCommitDelta,
+  shouldStartSwipeBySize,
+  shouldCommitSwipeBySize
 } from './reactionSwipe'
+import { buildDragRaw } from '../math/swipeDelta'
+import { extractAxisDelta, normalizeAxis, resolveDirection, toNumber } from '../math/swipeMath'
 
-let currentTarget = {
+const EMPTY_TARGET = {
   element: null,
   laneId: null,
   laneAxis: null,
@@ -39,67 +30,20 @@ let currentTarget = {
   reactions: {}
 }
 
+let currentTarget = { ...EMPTY_TARGET }
 let pressActive = false
 let swipeActive = false
 let pressedTarget = null
 let selectedElement = null
+let lastSwipeDirection = null
 
-function buildSwipeBase(target) {
-  const { laneId, swipeType } = target
-
-  if (!laneId) return null
-
-  switch (swipeType) {
-    case 'drag':
-      return {
-        drag: {
-          [laneId]: getDragPosition(laneId) // last-known absolute position
-        }
-      }
-
-    case 'slider':
-    case 'carousel': {
-      const lane = getLane(laneId)
-      if (!lane) return null
-
-      // Use per-gesture snapshot to avoid double-applying offsets mutated by renderer during swipe
-      const snap = getSwipeBase(laneId) || {
-        offset: lane.offset,
-        committedOffset: lane.committedOffset ?? lane.offset,
-        size: lane.size
-      }
-
-      return {
-        axis: {
-          // Use committed offset for carousel so clamp/commit stay symmetric
-          [laneId]: swipeType === 'carousel' ? snap.committedOffset : snap.offset
-        },
-        size: {
-          [laneId]: snap.size
-        },
-        // Include committed offset for carousel for accurate clamping
-        committedOffset: swipeType === 'carousel'
-          ? { [laneId]: snap.committedOffset }
-          : undefined
-      }
-    }
-
-    default:
-      return null
-  }
-}
-
-// Always return either a single descriptor or a flat array (never nested).
 function mergeDescriptors(existing, extra) {
   if (!existing && !extra) return null
   const list = []
   const push = (value) => {
     if (!value) return
-    if (Array.isArray(value)) {
-      list.push(...value)
-    } else {
-      list.push(value)
-    }
+    if (Array.isArray(value)) list.push(...value)
+    else list.push(value)
   }
   push(existing)
   push(extra)
@@ -121,34 +65,24 @@ function emitDeselect() {
   return descriptor
 }
 
-function normalize(target) {
-  if (!target) {
-    return {
-      element: null,
-      laneId: null,
-      laneAxis: null,
-      actionId: null,
-      swipeType: null,
-      reactions: {}
-    }
-  }
+function normalizeTarget(target) {
+  if (!target) return { ...EMPTY_TARGET }
   const reactions = target.reactions || {}
-  const canonicalReactions = {
-    press: !!reactions.press,
-    pressRelease: !!reactions.pressRelease,
-    pressCancel: !!reactions.pressCancel,
-    swipeStart: !!reactions.swipeStart,
-    swipe: !!reactions.swipe,
-    swipeCommit: !!reactions.swipeCommit,
-    swipeRevert: !!reactions.swipeRevert,
-    select: !!reactions.select,
-    deselect: !!reactions.deselect
-  }
   return {
     ...target,
     laneAxis: target.laneAxis ?? target.direction ?? null,
     swipeType: target.swipeType ?? null,
-    reactions: canonicalReactions
+    reactions: {
+      press: !!reactions.press,
+      pressRelease: !!reactions.pressRelease,
+      pressCancel: !!reactions.pressCancel,
+      swipeStart: !!reactions.swipeStart,
+      swipe: !!reactions.swipe,
+      swipeCommit: !!reactions.swipeCommit,
+      swipeRevert: !!reactions.swipeRevert,
+      select: !!reactions.select,
+      deselect: !!reactions.deselect
+    }
   }
 }
 
@@ -166,25 +100,117 @@ function withLaneReactions(target) {
 }
 
 function setCurrent(target) {
-  currentTarget = normalize(target)
+  currentTarget = normalizeTarget(target)
 }
 
 function supports(type) {
   return !!currentTarget.reactions?.[type]
 }
 
+function resolveAxis(intent, fallback) {
+  const rawAxis = intent?.axis || intent?.lockedAxis || intent?.mode || fallback
+  return normalizeAxis(rawAxis || 'x')
+}
+
+function resolveDragKey(intent) {
+  return intent?.dragId || currentTarget.laneId || 'default'
+}
+
+function parentSizes() {
+  return { width: getAxisSize('x'), height: getAxisSize('y') }
+}
+
+function buildSwipeBase(target, dragKey) {
+  const { laneId, swipeType } = target
+  if (!laneId) return null
+
+  switch (swipeType) {
+    case 'drag':
+      return {
+        drag: {
+          [dragKey]: getDragPosition(dragKey) // last-known absolute position
+        }
+      }
+
+    case 'slider':
+    case 'carousel': {
+      const lane = getLane(laneId)
+      if (!lane) return null
+
+      const snap = getSwipeBase(laneId) || {
+        offset: lane.offset ?? 0,
+        committedOffset: lane.committedOffset ?? lane.offset ?? 0,
+        size: lane.size ?? 0
+      }
+
+      return {
+        axis: {
+          [laneId]: swipeType === 'carousel' ? snap.committedOffset : snap.offset
+        },
+        size: {
+          [laneId]: snap.size
+        },
+        committedOffset: swipeType === 'carousel'
+          ? { [laneId]: snap.committedOffset }
+          : undefined
+      }
+    }
+
+    default:
+      return null
+  }
+}
+
+function buildSwipePayload(intent, axisKey, dragKey) {
+  const totalDelta = intent?.totalDelta || {}
+  const start = getGestureStart()
+  return {
+    axis: axisKey,
+    delta: extractAxisDelta(totalDelta, axisKey),
+    rawDelta: totalDelta,
+    raw: buildDragRaw({ start, totalDelta }),
+    dragKey
+  }
+}
+
+function resetLifecycle() {
+  pressActive = false
+  swipeActive = false
+  pressedTarget = null
+  lastSwipeDirection = null
+  setCurrent(null)
+  resetGestureTracking()
+}
+
+function ensureLaneSize(targetBase, laneId, swipeType) {
+  if (!laneId) return true
+  if (swipeType === 'drag') return true
+  const size = targetBase?.size?.[laneId]
+  if (!size || !Number.isFinite(size)) return false
+  return true
+}
+
+function returnSwipeResult(reactions, accepted, mode = null) {
+  return {
+    reactions: reactions ?? null,
+    intent: accepted
+      ? { accepted: true, mode }
+      : { accepted: false }
+  }
+}
+
 export const reactionResolver = {
-  onPress(x, y) {
+  onPress(intent = {}) {
     resetGestureTracking()
-    const intent = domRegistry.findIntentAt(x, y)
-    if (!intent) {
-      setCurrent(null)
-      pressedTarget = null
-      pressActive = false
-      swipeActive = false
+    const x = toNumber(intent.x)
+    const y = toNumber(intent.y)
+    const resolved = domRegistry.findIntentAt(x, y)
+    if (!resolved) {
+      resetLifecycle()
       return emitDeselect()
     }
-    setCurrent(intent)
+
+    setCurrent(resolved)
     pressActive = supports('press')
     swipeActive = false
     pressedTarget = pressActive ? currentTarget : null
@@ -192,220 +218,250 @@ export const reactionResolver = {
     if (supports('press')) {
       const pressDescriptor = {
         type: 'press',
-        actionId: intent.actionId || null,
-        laneId: intent.laneId || null,
-        element: intent.element
+        actionId: resolved.actionId || null,
+        laneId: resolved.laneId || null,
+        element: resolved.element
       }
-      const selectDescriptor = emitSelect(intent)
+      const selectDescriptor = emitSelect(resolved)
       return mergeDescriptors(pressDescriptor, selectDescriptor)
     }
-    log('dom', intent)
+
     return emitDeselect()
   },
 
-  onSwipeStart(x, y, axis) {
-    const hit = domRegistry.findIntentAt(x, y)
-    const deselect = hit?.element === selectedElement ? null : emitDeselect()
-    const reactions = []
+  onSwipeStart(intent = {}) {
+  const x = toNumber(intent.x)
+  const y = toNumber(intent.y)
+  const axisKey = resolveAxis(intent, currentTarget.laneAxis)
+  const hit = domRegistry.findIntentAt(x, y)
+  const deselect = hit?.element === selectedElement ? null : emitDeselect()
+  const reactions = []
 
-    // Force lane acquisition if currentTarget cannot actually swipe
-    const existingAllowed = domRegistry.swipeAllowedForType(currentTarget, axis) && supports('swipeStart')
+  let mode = null
 
-    if (!existingAllowed) {
-      const lane = domRegistry.findLaneForSwipe(x, y, axis)
-      if (!lane) {
-        if (pressActive && pressedTarget?.element) {
-          reactions.push({
-            type: 'pressCancel',
-            laneId: pressedTarget.laneId,
-            element: pressedTarget.element
-          })
-        }
-        pressActive = false
-        pressedTarget = null
-        swipeActive = false
-        return reactions.length ? (reactions.length === 1 ? reactions[0] : reactions) : null
+  // Check if the current target can handle swipe in this axis
+  const canSwipe = domRegistry.swipeAllowedForType(currentTarget, axisKey) && supports('swipeStart')
+
+  if (!canSwipe) {
+    // Try to find a new lane under the pointer
+    const lane = domRegistry.findLaneForSwipe(x, y, axisKey)
+
+    if (!lane) {
+      // No lane → cancel any lingering press and reject swipe
+      if (pressActive && pressedTarget?.element) {
+        reactions.push({
+          type: 'pressCancel',
+          laneId: pressedTarget.laneId,
+          element: pressedTarget.element
+        })
       }
 
-      setCurrent(withLaneReactions({
+      pressActive = false
+      pressedTarget = null
+      swipeActive = false
+
+      return returnSwipeResult(
+        reactions.length ? mergeDescriptors(reactions, deselect) : deselect,
+        false,
+        null
+      )
+    }
+
+    // Lane found → update current target
+    setCurrent(
+      withLaneReactions({
         element: lane.element,
         laneId: lane.laneId,
         laneAxis: lane.direction,
         swipeType: lane.swipeType,
         actionId: null
-      }))
-    }
-
-    if (!currentTarget.laneId) return null
-
-    if (pressActive && pressedTarget?.element) {
-      reactions.push({
-        type: 'pressCancel',
-        laneId: pressedTarget.laneId,
-        element: pressedTarget.element
       })
-      pressActive = false
-      pressedTarget = null
-    }
+    )
+  }
 
+  // Safety check: must have a valid target
+  if (!currentTarget.laneId) {
+    return returnSwipeResult(deselect, false, null)
+  }
+
+  // Cancel lingering press if needed
+  if (pressActive && pressedTarget?.element) {
     reactions.push({
-      type: 'swipeStart',
-      laneId: currentTarget.laneId,
-      axis,
-      element: currentTarget.element,
-      swipeType: currentTarget.swipeType,
-      direction: currentTarget.laneAxis,
-      raw: { x, y }
+      type: 'pressCancel',
+      laneId: pressedTarget.laneId,
+      element: pressedTarget.element
     })
+    pressActive = false
+    pressedTarget = null
+  }
 
-    swipeActive = true
-    beginGestureTracking(x, y, currentTarget.swipeType)
-    if (currentTarget.swipeType === 'slider' || currentTarget.swipeType === 'carousel') {
-      const lane = getLane(currentTarget.laneId)
-      // Snapshot numeric bases so math stays tied to gesture-start offsets
-      snapshotSwipeBase(currentTarget.laneId, {
-        offset: lane?.offset ?? 0,
-        committedOffset: lane?.committedOffset ?? lane?.offset ?? 0,
-        size: lane?.size ?? 0
-      })
-    }
-    return mergeDescriptors(reactions.length === 1 ? reactions[0] : reactions, deselect)
-  },
+  // Emit swipeStart descriptor
+  reactions.push({
+    type: 'swipeStart',
+    laneId: currentTarget.laneId,
+    axis: axisKey,
+    element: currentTarget.element,
+    swipeType: currentTarget.swipeType,
+    laneDirection: currentTarget.laneAxis,
+    raw: { x, y }
+  })
 
-  onSwipe(intent) {
-    const hit = domRegistry.findIntentAt(intent.x, intent.y)
+  swipeActive = true
+  lastSwipeDirection = null
+  beginGestureTracking({ x, y, swipeType: currentTarget.swipeType })
+
+  // Snapshot carousel/slider state if needed
+  if (currentTarget.swipeType === 'slider' || currentTarget.swipeType === 'carousel') {
+    const lane = getLane(currentTarget.laneId)
+    snapshotSwipeBase(currentTarget.laneId, {
+      offset: lane?.offset ?? 0,
+      committedOffset: lane?.committedOffset ?? lane?.offset ?? 0,
+      size: lane?.size ?? 0
+    })
+  }
+
+  // Determine mode for intentEngine
+  mode = currentTarget.swipeType === 'drag' ? 'both' : currentTarget.laneAxis
+
+  const merged = mergeDescriptors(
+    reactions.length === 1 ? reactions[0] : reactions,
+    deselect
+  )
+
+  return returnSwipeResult(merged, true, mode)
+},
+
+  onSwipe(intent = {}) {
+    const axisKey = resolveAxis(intent, currentTarget.laneAxis)
+    const dragKey = resolveDragKey(intent)
+    const payload = buildSwipePayload(intent, axisKey, dragKey)
+    const hit = payload.raw ? domRegistry.findIntentAt(payload.raw.x, payload.raw.y) : null
     const deselect = hit?.element === selectedElement ? null : emitDeselect()
-
-    const payload = attachDragDelta(intent)
+    const base = buildSwipeBase(currentTarget, dragKey)
 
     if (!swipeActive || !currentTarget.laneId) return deselect
     if (!supports('swipe')) return deselect
+    if (!base || !ensureLaneSize(base, currentTarget.laneId, currentTarget.swipeType)) return deselect
 
-    const base = buildSwipeBase(currentTarget)
-    if (!base) return deselect
-
-    if ((currentTarget.swipeType === 'slider' || currentTarget.swipeType === 'carousel')) {
-      const size = base.size?.[currentTarget.laneId]
-      if (!size || !Number.isFinite(size)) {
-        log('swipe', '[resolver] Missing lane size, skipping swipe', { laneId: currentTarget.laneId, size })
-        return deselect
-      }
-    }
-
-    // Pass carousel offsets and drag bases to reactionSwipe
     const deltaResult = computeSwipeDelta({
       payload,
       target: currentTarget,
       base,
-      parent: {
-        width: getAxisSize('x'),
-        height: getAxisSize('y')
-      }
+      parent: parentSizes(),
+      scale: scale.value
     })
 
-    if (!deltaResult) return deselect
+    if (!deltaResult) return emitDeselect()
 
-const swipeDescriptor = {
-  type: 'swipe',
-  laneId: currentTarget.laneId,
-  axis: payload.axis,
-  element: currentTarget.element,
-  swipeType: currentTarget.swipeType,
-  direction: currentTarget.laneAxis,
-  ...(typeof deltaResult === 'object' ? deltaResult : { delta: deltaResult }),
-  ...(currentTarget.swipeType === 'drag'
-    ? { raw: payload.raw || { x: payload.x, y: payload.y }, dragKey: payload.dragKey, absolute: payload.absolute }
-    : null)
-}
+    const direction = deltaResult.direction || resolveDirection(axisKey, payload.delta) || lastSwipeDirection
+    lastSwipeDirection = direction || lastSwipeDirection
 
-    return mergeDescriptors(swipeDescriptor, deselect)
+    const descriptor = {
+      type: 'swipe',
+      laneId: currentTarget.laneId,
+      axis: axisKey,
+      element: currentTarget.element,
+      swipeType: currentTarget.swipeType,
+      laneDirection: currentTarget.laneAxis,
+      direction,
+      ...(currentTarget.swipeType === 'drag'
+        ? { delta: deltaResult.delta, dragKey, absolute: deltaResult.absolute }
+        : { delta: deltaResult.delta })
+    }
+
+    if (deltaResult.normalized !== undefined) {
+      descriptor.normalized = deltaResult.normalized
+      descriptor.normalizedPercent = deltaResult.normalizedPercent
+    }
+
+    return mergeDescriptors(descriptor, deselect)
   },
-  onSwipeCommit(intent) {
-    const payload = attachDragDelta(intent)
 
+  onSwipeEnd(intent = {}) {
     if (!swipeActive || !currentTarget.laneId) {
-      resetGestureTracking()
+      resetLifecycle()
       return null
     }
     if (!supports('swipeCommit')) {
-      resetGestureTracking()
+      resetLifecycle()
       return null
     }
 
-    const base = buildSwipeBase(currentTarget)
-    if (!base) {
-      resetGestureTracking()
+    const axisKey = resolveAxis(intent, currentTarget.laneAxis)
+    const dragKey = resolveDragKey(intent)
+    const payload = buildSwipePayload(intent, axisKey, dragKey)
+    const base = buildSwipeBase(currentTarget, dragKey)
+
+    if (!base || !ensureLaneSize(base, currentTarget.laneId, currentTarget.swipeType)) {
+      resetLifecycle()
+      clearSwipeBase(currentTarget.laneId)
       return null
     }
 
-    if ((currentTarget.swipeType === 'slider' || currentTarget.swipeType === 'carousel')) {
-      const size = base.size?.[currentTarget.laneId]
-      if (!size || !Number.isFinite(size)) {
-        log('swipe', '[resolver] Missing lane size on commit, aborting', { laneId: currentTarget.laneId, size })
-        resetGestureTracking()
+    const axisDelta = payload.delta
+    const size = base.size?.[currentTarget.laneId] ?? getAxisSize(axisKey)
+    const commitAllowed = currentTarget.swipeType === 'carousel'
+      ? shouldCommitSwipeBySize(size, axisDelta, APP_SETTINGS.swipeCommitRatio)
+      : true
+
+    let descriptor = null
+
+    if (currentTarget.swipeType === 'carousel' && !commitAllowed) {
+      descriptor = {
+        type: 'swipeRevert',
+        laneId: currentTarget.laneId,
+        element: currentTarget.element,
+        swipeType: currentTarget.swipeType,
+        laneDirection: currentTarget.laneAxis
+      }
+    } else {
+      const deltaResult = computeCommitDelta({
+        payload,
+        target: currentTarget,
+        base,
+        parent: parentSizes(),
+        scale: scale.value
+      })
+
+      if (!deltaResult) {
+        resetLifecycle()
         clearSwipeBase(currentTarget.laneId)
         return null
       }
-    }
 
-    const deltaResult = computeCommitDelta({
-      payload,
-      target: currentTarget,
-      base,
-      parent: {
-        width: getAxisSize('x'),
-        height: getAxisSize('y')
+      const direction = deltaResult.direction || resolveDirection(axisKey, payload.delta) || lastSwipeDirection
+
+      descriptor = {
+        type: 'swipeCommit',
+        laneId: currentTarget.laneId,
+        axis: axisKey,
+        direction,
+        element: currentTarget.element,
+        swipeType: currentTarget.swipeType,
+        laneDirection: currentTarget.laneAxis,
+        ...(currentTarget.swipeType === 'drag'
+          ? { dragKey, absolute: deltaResult.absolute, delta: deltaResult.delta }
+          : { delta: deltaResult.delta })
       }
-    })
 
-const descriptor = {
-  type: 'swipeCommit',
-  laneId: currentTarget.laneId,
-  axis: payload.axis,
-  direction: payload.direction,
-  element: currentTarget.element,
-  swipeType: currentTarget.swipeType,
-  laneDirection: currentTarget.laneAxis,
-  ...(typeof deltaResult === 'object' ? deltaResult : { delta: deltaResult }),
-  ...(currentTarget.swipeType === 'drag' ? { dragKey: payload.dragKey, absolute: payload.absolute } : null)
-}
-
-    pressActive = false
-    swipeActive = false
-    pressedTarget = null
-    setCurrent(null)
-    resetGestureTracking()
-    clearSwipeBase(currentTarget.laneId)
-
-    return mergeDescriptors(descriptor, emitDeselect())
-  },
-  onSwipeRevert() {
-    if (!swipeActive || !currentTarget.element) {
-      pressActive = false
-      swipeActive = false
-      setCurrent(null)
-      resetGestureTracking()
-      return emitDeselect()
+      if (deltaResult.normalized !== undefined) {
+        descriptor.normalized = deltaResult.normalized
+        descriptor.normalizedPercent = deltaResult.normalizedPercent
+      }
     }
-    const descriptor = {
-      type: 'swipeRevert',
-      laneId: currentTarget.laneId,
-      element: currentTarget.element,
-      swipeType: currentTarget.swipeType,
-      laneDirection: currentTarget.laneAxis
-    }
-    pressActive = false
-    swipeActive = false
-    pressedTarget = null
-    setCurrent(null)
-    resetGestureTracking()
-    clearSwipeBase(currentTarget.laneId)
-    return mergeDescriptors(descriptor, emitDeselect())
+
+    const laneId = currentTarget.laneId
+    const result = mergeDescriptors(descriptor, emitDeselect())
+    resetLifecycle()
+    clearSwipeBase(laneId)
+    return result
   },
 
-  onPressRelease(intent) {
+  onPressRelease(intent = {}) {
+    const x = toNumber(intent.x)
+    const y = toNumber(intent.y)
     const target = pressedTarget
-    const hit = domRegistry.findIntentAt(intent.x, intent.y)
+    const hit = domRegistry.findIntentAt(x, y)
     const sameElement = target && hit?.element === target.element
 
     let descriptor = null
@@ -425,11 +481,7 @@ const descriptor = {
       }
     }
 
-    pressActive = false
-    swipeActive = false
-    pressedTarget = null
-    setCurrent(null)
-    resetGestureTracking()
+    resetLifecycle()
     return mergeDescriptors(descriptor, emitDeselect())
   },
 
@@ -438,18 +490,13 @@ const descriptor = {
 
     switch (currentTarget.swipeType) {
       case 'drag':
-        return true // drags are always allowed once lane is acquired
-
+        return true
       case 'slider':
-        // Only start if we have a lane and authoritative base
         return !!getLane(currentTarget.laneId)
-
-      case 'carousel':
-        // Use carouselState thresholds
-        if (shouldStartSwipeLane(currentTarget.laneId, delta)) return true
+      case 'carousel': {
         const size = getAxisSize(axis)
-        return shouldStartSwipeBySize(size, delta)
-
+        return shouldStartSwipeBySize(size, delta, APP_SETTINGS.swipeThresholdRatio)
+      }
       default:
         return false
     }
@@ -461,13 +508,11 @@ const descriptor = {
     switch (currentTarget.swipeType) {
       case 'drag':
       case 'slider':
-        return true // always commitable once started
-
-      case 'carousel':
-        if (shouldCommitSwipeLane(currentTarget.laneId, delta)) return true
+        return true
+      case 'carousel': {
         const size = getAxisSize(axis)
-        return shouldCommitSwipeBySize(size, delta)
-
+        return shouldCommitSwipeBySize(size, delta, APP_SETTINGS.swipeCommitRatio)
+      }
       default:
         return false
     }

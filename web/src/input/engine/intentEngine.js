@@ -67,41 +67,29 @@ function onMove(x, y) {
     if (state.phase === 'IDLE') return
 
     drawDots(x, y, 'yellow')
-    const deltaX = x - state.lastX
-    const deltaY = y - state.lastY
+    const deltaX = x - (state.lastX ?? state.startX)
+    const deltaY = y - (state.lastY ?? state.startY)
     const absX = Math.abs(deltaX)
     const absY = Math.abs(deltaY)
 
     // Detect swipe axis
     if (state.phase === 'PENDING') {
         const lockedAxis = absX > absY ? 'horizontal' : 'vertical'
-
-        // Escalate purely on movement; adapter decides ownership
         const result = engineAdapter.onSwipeStart({ x, y, lockedAxis })
-        if (!result.accepted) {
-            log('input', 'Swipe start rejected by adapter')
-            engineAdapter.onPressRelease({
-                type: 'pressRelease',
-                x: state.startX,
-                y: state.startY
-            })
-            state.phase = 'IDLE'
-            state.mode = null    
-            state.lastX = null
-            state.lastY = null
-            return
+        if (result.accepted) {
+            state.phase = 'SWIPING'
+            state.mode = result.mode
+            log('input', '[ACCEPTED] Swipe by adapter', result)
+            log('swipe', 'Swiping started, mode:', state.mode)
+        } else {
+            log('input', '[PENDING] Swipe not yet accepted', result)
+            // log('input', deltaX, deltaY)
         }
-        // intentEngine only detects gesture intent.
-        // It must not check swipe capability or target policy.
-        state.phase = 'SWIPING'
-        state.mode = result.mode
-        log('swipe', 'Swiping started, mode:', state.mode)
     }
-
     // Track swipe delta on locked axis
     if (state.phase === 'SWIPING') {
-        const deltaX = x - (state.lastX ?? state.startX)
-        const deltaY = y - (state.lastY ?? state.startY)
+        deltaX = x - (state.lastX ?? state.startX)
+        deltaY = y - (state.lastY ?? state.startY)
 
         state.lastX = x
         state.lastY = y

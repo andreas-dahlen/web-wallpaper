@@ -1,5 +1,5 @@
-import { APP_SETTINGS } from '../config/appSettings'
 import { reactive } from 'vue'
+import { clampNumber } from '../input/math/clampMath'
 
 /* -------------------------
    Central swipe state
@@ -29,12 +29,12 @@ export function ensureLane(laneId) {
 export function setLaneCount(laneId, count) {
   const lane = ensureLane(laneId)
   lane.count = Math.max(0, count)
-  lane.index = clamp(lane.index, 0, lane.count - 1)
+  lane.index = clampNumber(lane.index, 0, lane.count - 1)
 }
 
 export function setLaneIndex(laneId, index) {
   const lane = ensureLane(laneId)
-  lane.index = clamp(index, 0, lane.count - 1)
+  lane.index = clampNumber(index, 0, lane.count - 1)
   lane.offset = 0
   lane.pendingDir = null
 }
@@ -96,37 +96,4 @@ export function getLaneCommittedOffset(laneId) {
 export function getLaneSize(laneId) {
   const lane = getLane(laneId)
   return lane ? lane.size : 0
-}
-
-/* -------------------------
-   Swipe thresholds
--------------------------- */
-export function shouldStartSwipeLane(laneId, delta) {
-  const lane = getLane(laneId)
-  if (!lane) return false
-  return shouldStartSwipeBySize(lane.size, delta)
-}
-
-export function shouldCommitSwipeLane(laneId, delta) {
-  const lane = getLane(laneId)
-  if (!lane) return false
-  return shouldCommitSwipeBySize(lane.size, delta)
-}
-
-export function shouldStartSwipeBySize(size, delta) {
-  if (!size) return false
-  return Math.abs(delta) >= size * APP_SETTINGS.swipeThresholdRatio
-}
-
-export function shouldCommitSwipeBySize(size, delta) {
-  if (!size) return false
-  return Math.abs(delta) >= size * APP_SETTINGS.swipeCommitRatio
-}
-
-/* -------------------------
-   Utility
--------------------------- */
-function clamp(v, min, max) {
-  if (max < min) return min
-  return Math.min(Math.max(v, min), max)
 }

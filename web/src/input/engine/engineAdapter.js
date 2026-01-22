@@ -37,13 +37,16 @@ export const engineAdapter = {
         log('adapter', '[POINTER-PRESSED]', intent)
     },
 
-    onSwipeStart(intent) {
-        const descriptor = reactionResolver.onSwipeStart(intent)
-        forward(descriptor)
-        log('adapter', '[SWIPE-START]', intent)
-        // Must return accepted + mode for intentEngine
-        return { accepted: !!descriptor, mode: intent.mode ?? 'both' }
-    },
+onSwipeStart(intent) {
+    const result = reactionResolver.onSwipeStart(intent) || {
+        reactions: null,
+        intent: { accepted: false, mode: null }
+    }
+    console.log(result)
+    forward(result.reactions)
+    log('adapter', '[SWIPE-START]', intent)
+    return result.intent
+},
 
     onSwipe(intent) {
         forward(reactionResolver.onSwipe(intent))

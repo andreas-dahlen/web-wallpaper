@@ -36,11 +36,6 @@ export const gestureState = reactive({
 -------------------------- */
 const ZERO_POS = { x: 0, y: 0 }
 
-function keyFromIntent(intent) {
-  // Prefer explicit dragId, fall back to laneId, else a shared key
-  return intent?.dragId || intent?.laneId || 'default'
-}
-
 function getLastKnown(key) {
   return gestureState.dragPositions[key] || ZERO_POS
 }
@@ -59,13 +54,17 @@ export function resetGestureTracking() {
   gestureState.swipeBases = {}
 }
 
-export function beginGestureTracking(x, y, swipeType) {
+export function beginGestureTracking({ x = 0, y = 0, swipeType }) {
   gestureState.active = true
   gestureState.startX = x
   gestureState.startY = y
   gestureState.lastX = x
   gestureState.lastY = y
   gestureState.swipeType = swipeType || null
+}
+
+export function getGestureStart() {
+  return { x: gestureState.startX, y: gestureState.startY }
 }
 
 /* -------------------------
@@ -92,27 +91,7 @@ export function clearSwipeBase(lane) {
  * Attaches a 2D delta based on gesture start and last-known absolute position.
  * Delta is simple: (current - start) + lastKnown.
  */
-export function attachDragDelta(intent) {
-  if (!gestureState.active || gestureState.swipeType !== 'drag') return intent
-
-  const key = keyFromIntent(intent)
-  const base = getLastKnown(key) || ZERO_POS
-
-  const delta = {
-    x: (intent.x - gestureState.startX) + base.x,
-    y: (intent.y - gestureState.startY) + base.y
-  }
-
-  gestureState.lastX = intent.x
-  gestureState.lastY = intent.y
-
-  return {
-    ...intent,
-    delta,
-    dragKey: key,
-    absolute: delta // same as delta for clarity; represents applied position
-  }
-}
+// Drag bases are persisted by renderer; computations live in math helpers.
 
 /* -------------------------
    Drag position persistence
