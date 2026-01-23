@@ -17,5 +17,7 @@ export const DEBUG = {
 
   drag: true,
 
+  resolver: true,
+  
   init: 'always'
 }

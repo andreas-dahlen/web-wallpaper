@@ -59,8 +59,8 @@ const scaledWidth = computed(() => device.value.width * scale.value)
 const scaledHeight = computed(() => device.value.height * scale.value)
 
 export function getAxisSize(axis) {
-  if (axis === 'horizontal' || axis === 'x') return scaledWidth.value
-  if (axis === 'vertical' || axis === 'y') return scaledHeight.value
+  if (axis === 'horizontal') return scaledWidth.value
+  if (axis === 'vertical') return scaledHeight.value
   return 0
 }
 

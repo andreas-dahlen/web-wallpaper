@@ -13,9 +13,9 @@ function clamp01(value) {
   return clampNumber(value, 0, 1)
 }
 
-export function normalizeAxis(axis, fallback = 'x') {
-  if (axis === 'vertical' || axis === 'y') return 'y'
-  if (axis === 'horizontal' || axis === 'x') return 'x'
+export function normalizeAxis(axis, fallback = 'both') {
+  if (axis === 'vertical' || axis === 'y') return 'vertical'
+  if (axis === 'horizontal' || axis === 'x') return 'horizontal'
   return fallback
 }
 
@@ -105,6 +105,10 @@ export function clampDelta2D({ type, delta, base, parent }) {
       : undefined
 
   return { clamped, normalized }
+}
+
+export function swipeThresholdCalc(value) {
+    return true
 }
 
 export function shouldStartSwipeBySize(size, delta, ratio = APP_SETTINGS.swipeThresholdRatio) {

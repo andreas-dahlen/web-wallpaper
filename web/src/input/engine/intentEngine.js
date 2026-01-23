@@ -24,19 +24,16 @@
 
 import { log, drawDots } from '../../debug/functions'
 import { engineAdapter } from './engineAdapter'
+import { swipeThresholdCalc } from '../math/clampMath'
 
 // Gesture state (no DOM refs)
 const state = {
-    phase: 'IDLE',        // lifecycle of the gesture recognizer
-    startX: 0,            // pointer position at press
-    startY: 0,
-    lastX: 0,
-    lastY: 0,            // pointer position at press
-    mode: null,           // 'horizontal' | 'vertical' | 'both'
-    totalDelta: {
-        x: 0,
-        y: 0
-    }   // total accumulated movement {x, y}
+    phase: 'IDLE',            // gesture lifecycle
+    start: { x: 0, y: 0 },    // initial pointer down
+    last: { x: 0, y: 0 },     // last pointer position
+    lockAxis: false,           // true if swipe locked
+    mode: 'both',              // horizontal / vertical / both
+    totalDelta: { x: 0, y: 0 } // accumulated delta
 }
 
 export const intentEngine = {
@@ -51,11 +48,12 @@ function onDown(x, y) {
     log('input', `[@DOWN] X = ${x} Y = ${y}`)
 
     state.phase = 'PENDING'
-    state.startX = x
-    state.startY = y
-    state.lastX = x
-    state.lastY = y
-    state.mode = null
+    state.start.x = x
+    state.start.y = y
+    state.last.x = x
+    state.last.y = y
+    state.lockAxis = false
+    state.mode = 'both'
     state.totalDelta.x = 0
     state.totalDelta.y = 0
 
@@ -67,32 +65,35 @@ function onMove(x, y) {
     if (state.phase === 'IDLE') return
 
     drawDots(x, y, 'yellow')
-    const deltaX = x - (state.lastX ?? state.startX)
-    const deltaY = y - (state.lastY ?? state.startY)
+
+    // Compute deltas
+    const deltaX = x - (state.last.x ?? state.start.x)
+    const deltaY = y - (state.last.y ?? state.start.y)
     const absX = Math.abs(deltaX)
     const absY = Math.abs(deltaY)
-
-    // Detect swipe axis
+    const biggest = absX > absY ? absX : absY
     if (state.phase === 'PENDING') {
-        const lockedAxis = absX > absY ? 'horizontal' : 'vertical'
-        const result = engineAdapter.onSwipeStart({ x, y, lockedAxis })
-        if (result.accepted) {
-            state.phase = 'SWIPING'
-            state.mode = result.mode
-            log('input', '[ACCEPTED] Swipe by adapter', result)
-            log('swipe', 'Swiping started, mode:', state.mode)
-        } else {
-            log('input', '[PENDING] Swipe not yet accepted', result)
-            // log('input', deltaX, deltaY)
+        if (swipeThresholdCalc(biggest)) {
+            const proposedAxis = absX > absY ? 'horizontal' : 'vertical'
+            const { accepted, lockAxis } = engineAdapter.onSwipeStart({ x, y, proposedAxis })
+            log('input', 'accepted: ', accepted, 'lockAxis: ', lockAxis)
+            if (accepted) {
+                state.phase = 'SWIPING'
+                state.lockAxis = lockAxis
+                state.mode = lockAxis ? proposedAxis : 'both'
+                log('input', '[ACCEPTED] Swipe by adapter', { x, y, proposedAxis, lockAxis })
+                log('swipe', 'Swiping started, mode:', state.mode)
+            } else {
+                // log('input', '[PENDING] Swipe not yet accepted', { x, y, proposedAxis })
+            }
         }
     }
-    // Track swipe delta on locked axis
-    if (state.phase === 'SWIPING') {
-        deltaX = x - (state.lastX ?? state.startX)
-        deltaY = y - (state.lastY ?? state.startY)
 
-        state.lastX = x
-        state.lastY = y
+    // Track swipe delta
+    if (state.phase === 'SWIPING') {
+
+        state.last.x = x
+        state.last.y = y
 
         if (state.mode === 'horizontal') {
             state.totalDelta.x += deltaX
@@ -105,8 +106,8 @@ function onMove(x, y) {
 
         engineAdapter.onSwipe({
             type: 'swipe',
-            mode: state.mode,
-            totalDelta: state.totalDelta
+            axis: state.mode,
+            totalDelta: { ...state.totalDelta }
         })
     }
 }
@@ -114,37 +115,34 @@ function onMove(x, y) {
 function onUp() {
     if (state.phase !== 'SWIPING' && state.phase !== 'PENDING') {
         log('init', 'state.phase error: ', state.phase)
-        state.phase = 'IDLE'
-        state.mode = null
-        state.lastX = null
-        state.lastY = null
+        resetState()
         return
     }
     if (state.phase === 'SWIPING')
         engineAdapter.onSwipeEnd({
             type: 'swipe-end',
-            mode: state.mode,
-            totalDelta: state.totalDelta
+            axis: state.mode,
+            totalDelta: { ...state.totalDelta }
         })
 
     else if (state.phase === 'PENDING') {
         // Pointer up without swipe → release
         engineAdapter.onPressRelease({
             type: 'pressRelease',
-            x: state.startX,
-            y: state.startY
+            x: state.start.x,
+            y: state.start.y
         })
     }
-    state.phase = 'IDLE'
-    state.mode = null
-    state.lastX = null
-    state.lastY = null
+    resetState()
 }
 
-// function getSwipeDirection(axis, delta) {
-//     if (axis === 'horizontal') {
-//         return delta > 0 ? 'right' : 'left'
-//     }
-//     return delta > 0 ? 'down' : 'up'
-// }
-//DEPRECATED FUCNTION. WILL BE MOVED BASICALLY...
+// Helper: reset all gesture state
+function resetState() {
+    state.phase = 'IDLE'
+    state.lockAxis = false
+    state.mode = null
+    state.last.x = null
+    state.last.y = null
+    state.totalDelta.x = 0
+    state.totalDelta.y = 0
+}

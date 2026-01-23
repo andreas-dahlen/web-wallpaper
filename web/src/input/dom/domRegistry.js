@@ -9,26 +9,16 @@
 import { log } from '../../debug/functions'
 
 export const domRegistry = {
-    // ------------------------
+  // ------------------------
   // Lane-switch helpers
   // ------------------------
-    swipeAllowedForType(target, axis) {
-  if (!target?.element) return false
-  if (target.swipeType === 'drag') return true
-  const dir = target.laneAxis ?? target.direction
+  swipeAllowedForType(target, axis) {
+    if (!target?.element) return false
+    if (target.swipeType === 'drag') return true
 
-  // Allow press-only elements to yield to lanes
-  if (!dir && target.reactions?.press) return true
-
-  if (dir === 'both') return true
-  return dir === axis
-},
-  
-  // Optional helper: check if a lane under the pointer can accept a swipe for this axis
-  findLaneForSwipe(x, y, axis) {
-    const lane = this.findLaneByAxis(x, y, axis)
-    if (!lane) return null
-    return lane
+    if (!target.axis) return false
+    if (target.axis === 'both') return true
+    return target.axis === axis
   },
 
   // ------------------------
@@ -37,19 +27,26 @@ export const domRegistry = {
   findLaneAt(x, y) {
     const elements = document.elementsFromPoint(x, y)
     const el = elements.find(el => el.dataset?.lane)
-    log('dom', 'Element not found')
-    if (!el) return null
-    const dir = el.dataset.direction
-    const type = el.dataset.swipeType
-    if (!dir || !type) {
+
+    if (!el) {
+      log('dom', 'lane not found')
+      return null
+    }
+
+    const axis = el.dataset.direction
+    const swipeType = el.dataset.swipeType
+
+    if (!axis || !swipeType) {
       console.warn('[domRegistry] lane missing direction/swipeType', el)
       return null
     }
-    log('dom', 'found lane: ', el)
+
+    log('dom', 'found lane:', el)
+
     return {
       laneId: el.dataset.lane,
-      direction: dir,
-      swipeType: type,
+      axis,
+      swipeType,
       element: el
     }
   },
@@ -58,25 +55,19 @@ export const domRegistry = {
     const elements = document.elementsFromPoint(x, y)
     const el = elements.find(el => {
       const ds = el.dataset || {}
-      const lane = ds.lane
-      const dir = ds.direction
-      const type = ds.swipeType
-      if (!lane || !dir || !type) return false
-      if (dir === 'both') return true
-      return dir === axis
+      if (!ds.lane || !ds.direction || !ds.swipeType) return false
+      if (ds.direction === 'both') return true
+      return ds.direction === axis
     })
+
     if (!el) return null
-    const dir = el.dataset.direction
-    const type = el.dataset.swipeType
-    if (!dir || !type) {
-      console.warn('[domRegistry] lane missing direction/swipeType', el)
-      return null
-    }
-    log('dom', 'found lane by axis: ', dir, el)
+
+    log('dom', 'found lane by axis:', el.dataset.direction, el)
+
     return {
       laneId: el.dataset.lane,
-      direction: dir,
-      swipeType: type,
+      axis: el.dataset.direction,
+      swipeType: el.dataset.swipeType,
       element: el
     }
   },
@@ -88,7 +79,9 @@ export const domRegistry = {
     const elements = document.elementsFromPoint(x, y)
     const el = elements.find(el => el.dataset?.action)
     if (!el) return null
-    log('dom', 'found action at: ', el, el.dataset.action)
+
+    log('dom', 'found action:', el, el.dataset.action)
+
     return {
       actionId: el.dataset.action,
       element: el
@@ -100,7 +93,7 @@ export const domRegistry = {
   // ------------------------
   /**
    * Resolve the top-most element that declares intent.
-   * Returns { element, laneId?, direction?, actionId?, pressable?, swipeable?, selectable?, deselectable?, reactions }
+   * Returns { element, laneId?, axis?, actionId?, pressable?, swipeable?, selectable?, deselectable?, reactions }
    */
   findIntentAt(x, y) {
     const elements = document.elementsFromPoint(x, y)
@@ -126,18 +119,34 @@ export const domRegistry = {
     })
 
     if (!el) return null
+
     const ds = el.dataset || {}
 
     const laneId = ds.lane || null
-    const laneDirection = ds.direction || null
-    const laneSwipeType = ds.swipeType || null
-    const laneValid = !laneId || (laneDirection && laneSwipeType)
-    if (laneId && !laneValid) {
+    const axis = ds.direction || null
+    const swipeType = ds.swipeType || null
+
+    const isLane = Boolean(laneId)
+    const laneValid = !isLane || (axis && swipeType)
+
+    if (isLane && !laneValid) {
       console.warn('[domRegistry] lane missing direction/swipeType', el)
     }
 
-    const pressDeclared = ds.press !== undefined || ds.reactPress !== undefined || ds.reactPressRelease !== undefined || ds.action !== undefined
-    const swipeDeclared = ds.swipe !== undefined || ds.reactSwipe !== undefined || ds.reactSwipeStart !== undefined || ds.reactSwipeCommit !== undefined || ds.reactSwipeRevert !== undefined || (laneId && laneValid)
+    const pressDeclared =
+      ds.press !== undefined ||
+      ds.reactPress !== undefined ||
+      ds.reactPressRelease !== undefined ||
+      ds.action !== undefined
+
+    const hasSwipeReaction =
+      ds.swipe !== undefined ||
+      ds.reactSwipe !== undefined ||
+      ds.reactSwipeStart !== undefined ||
+      ds.reactSwipeCommit !== undefined ||
+      ds.reactSwipeRevert !== undefined
+
+    const swipeDeclared = hasSwipeReaction || (laneId && laneValid)
     const cancelDeclared = ds.reactPressCancel !== undefined || pressDeclared || swipeDeclared
     const selectDeclared = ds.reactSelected !== undefined || pressDeclared || swipeDeclared
     const deselectDeclared = ds.reactDeselected !== undefined || selectDeclared
@@ -145,9 +154,9 @@ export const domRegistry = {
     return {
       element: el,
       laneId: laneValid ? laneId : null,
-      direction: laneValid ? laneDirection : null,
+      axis: laneValid ? axis : null,
       actionId: ds.action || null,
-      swipeType: laneValid ? laneSwipeType : null,
+      swipeType: laneValid ? swipeType : null,
       pressable: pressDeclared,
       swipeable: swipeDeclared,
       selectable: selectDeclared,

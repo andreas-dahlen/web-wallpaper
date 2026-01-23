@@ -52,7 +52,6 @@
 	delta?: number | { x: number, y: number },
 	actionId?: string,
 	swipeType?: 'drag' | 'slider' | 'carousel',
-	laneDirection?: 'x' | 'y',
 	commitStrategy?: string,
 	normalized?: number,
 	normalizedPercent?: number,
