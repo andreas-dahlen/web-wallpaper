@@ -7,17 +7,17 @@ export const DEBUG = {
 
   lagTime: false,
 
-  swipe: true,
+  swipe: false,
 
-  dom: false,
+  dom: true,
 
-  input: true,
+  input: false,
 
   adapter: false,
 
-  drag: true,
+  drag: false,
 
-  resolver: true,
-  
+  resolver: false,
+
   init: 'always'
 }

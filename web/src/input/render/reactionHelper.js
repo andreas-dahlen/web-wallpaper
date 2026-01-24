@@ -86,7 +86,7 @@ export function emitDeselect(lifecycle) {
 
 export function normalizeTarget(target) {
   if (!target) return null
-
+  
   return {
     element: target.element ?? null,
     laneId: target.laneId ?? null,

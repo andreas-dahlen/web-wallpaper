@@ -9,35 +9,12 @@ import {
   resolveAxis,
   resolveDragKey,
   buildSwipePayload,
-  resetLifecycle
+  resetgestureCycle
 } from './reactionHelper'
 import { domRegistry } from '../dom/domRegistry'
+import { gestureCycle } from './gestureCycle'
 import { log } from '../../debug/functions'
 
-/* ------------------------------------------------------------------ */
-/* constants                                                          */
-/* ------------------------------------------------------------------ */
-export const EMPTY_TARGET = {
-  element: null,
-  laneId: null,
-  swipeType: null,
-  axis: 'both',
-  reactions: {}
-}
-
-/* ------------------------------------------------------------------ */
-/* lifecycle (single source of truth)                                  */
-/* ------------------------------------------------------------------ */
-const lifecycle = {
-  currentTarget: null,
-  pressActive: false,
-  swipeActive: false,
-  pressedTarget: null,
-  selectedElement: null,
-  lastSwipeDirection: null,
-  swipeAxis: 'both',
-  dragKey: null
-}
 
 /* ------------------------------------------------------------------ */
 /* resolver                                                           */
@@ -45,156 +22,96 @@ const lifecycle = {
 export const reactionResolver = {
   onPress(intent) {
     const { x, y } = intent
-    const found = domRegistry.findIntentAt(x, y)
-    if (!found) {
+    const target = domRegistry.findElementAt(x, y)
+    if (!target) {
+      gestureCycle.resetAll()
       return {
         reactions: null,
         feedback: { accepted: false, lockAxis: false }
       }
     }
-    const target = normalizeTarget(found)
-    lifecycle.pressActive = true
-    lifecycle.pressedTarget = target
-    setCurrent(target, lifecycle)
-    
-    log('resolver', '[onPress] intent:', intent, 'lifecycle:', lifecycle)
-    let descriptor = null
-    if (supports('select', lifecycle)) {
-      descriptor = emitSelect(target, lifecycle)
-    } else if (supports('press', lifecycle)) {
-      descriptor = {
-        type: 'press',
-        element: target.element,
-        laneId: target.laneId,
-        axis: target.axis,
-        swipeType: target.swipeType,
-        actionId: target.actionId
-      }
-    }
+    gestureCycle.pressActive = true
+    gestureCycle.setCurrent(target)
 
-    return {
-      reactions: descriptor || null,
-      feedback: { accepted: !!descriptor, lockAxis: false }
+    if (supports('press', target)) {
+      const descriptor = reactionHelper.buildPressDescriptor(intent, target)
+      return { reactions: descriptor || null }
     }
   },
 
   onSwipeStart(intent) {
     const { x, y, proposedAxis } = intent
-    log('resolver', '[onSwipeStart] intent:', intent, 'lifecycle:', lifecycle)
-    if (!lifecycle.pressActive || !lifecycle.currentTarget) {
-      return { reactions: null, feedback: { accepted: false, lockAxis: false } }
-    }
-
-    const current = lifecycle.currentTarget
+    const target = gestureCycle.currentTarget
     let accepted = false
     let lockAxis = false
-    let descriptor = null
 
+    if (!gestureCycle.pressActive || !gestureCycle.currentTarget) {
+      return { reactions: null, feedback: { accepted: false, lockAxis: false } }
+    }
     // Check if current target supports this swipe axis
-    if (domRegistry.swipeAllowedForType(current, proposedAxis)) {
-      lifecycle.swipeActive = true
+    if (supports(proposedAxis, target)) {
+      gestureCycle.swipeActive = true
+      gestureCycle.pressActive = false
+      gestureCycle.swipeAxis = target.axis
       accepted = true
-      lockAxis = current.swipeType !== 'drag'
+      lockAxis = target.swipeType !== 'drag'
+      const descriptor = reactionHelper.buildSwipeStartDescriptor(intent, gestureCycle.currentTarget, null)
+      return {
+        reactions: descriptor || null,
+        feedback: { accepted, lockAxis }
+      }
     } else {
       // Try to find another lane under the pointer that supports this axis
       const newTarget = domRegistry.findLaneByAxis(x, y, proposedAxis)
       if (newTarget) {
-        setCurrent(newTarget, lifecycle)
-        lifecycle.pressedTarget = null
-        lifecycle.swipeActive = true
+        gestureCycle.setCurrent(newTarget)
+        gestureCycle.swipeActive = true
+        gestureCycle.pressActive = false
+        gestureCycle.swipeAxis = newTarget.axis
         accepted = true
         lockAxis = newTarget.swipeType !== 'drag'
+        //for pressCancel on previousTarget
+        const descriptor = reactionHelper.buildSwipeStartDescriptor(intent, gestureCycle.currentTarget, gestureCycle.previousTarget)
+        return {
+          reactions: descriptor || null,
+          feedback: { accepted, lockAxis }
+        }
       }
-    }
-
-    if (accepted) {
-      const axis = resolveAxis({ axis: proposedAxis }, lifecycle.currentTarget.axis)
-      lifecycle.swipeAxis = axis
-      lifecycle.dragKey = resolveDragKey(intent, lifecycle)
-      descriptor = {
-        type: 'swipeStart',
-        element: lifecycle.currentTarget.element,
-        laneId: lifecycle.currentTarget.laneId,
-        swipeType: lifecycle.currentTarget.swipeType,
-        axis,
-        dragKey: lifecycle.dragKey
-      }
-    }
-
-    return {
-      reactions: descriptor, // null if nothing to forward
-      feedback: { accepted, lockAxis }
     }
   },
 
   onSwipe(intent) {
-    if (!lifecycle.swipeActive || !supports('swipe', lifecycle)) return null
-
-    const axis = lifecycle.swipeAxis || resolveAxis(intent, lifecycle.currentTarget.axis)
-    lifecycle.swipeAxis = axis
-
-    const dragKey = lifecycle.dragKey || resolveDragKey(intent, lifecycle)
-    lifecycle.dragKey = dragKey
-
-    const payload = buildSwipePayload(intent, axis, dragKey)
-    lifecycle.lastSwipeDirection = payload.direction || lifecycle.lastSwipeDirection
-
+    if (!gestureCycle.swipeActive || !supports('swipe', gestureCycle.currentTarget)) return null
+    const descriptor = reactionHelper.buildSwipeDescriptor(intent, gestureCycle.currentTarget)
+    gestureCycle.pressActive = false
     return {
-      type: 'swipe',
-      element: lifecycle.currentTarget.element,
-      laneId: lifecycle.currentTarget.laneId,
-      swipeType: lifecycle.currentTarget.swipeType,
-      axis: payload.axis,
-      direction: payload.direction,
-      delta: payload.delta,
-      dragKey
+      reactions: descriptor || null
     }
   },
 
   onSwipeEnd(intent = {}) {
-    if (!lifecycle.swipeActive) return null
-
-    const type = supports('swipeCommit', lifecycle)
-      ? 'swipeCommit'
-      : 'swipeRevert'
-
-    const payload = buildSwipePayload(intent, lifecycle.swipeAxis, lifecycle.dragKey)
-    const descriptor = {
-      type,
-      element: lifecycle.currentTarget?.element || null,
-      laneId: lifecycle.currentTarget?.laneId || null,
-      swipeType: lifecycle.currentTarget?.swipeType || null,
-      axis: lifecycle.swipeAxis,
-      direction: payload.direction || lifecycle.lastSwipeDirection,
-      delta: payload.delta,
-      dragKey: lifecycle.dragKey
-    }
-
-    resetLifecycle(lifecycle)
-    return descriptor
-  },
-
-  onPressRelease() {
-    if (!lifecycle.pressActive || lifecycle.swipeActive) {
-      resetLifecycle(lifecycle)
+    if (!gestureCycle.swipeActive || !supports('swipeCommit', gestureCycle.currentTarget)) {
+      gestureCycle.resetAll()
       return null
     }
+    gestureCycle.swipeActive = false
+    const descriptor = reactionHelper.buildSwipeDescriptor(intent, gestureCycle.currentTarget)
+    gestureCycle.resetAll()
+    return {
+      reactions: descriptor || null
+    }
+  },
 
-    const descriptor = mergeDescriptors(
-      supports('pressRelease', lifecycle)
-        ? {
-            type: 'pressRelease',
-            element: lifecycle.currentTarget?.element,
-            laneId: lifecycle.currentTarget?.laneId,
-            axis: lifecycle.currentTarget?.axis,
-            swipeType: lifecycle.currentTarget?.swipeType,
-            actionId: lifecycle.currentTarget?.actionId
-          }
-        : null,
-      emitDeselect(lifecycle)
-    )
-
-    resetLifecycle(lifecycle)
-    return descriptor
+  onPressRelease(intent) {
+    if (!gestureCycle.pressActive || gestureCycle.swipeActive || !supports('pressRelease', gestureCycle.currentTarget)) {
+      gestureCycle.resetAll()
+      return null
+    }
+    gestureCycle.pressActive = false
+    const descriptor = reactionHelper.buildSwipeDescriptor(intent, gestureCycle.currentTarget)
+    gestureCycle.resetAll()
+    return {
+      reactions: descriptor || null
+    }
   }
 }
