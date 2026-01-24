@@ -63,7 +63,7 @@ function handleAndroidTouch(type, x, y, seqId) {
       intentEngine.onMove(x, y)
       break
     case 'up':
-      intentEngine.onUp()
+      intentEngine.onUp(x, y)
       break
   }
 }
@@ -76,6 +76,6 @@ function onPointerMove(e) {
   intentEngine.onMove(e.clientX, e.clientY)
 }
 
-function onPointerUp() {
-  intentEngine.onUp()
+function onPointerUp(e) {
+  intentEngine.onUp(e.clientX, e.cluentY)
 }

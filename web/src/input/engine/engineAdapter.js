@@ -16,38 +16,51 @@ function forward(descriptor) {
   renderer.handleReaction(descriptor)
 }
 
+function forwardReactions(result) {
+  if (!result) return
+  // If this is an envelope, only forward actual reactions
+  if ('reactions' in result) {
+    if (!result.reactions) return
+    forward(result.reactions)
+    return
+  }
+  // Otherwise assume it's already a descriptor or array
+  forward(result)
+}
+
 export const engineAdapter = {
   onPress(intent) {
-    const descriptor = reactionResolver.onPress(intent)
-    forward(descriptor?.reactions)
+    const result = reactionResolver.onPress(intent)
+    forwardReactions(result)
     log('adapter', '[POINTER-PRESSED]', intent)
   },
 
   onSwipeStart(intent) {
-    const descriptor = reactionResolver.onSwipeStart(intent)
-    forward(descriptor?.reactions)
+    const result = reactionResolver.onSwipeStart(intent)
+    forwardReactions(result)
     log('adapter', '[SWIPE-START]', intent)
+
     return {
-      accepted: !!descriptor?.intent?.accepted,
-      lockAxis: !!descriptor?.intent?.lockAxis
+      accepted: !!result?.feedback?.accepted,
+      lockAxis: !!result?.feedback?.lockAxis
     }
   },
 
   onSwipe(intent) {
-    const descriptor = reactionResolver.onSwipe(intent)
-    forward(descriptor)
+    const result = reactionResolver.onSwipe(intent)
+    forwardReactions(result)
     log('adapter', '[SWIPE]', intent)
   },
 
   onSwipeEnd(intent) {
-    const descriptor = reactionResolver.onSwipeEnd(intent)
-    forward(descriptor)
+    const result = reactionResolver.onSwipeEnd(intent)
+    forwardReactions(result)
     log('adapter', '[SWIPE-END]', intent)
   },
 
   onPressRelease(intent) {
-    const descriptor = reactionResolver.onPressRelease(intent)
-    forward(descriptor)
+    const result = reactionResolver.onPressRelease(intent)
+    forwardReactions(result)
     log('adapter', '[POINTER-RELEASED]', intent)
   }
 }

@@ -107,12 +107,12 @@ function onMove(x, y) {
         engineAdapter.onSwipe({
             type: 'swipe',
             axis: state.mode,
-            totalDelta: { ...state.totalDelta }
+            delta: shapeDeltaForMode(state.mode, state.totalDelta)
         })
     }
 }
 
-function onUp() {
+function onUp(x, y) {
     if (state.phase !== 'SWIPING' && state.phase !== 'PENDING') {
         log('init', 'state.phase error: ', state.phase)
         resetState()
@@ -122,15 +122,15 @@ function onUp() {
         engineAdapter.onSwipeEnd({
             type: 'swipe-end',
             axis: state.mode,
-            totalDelta: { ...state.totalDelta }
+            delta: shapeDeltaForMode(state.mode, state.totalDelta)
         })
 
     else if (state.phase === 'PENDING') {
         // Pointer up without swipe → release
         engineAdapter.onPressRelease({
             type: 'pressRelease',
-            x: state.start.x,
-            y: state.start.y
+            x: x,
+            y: y
         })
     }
     resetState()
@@ -145,4 +145,10 @@ function resetState() {
     state.last.y = null
     state.totalDelta.x = 0
     state.totalDelta.y = 0
+}
+
+function shapeDeltaForMode(mode, totalDelta) {
+    if (mode === 'horizontal') return totalDelta.x
+    if (mode === 'vertical') return totalDelta.y
+    return { x: totalDelta.x, y: totalDelta.y }
 }

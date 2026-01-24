@@ -44,20 +44,19 @@
 ## Reaction Descriptor Contract
 ```
 {
-	type: string,
-	element?: HTMLElement,
-	laneId?: string,
-	axis?: 'x' | 'y',
-	direction?: 'left' | 'right' | 'up' | 'down',
-	delta?: number | { x: number, y: number },
-	actionId?: string,
-	swipeType?: 'drag' | 'slider' | 'carousel',
-	commitStrategy?: string,
-	normalized?: number,
-	normalizedPercent?: number,
-	absolute?: { x: number, y: number },
-	dragKey?: string,
-	raw?: { x: number, y: number }
+  type: string,                          // 'press', 'pressRelease', 'swipe', 'swipeCommit', 'swipeRevert', 'select', 'deselect'
+  element?: HTMLElement,                 // target DOM element
+  laneId?: string,                       // for sliders/carousels
+  axis?: 'horizontal' | 'vertical' | 'both',  // resolved swipe axis
+  direction?: 'left' | 'right' | 'up' | 'down', // optional, for commits/reverts
+  delta?: { x: number, y: number },     // cumulative movement from intentEngine
+  actionId?: string,                     // optional for action elements
+  swipeType?: 'drag' | 'slider' | 'carousel', // used by renderer to decide application
+  dragKey?: string,                      // for drag persistence (2D drags)
+  feedback?: {                           // only for engineAdapter
+    accepted: boolean,
+    lockAxis: boolean
+  }
 }
 ```
 - Slider/carousel deltas are numeric; drag deltas are {x, y} with absolute positions for persistence.

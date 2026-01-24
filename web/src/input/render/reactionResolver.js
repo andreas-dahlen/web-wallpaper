@@ -34,7 +34,9 @@ const lifecycle = {
   swipeActive: false,
   pressedTarget: null,
   selectedElement: null,
-  lastSwipeDirection: null
+  lastSwipeDirection: null,
+  swipeAxis: 'both',
+  dragKey: null
 }
 
 /* ------------------------------------------------------------------ */
@@ -47,7 +49,7 @@ export const reactionResolver = {
     if (!found) {
       return {
         reactions: null,
-        intent: { accepted: false, lockAxis: false }
+        feedback: { accepted: false, lockAxis: false }
       }
     }
     const target = normalizeTarget(found)
@@ -60,12 +62,19 @@ export const reactionResolver = {
     if (supports('select', lifecycle)) {
       descriptor = emitSelect(target, lifecycle)
     } else if (supports('press', lifecycle)) {
-      descriptor = { type: 'press', element: target.element }
+      descriptor = {
+        type: 'press',
+        element: target.element,
+        laneId: target.laneId,
+        axis: target.axis,
+        swipeType: target.swipeType,
+        actionId: target.actionId
+      }
     }
 
     return {
       reactions: descriptor || null,
-      intent: { accepted: !!descriptor, lockAxis: false }
+      feedback: { accepted: !!descriptor, lockAxis: false }
     }
   },
 
@@ -73,7 +82,7 @@ export const reactionResolver = {
     const { x, y, proposedAxis } = intent
     log('resolver', '[onSwipeStart] intent:', intent, 'lifecycle:', lifecycle)
     if (!lifecycle.pressActive || !lifecycle.currentTarget) {
-      return { reactions: null, intent: { accepted: false, lockAxis: false } }
+      return { reactions: null, feedback: { accepted: false, lockAxis: false } }
     }
 
     const current = lifecycle.currentTarget
@@ -86,7 +95,6 @@ export const reactionResolver = {
       lifecycle.swipeActive = true
       accepted = true
       lockAxis = current.swipeType !== 'drag'
-      descriptor = null // no extra reactions on swipeStart for now
     } else {
       // Try to find another lane under the pointer that supports this axis
       const newTarget = domRegistry.findLaneByAxis(x, y, proposedAxis)
@@ -96,35 +104,72 @@ export const reactionResolver = {
         lifecycle.swipeActive = true
         accepted = true
         lockAxis = newTarget.swipeType !== 'drag'
-        descriptor = null
       }
     }
+
+    if (accepted) {
+      const axis = resolveAxis({ axis: proposedAxis }, lifecycle.currentTarget.axis)
+      lifecycle.swipeAxis = axis
+      lifecycle.dragKey = resolveDragKey(intent, lifecycle)
+      descriptor = {
+        type: 'swipeStart',
+        element: lifecycle.currentTarget.element,
+        laneId: lifecycle.currentTarget.laneId,
+        swipeType: lifecycle.currentTarget.swipeType,
+        axis,
+        dragKey: lifecycle.dragKey
+      }
+    }
+
     return {
       reactions: descriptor, // null if nothing to forward
-      intent: { accepted, lockAxis }
+      feedback: { accepted, lockAxis }
     }
   },
 
   onSwipe(intent) {
     if (!lifecycle.swipeActive || !supports('swipe', lifecycle)) return null
 
-    const axis = resolveAxis(intent, lifecycle.currentTarget.axis)
-    const dragKey = resolveDragKey(intent, lifecycle)
+    const axis = lifecycle.swipeAxis || resolveAxis(intent, lifecycle.currentTarget.axis)
+    lifecycle.swipeAxis = axis
+
+    const dragKey = lifecycle.dragKey || resolveDragKey(intent, lifecycle)
+    lifecycle.dragKey = dragKey
+
+    const payload = buildSwipePayload(intent, axis, dragKey)
+    lifecycle.lastSwipeDirection = payload.direction || lifecycle.lastSwipeDirection
+
     return {
       type: 'swipe',
       element: lifecycle.currentTarget.element,
-      payload: buildSwipePayload(intent, axis, dragKey)
+      laneId: lifecycle.currentTarget.laneId,
+      swipeType: lifecycle.currentTarget.swipeType,
+      axis: payload.axis,
+      direction: payload.direction,
+      delta: payload.delta,
+      dragKey
     }
   },
 
-  onSwipeEnd() {
+  onSwipeEnd(intent = {}) {
     if (!lifecycle.swipeActive) return null
 
     const type = supports('swipeCommit', lifecycle)
       ? 'swipeCommit'
       : 'swipeRevert'
 
-    const descriptor = { type, element: lifecycle.currentTarget?.element }
+    const payload = buildSwipePayload(intent, lifecycle.swipeAxis, lifecycle.dragKey)
+    const descriptor = {
+      type,
+      element: lifecycle.currentTarget?.element || null,
+      laneId: lifecycle.currentTarget?.laneId || null,
+      swipeType: lifecycle.currentTarget?.swipeType || null,
+      axis: lifecycle.swipeAxis,
+      direction: payload.direction || lifecycle.lastSwipeDirection,
+      delta: payload.delta,
+      dragKey: lifecycle.dragKey
+    }
+
     resetLifecycle(lifecycle)
     return descriptor
   },
@@ -137,7 +182,14 @@ export const reactionResolver = {
 
     const descriptor = mergeDescriptors(
       supports('pressRelease', lifecycle)
-        ? { type: 'pressRelease', element: lifecycle.currentTarget?.element }
+        ? {
+            type: 'pressRelease',
+            element: lifecycle.currentTarget?.element,
+            laneId: lifecycle.currentTarget?.laneId,
+            axis: lifecycle.currentTarget?.axis,
+            swipeType: lifecycle.currentTarget?.swipeType,
+            actionId: lifecycle.currentTarget?.actionId
+          }
         : null,
       emitDeselect(lifecycle)
     )

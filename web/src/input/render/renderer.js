@@ -26,17 +26,6 @@ function setAttr(el, key, val) {
 function dispatchReaction(descriptor) {
   const target = descriptor.element || window
 
-    if (descriptor.swipeType === 'drag') {
-    log('drag', 'WORKING! dispatchReaction', {
-      dragKey: descriptor.dragKey,
-      absolute: descriptor.absolute,
-      element: descriptor.element
-    })
-  }
-
-
-
-
   target.dispatchEvent(new CustomEvent('reaction', { detail: descriptor }))
 }
 
@@ -75,7 +64,8 @@ function handleSwipe(descriptor) {
 
   // ---- DRAG (2D, no lane) ----
   if (type === 'drag') {
-    if (!descriptor.dragKey || !descriptor.absolute) {
+    const hasDeltaObject = descriptor.delta && typeof descriptor.delta === 'object'
+    if (!descriptor.dragKey || !hasDeltaObject) {
       log('drag', 'Invalid drag frame', descriptor)
       return
     }
@@ -104,12 +94,13 @@ function handleSwipeCommit(descriptor) {
 
   // ---- DRAG COMMIT ----
   if (type === 'drag') {
-    if (!descriptor.dragKey || !descriptor.absolute) {
+    const hasDeltaObject = descriptor.delta && typeof descriptor.delta === 'object'
+    if (!descriptor.dragKey || !hasDeltaObject) {
       log('drag', 'Missing drag data on commit', descriptor)
       return
     }
 
-    setDragPosition(descriptor.dragKey, descriptor.absolute)
+    setDragPosition(descriptor.dragKey, descriptor.delta)
     clearDragBase(descriptor.dragKey)
 
     setAttr(descriptor.element, 'data-swiping', null)
