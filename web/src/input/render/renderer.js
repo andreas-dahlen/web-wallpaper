@@ -159,6 +159,7 @@ function handleSwipeRevert(descriptor) {
 // ----------------- Renderer Export -----------------
 export const renderer = {
   handleReaction(descriptor) {
+    log('init', descriptor.type)
     switch (descriptor.type) {
       case 'press':
       case 'pressRelease':

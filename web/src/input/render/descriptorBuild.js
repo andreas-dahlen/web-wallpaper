@@ -1,18 +1,43 @@
-// reactionHelper.js
-
-import {
-  getDragPosition,
-  getSwipeBase,
-  resetGestureTracking
-} from '../../state/gestureState'
-import { normalizeAxis, toNumber } from '../math/swipeMath'
-// import { getAxisSize } from '../../state/sizeState'
+export const descriptorBuilder = {
+  buildPressDescriptor(intent, target) {
+    return { type: 'press', 
+        element: target.element, 
+        action: target.action,
+        delta: intent.delta 
+    }
+  },
+  buildPressReleaseDescriptor(intent, target) {
+    return { type: 'pressRelease', 
+        element: target.element, 
+        action: target.action,
+        delta: intent.delta 
+    }
+  },
+  buildSwipeStartDescriptor(intent, target, previousTarget) {
+    return { type: 'swipeStart',
+        element: target.element, 
+        laneId: target.laneId,
+        previousElement: previousTarget?.element ?? null,
+        delta: intent.delta 
+    }
+  },
+  buildSwipeTypeDescriptor(type, intent, target) {
+    return {
+      type,
+      swipeType: target.swipeType,
+      element: target.element,
+      delta: intent.delta,
+      direction: intent.axis,
+      laneId: target.laneId
+    }
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* utils                                                              */
 /* ------------------------------------------------------------------ */
 
-export function mergeDescriptors(existing, extra) {
+function mergeDescriptors(existing, extra) {
   if (!existing && !extra) return null
   const list = []
 
@@ -27,28 +52,6 @@ export function mergeDescriptors(existing, extra) {
 
   if (!list.length) return null
   return list.length === 1 ? list[0] : list
-}
-/* ------------------------------------------------------------------ */
-/* reactions                                                       */
-/* ------------------------------------------------------------------ */
-const REACTION_KEYS = [
-  'press',
-  'pressRelease',
-  'pressCancel',
-  'swipeStart',
-  'swipe',
-  'swipeCommit',
-  'swipeRevert',
-  'select',
-  'deselect'
-]
-
-export function normalizeReactions(reactions = {}) {
-  const normalized = {}
-  for (const key of REACTION_KEYS) {
-    normalized[key] = !!reactions[key]
-  }
-  return normalized
 }
 
 /* ------------------------------------------------------------------ */
@@ -96,63 +99,6 @@ export function normalizeTarget(target) {
     reactions: normalizeReactions(target.reactions)
   }
 }
-
-/* ------------------------------------------------------------------ */
-/* lifecycle helpers                                                  */
-/* ------------------------------------------------------------------ */
-
-export function setCurrent(target, lifecycle) {
-  lifecycle.currentTarget = normalizeTarget(target)
-}
-
-export function supports(type, lifecycle) {
-  return !!lifecycle.currentTarget?.reactions?.[type]
-}
-
-export function resetLifecycle(lifecycle) {
-  lifecycle.pressActive = false
-  lifecycle.swipeActive = false
-  lifecycle.pressedTarget = null
-  lifecycle.lastSwipeDirection = null
-  lifecycle.currentTarget = null
-  lifecycle.swipeAxis = 'both'
-  lifecycle.dragKey = null
-
-  resetGestureTracking()
-}
-
-/* ------------------------------------------------------------------ */
-/* intent helpers                                                     */
-/* ------------------------------------------------------------------ */
-
-export function resolveAxis(intent, fallback = 'both') {
-  const raw =
-    intent?.axis ??
-    intent?.lockedAxis ??
-    intent?.mode ??
-    fallback
-
-  return normalizeAxis(raw)
-}
-
-export function resolveDragKey(intent, lifecycle) {
-  return (
-    intent?.dragId ??
-    lifecycle.currentTarget?.laneId ??
-    'default'
-  )
-}
-
-// export function parentSize() {
-//   return {
-//     width: getAxisSize('horizontal'),
-//     height: getAxisSize('vertical')
-//   }
-// }
-
-/* ------------------------------------------------------------------ */
-/* swipe construction                                                 */
-/* ------------------------------------------------------------------ */
 
 export function buildSwipeBase(target, dragKey) {
   const { laneId, swipeType } = target
@@ -247,14 +193,22 @@ export function buildSwipePayload(intent, axisKey, dragKey) {
   }
 }
 
-// export function ensureLaneSize(targetBase, laneId, swipeType) {
-//   if (!laneId) return true
-//   if (swipeType === 'drag') return true
+const REACTION_KEYS = [
+  'press',
+  'pressRelease',
+  'pressCancel',
+  'swipeStart',
+  'swipe',
+  'swipeCommit',
+  'swipeRevert',
+  'select',
+  'deselect'
+]
 
-//   const size = targetBase?.size?.[laneId]
-//   return Number.isFinite(size)
-// }
-
-
-
-
+export function normalizeReactions(reactions = {}) {
+  const normalized = {}
+  for (const key of REACTION_KEYS) {
+    normalized[key] = !!reactions[key]
+  }
+  return normalized
+}

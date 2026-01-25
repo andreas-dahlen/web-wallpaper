@@ -1,4 +1,4 @@
-// engineAdapter.js
+// intentForwarder.js
 import { renderer } from '../render/renderer'
 import { reactionResolver } from '../render/reactionResolver'
 import { log } from '../../debug/functions'
@@ -28,7 +28,7 @@ function forwardReactions(result) {
   forward(result)
 }
 
-export const engineAdapter = {
+export const intentForward = {
   onPress(intent) {
     const result = reactionResolver.onPress(intent)
     forwardReactions(result)

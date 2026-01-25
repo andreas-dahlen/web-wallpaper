@@ -18,14 +18,14 @@
   actionId?: string,
   swipeType?: 'drag' | 'slider' | 'carousel',
   dragKey?: string,
-  feedback?: { accepted: boolean, lockAxis: boolean } // engineAdapter return only; never forwarded to renderer
+  feedback?: { accepted: boolean, lockAxis: boolean } // intentForwarder return only; never forwarded to renderer
 }
 ```
 Removed fields: raw, rawDelta, absolute, normalized, normalizedPercent, commitStrategy.
 
 ## Data Flow
-1. `intentEngine` tracks pointer lifecycle, locks axis, and emits shaped `delta` (scalar if locked, {x,y} if free) to `engineAdapter`.
-2. `engineAdapter` bridges to `reactionResolver`; forwards only descriptors, not feedback envelopes, to `renderer`.
+1. `intentEngine` tracks pointer lifecycle, locks axis, and emits shaped `delta` (scalar if locked, {x,y} if free) to `intentForwarder`.
+2. `intentForwarder` bridges to `reactionResolver`; forwards only descriptors, not feedback envelopes, to `renderer`.
 3. `reactionResolver` resolves targets via `domRegistry`, builds contract-compliant descriptors, derives direction from delta, and never mutates DOM/state.
 4. `renderer` applies deltas (drag persistence, lane offsets), sets `data-*` flags, and dispatches `CustomEvent('reaction', { detail })`.
 5. Vue components listen to reactions only; they do not write gesture state.
@@ -47,7 +47,7 @@ Removed fields: raw, rawDelta, absolute, normalized, normalizedPercent, commitSt
 
 ## Module Responsibilities
 - **intentEngine**: pointer state, axis locking, shaped deltas; no DOM access or clamping.
-- **engineAdapter**: forwards descriptors to `renderer`; only place that returns `feedback`.
+- **intentForwarder**: forwards descriptors to `renderer`; only place that returns `feedback`.
 - **domRegistry**: single DOM reader for data-* attributes; never mutates DOM.
 - **reactionResolver**: builds descriptors using registry + state; delegates math/helpers; no DOM/state mutation.
 - **reactionHelper/math**: pure helpers for delta shaping, direction resolution, and selection merging.

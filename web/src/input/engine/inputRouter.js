@@ -4,7 +4,7 @@
  * Responsibilities:
  * - Detect platform using APP_SETTINGS.platform
  * - Wire event sources once
- * - Route events to intentEngine
+ * - Route events to intentMap
  *
  * Rules:
  * - No DOM logic
@@ -13,7 +13,7 @@
 
 import { APP_SETTINGS } from '../../config/appSettings'
 import { log } from '../../debug/functions'
-import { intentEngine } from './intentEngine'
+import { intentMap } from './intentMapper'
 
 let currentSeqId = 0
 
@@ -57,25 +57,25 @@ function handleAndroidTouch(type, x, y, seqId) {
 
   switch (type) {
     case 'down':
-      intentEngine.onDown(x, y)
+      intentMap.onDown(x, y)
       break
     case 'move':
-      intentEngine.onMove(x, y)
+      intentMap.onMove(x, y)
       break
     case 'up':
-      intentEngine.onUp(x, y)
+      intentMap.onUp(x, y)
       break
   }
 }
 
 function onPointerDown(e) {
-  intentEngine.onDown(e.clientX, e.clientY)
+  intentMap.onDown(e.clientX, e.clientY)
 }
 
 function onPointerMove(e) {
-  intentEngine.onMove(e.clientX, e.clientY)
+  intentMap.onMove(e.clientX, e.clientY)
 }
 
 function onPointerUp(e) {
-  intentEngine.onUp(e.clientX, e.cluentY)
+  intentMap.onUp(e.clientX, e.cluentY)
 }

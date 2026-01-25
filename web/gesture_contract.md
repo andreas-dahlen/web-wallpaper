@@ -8,15 +8,15 @@
 
 ## Authoritative Data Flow
 1. inputRouter normalizes platform events → intentEngine.
-2. intentEngine detects axis, accumulates numeric deltas → engineAdapter.
-3. engineAdapter calls reactionResolver; resolver reads domRegistry + state, delegates math to math/ via reactionSwipe.
+2. intentEngine detects axis, accumulates numeric deltas → intentForwarder.
+3. intentForwarder calls reactionResolver; resolver reads domRegistry + state, delegates math to math/ via reactionSwipe.
 4. renderer consumes reaction descriptors, applies offsets/translate, persists drag/slider/carousel state, dispatches CustomEvent('reaction').
 5. Vue components are render-only consumers of dispatched reactions.
 
 ## Module Responsibilities (Do / Must Not)
 - inputRouter: forward raw pointer objects; never touch DOM, renderer, or math.
 - intentEngine: state machine, axis lock, numeric deltas; never clamp or access DOM/targets.
-- engineAdapter: bridge to resolver/renderer; never mutate descriptors or state.
+- intentForwarder: bridge to resolver/renderer; never mutate descriptors or state.
 - domRegistry: read data-* intent metadata; never mutate DOM.
 - reactionResolver: skeleton delegator that builds descriptors and forwards to math/; never mutate DOM or state directly.
 - reactionSwipe (math): pure delta + clamp math; split across math/swipeDelta.js, math/swipeCommit.js, math/clampMath.js.
@@ -34,7 +34,7 @@
 - APK/Web may inject device density; invalid payloads fall back safely with a log.
 
 ## Gesture Lifecycle
-- Press: onDown → engineAdapter.onPress → resolver emits press/select → renderer sets data-pressed.
+- Press: onDown → intentForwarder.onPress → resolver emits press/select → renderer sets data-pressed.
 - Swipe start: axis lock in intentEngine → adapter.onSwipeStart → resolver emits swipeStart; slider/carousel snapshot numeric bases, drags use last-known positions.
 - Swipe update: intentEngine sends total delta → resolver builds payload → math/clamp → renderer applies delta → dispatch reaction.
 - Swipe commit: intentEngine onUp → resolver computes commit delta → renderer persists drag positions or slider/carousel offset.
@@ -53,7 +53,7 @@
   actionId?: string,                     // optional for action elements
   swipeType?: 'drag' | 'slider' | 'carousel', // used by renderer to decide application
   dragKey?: string,                      // for drag persistence (2D drags)
-  feedback?: {                           // only for engineAdapter
+  feedback?: {                           // only for intentForwarder
     accepted: boolean,
     lockAxis: boolean
   }

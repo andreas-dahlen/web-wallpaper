@@ -38,19 +38,19 @@ defineOptions({ name: 'InputElement' })
 // Props: configure engine eligibility
 // -------------------------------
 const {
-  action,
-  press,
-  swipe,
-  direction,
-  swipeType,
-  reactPress,
-  reactPressRelease,
-  reactPressCancel,
-  reactSwipe,
-  reactSwipeStart,
-  reactSwipeCommit,
-  reactSwipeRevert,
-  reactSelected,
+  action, //not sure why this is needed... but yeah bind action to release or whatever i guess... 
+  press, //accepts press?
+  swipe, //accepts swipe?
+  direction, //vertical, horizontal, both
+  swipeType, // carousel, slider, drag
+  reactPress, // what happens on press
+  reactPressRelease, //what happens on release
+  reactPressCancel, //what happens to origional target if onwership is switched when swipestarts
+  reactSwipe, //what happens during swipe
+  reactSwipeStart, //what happens on swipe start
+  reactSwipeCommit, //what happens on swipe End (happens to most swipe elements)
+  reactSwipeRevert, //specific for carousel swipe type
+  reactSelected, //not sure about selected and deselected.. but essentially it is a mouseover reaction. this is kind of bloated but meh.. think only visual true/false for highlight if im ontop of button or not.. and thinking essentially ... if selected and pressRelease that will trigger open app for example... 
   reactDeselected
 } = defineProps({
   action: String,

@@ -23,7 +23,7 @@
  */
 
 import { log, drawDots } from '../../debug/functions'
-import { engineAdapter } from './engineAdapter'
+import { intentForward } from './intentForwarder'
 import { swipeThresholdCalc } from '../math/clampMath'
 
 // Gesture state (no DOM refs)
@@ -32,11 +32,11 @@ const state = {
     start: { x: 0, y: 0 },    // initial pointer down
     last: { x: 0, y: 0 },     // last pointer position
     lockAxis: false,           // true if swipe locked
-    mode: 'both',              // horizontal / vertical / both
+    activeAxis: 'both',              // horizontal / vertical / both
     totalDelta: { x: 0, y: 0 } // accumulated delta
 }
 
-export const intentEngine = {
+export const intentMap = {
     onDown,
     onMove,
     onUp,
@@ -44,6 +44,7 @@ export const intentEngine = {
 }
 
 function onDown(x, y) {
+
     drawDots(x, y, 'green')
     log('input', `[@DOWN] X = ${x} Y = ${y}`)
 
@@ -53,12 +54,15 @@ function onDown(x, y) {
     state.last.x = x
     state.last.y = y
     state.lockAxis = false
-    state.mode = 'both'
+    state.activeAxis = 'both'
     state.totalDelta.x = 0
     state.totalDelta.y = 0
 
     // Inform adapter of press/target resolution
-    engineAdapter.onPress({ x, y })
+    intentForward.onPress({
+        type: 'press',
+        delta: { x: x, y: y }
+    })
 }
 
 function onMove(x, y) {
@@ -66,23 +70,27 @@ function onMove(x, y) {
 
     drawDots(x, y, 'yellow')
 
+
     // Compute deltas
-    const deltaX = x - (state.last.x ?? state.start.x)
-    const deltaY = y - (state.last.y ?? state.start.y)
-    const absX = Math.abs(deltaX)
-    const absY = Math.abs(deltaY)
+    const startDeltaX = x - (state.start.x)
+    const startDeltaY = y - (state.start.y)
+    const absX = Math.abs(startDeltaX)
+    const absY = Math.abs(startDeltaY)
     const biggest = absX > absY ? absX : absY
     if (state.phase === 'PENDING') {
         if (swipeThresholdCalc(biggest)) {
-            const proposedAxis = absX > absY ? 'horizontal' : 'vertical'
-            const { accepted, lockAxis } = engineAdapter.onSwipeStart({ x, y, proposedAxis })
-            log('input', 'accepted: ', accepted, 'lockAxis: ', lockAxis)
+            const estimatedAxis = absX > absY ? 'horizontal' : 'vertical'
+            const { accepted, lockAxis } =
+                intentForward.onSwipeStart({
+                    type: 'swipe-start',
+                    delta: { x: x, y: y },
+                    axis: estimatedAxis
+                })
+
             if (accepted) {
                 state.phase = 'SWIPING'
                 state.lockAxis = lockAxis
-                state.mode = lockAxis ? proposedAxis : 'both'
-                log('input', '[ACCEPTED] Swipe by adapter', { x, y, proposedAxis, lockAxis })
-                log('swipe', 'Swiping started, mode:', state.mode)
+                state.activeAxis = state.lockAxis ? estimatedAxis : 'both'
             } else {
                 // log('input', '[PENDING] Swipe not yet accepted', { x, y, proposedAxis })
             }
@@ -92,23 +100,24 @@ function onMove(x, y) {
     // Track swipe delta
     if (state.phase === 'SWIPING') {
 
-        state.last.x = x
-        state.last.y = y
-
-        if (state.mode === 'horizontal') {
+        const deltaX = x - state.last.x
+        const deltaY = y - state.last.y
+        if (state.activeAxis === 'horizontal') {
             state.totalDelta.x += deltaX
-        } else if (state.mode === 'vertical') {
+        } else if (state.activeAxis === 'vertical') {
             state.totalDelta.y += deltaY
-        } else if (state.mode === 'both') {
+        } else if (state.activeAxis === 'both') {
             state.totalDelta.x += deltaX
             state.totalDelta.y += deltaY
         }
 
-        engineAdapter.onSwipe({
+        intentForward.onSwipe({
             type: 'swipe',
-            axis: state.mode,
-            delta: shapeDeltaForMode(state.mode, state.totalDelta)
+            axis: state.activeAxis,
+            delta: shapeDeltaForActiveAxis(state.activeAxis, state.totalDelta)
         })
+        state.last.x = x
+        state.last.y = y
     }
 }
 
@@ -119,18 +128,17 @@ function onUp(x, y) {
         return
     }
     if (state.phase === 'SWIPING')
-        engineAdapter.onSwipeEnd({
+        intentForward.onSwipeEnd({
             type: 'swipe-end',
-            axis: state.mode,
-            delta: shapeDeltaForMode(state.mode, state.totalDelta)
+            axis: state.activeAxis,
+            delta: shapeDeltaForActiveAxis(state.activeAxis, state.totalDelta)
         })
 
     else if (state.phase === 'PENDING') {
         // Pointer up without swipe → release
-        engineAdapter.onPressRelease({
+        intentForward.onPressRelease({
             type: 'pressRelease',
-            x: x,
-            y: y
+            delta: { x: x, y: y }
         })
     }
     resetState()
@@ -140,15 +148,19 @@ function onUp(x, y) {
 function resetState() {
     state.phase = 'IDLE'
     state.lockAxis = false
-    state.mode = null
-    state.last.x = null
-    state.last.y = null
+    state.activeAxis = 'both'
+    state.start.x = 0
+    state.start.y = 0
+    state.last.x = 0
+    state.last.y = 0
     state.totalDelta.x = 0
     state.totalDelta.y = 0
 }
 
-function shapeDeltaForMode(mode, totalDelta) {
-    if (mode === 'horizontal') return totalDelta.x
-    if (mode === 'vertical') return totalDelta.y
-    return { x: totalDelta.x, y: totalDelta.y }
+function shapeDeltaForActiveAxis(activeAxis, totalDelta) {
+    switch (activeAxis) {
+        case 'horizontal': return { x: totalDelta.x }
+        case 'vertical': return { y: totalDelta.y }
+        default: return { ...totalDelta }
+    }
 }
