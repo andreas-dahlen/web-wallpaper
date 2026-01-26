@@ -1,19 +1,19 @@
 export const descriptorBuilder = {
-  buildPressDescriptor(intent, target) {
+  buildPress(intent, target) {
     return { type: 'press', 
         element: target.element, 
         action: target.action,
         delta: intent.delta 
     }
   },
-  buildPressReleaseDescriptor(intent, target) {
+  buildPressRelease(intent, target) {
     return { type: 'pressRelease', 
         element: target.element, 
         action: target.action,
         delta: intent.delta 
     }
   },
-  buildSwipeStartDescriptor(intent, target, previousTarget) {
+  buildSwipeStart(intent, target, previousTarget) {
     return { type: 'swipeStart',
         element: target.element, 
         laneId: target.laneId,
@@ -21,7 +21,7 @@ export const descriptorBuilder = {
         delta: intent.delta 
     }
   },
-  buildSwipeTypeDescriptor(type, intent, target) {
+  buildSwipeType(type, intent, target) {
     return {
       type,
       swipeType: target.swipeType,

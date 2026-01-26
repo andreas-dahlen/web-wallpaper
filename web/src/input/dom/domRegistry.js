@@ -119,7 +119,7 @@ export const domRegistry = {
       swipe: swipeDeclared,
       select: selectDeclared,
 
-      react: {
+      reaction: {
         press: pressDeclared,
         pressRelease: pressDeclared || ds.reactPressRelease !== undefined,
         pressCancel: ds.reactPressCancel !== undefined || pressDeclared || swipeDeclared,

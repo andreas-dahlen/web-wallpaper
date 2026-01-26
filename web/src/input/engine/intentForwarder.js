@@ -1,6 +1,6 @@
 // intentForwarder.js
 import { renderer } from '../render/renderer'
-import { reactionResolver } from '../render/reactionResolver'
+import { reactionDelegate } from '../resolver/reactionDelegator'
 import { log } from '../../debug/functions'
 
 function forward(descriptor) {
@@ -30,36 +30,36 @@ function forwardReactions(result) {
 
 export const intentForward = {
   onPress(intent) {
-    const result = reactionResolver.onPress(intent)
+    const result = reactionDelegate.onPress(intent)
     forwardReactions(result)
     log('adapter', '[POINTER-PRESSED]', intent)
   },
 
   onSwipeStart(intent) {
-    const result = reactionResolver.onSwipeStart(intent)
+    const result = reactionDelegate.onSwipeStart(intent)
     forwardReactions(result)
     log('adapter', '[SWIPE-START]', intent)
 
     return {
-      accepted: !!result?.feedback?.accepted,
-      lockAxis: !!result?.feedback?.lockAxis
+      accepted: !!result?.control?.accepted,
+      lockAxis: !!result?.control?.lockAxis
     }
   },
 
   onSwipe(intent) {
-    const result = reactionResolver.onSwipe(intent)
+    const result = reactionDelegate.onSwipe(intent)
     forwardReactions(result)
     log('adapter', '[SWIPE]', intent)
   },
 
   onSwipeEnd(intent) {
-    const result = reactionResolver.onSwipeEnd(intent)
+    const result = reactionDelegate.onSwipeEnd(intent)
     forwardReactions(result)
     log('adapter', '[SWIPE-END]', intent)
   },
 
   onPressRelease(intent) {
-    const result = reactionResolver.onPressRelease(intent)
+    const result = reactionDelegate.onPressRelease(intent)
     forwardReactions(result)
     log('adapter', '[POINTER-RELEASED]', intent)
   }

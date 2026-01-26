@@ -42,6 +42,14 @@
 //   | SwipeIntent
 //   | SwipeEndIntent
 
+//REACTIONDELEGATOR.js === 
+
+// ResolverResult = {
+//   reaction?: ReactionIntent[] | null
+//   control?: { accepted: boolean, lockAxis: boolean }
+// }
+
+
 // // ----------------------------
 // // 2. DOM Registry / Reaction Flags
 // // ----------------------------

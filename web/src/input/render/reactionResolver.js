@@ -2,7 +2,7 @@
 import { supports, resolveAxis, shouldLockAxis } from './gesturePolicy'
 import { descriptorBuilder } from './descriptorBuild'
 import { domRegistry } from '../dom/domRegistry'
-import { gestureCycle } from './reactionSession'
+import { gestureCycle } from '../state/cycleState'
 import { log } from '../../debug/functions'
 
 
@@ -32,7 +32,7 @@ export const reactionResolver = {
     let lockAxis = false
 
     if (!gestureCycle.pressActive || !gestureCycle.currentTarget) {
-      return { reactions: null, feedback: { accepted, lockAxis } }
+      return { reactions: null, control: { accepted, lockAxis } }
     }
     // Check if current target supports this swipe axis
     const resolvedAxis = resolveAxis(intent.axis, gestureCycle.currentTarget)
@@ -46,7 +46,7 @@ export const reactionResolver = {
       const descriptor = descriptorBuilder.buildSwipeStartDescriptor(intent, gestureCycle.currentTarget, null)
       return {
         reactions: descriptor || null,
-        feedback: { accepted, lockAxis }
+        control: { accepted, lockAxis }
       }
     } else {
       // Try to find another lane under the pointer that supports this axis
@@ -63,12 +63,12 @@ export const reactionResolver = {
         const descriptor = descriptorBuilder.buildSwipeStartDescriptor(intent, gestureCycle.currentTarget, gestureCycle.previousTarget)
         return {
           reactions: descriptor || null,
-          feedback: { accepted, lockAxis }
+          control: { accepted, lockAxis }
         }
       }
     }
     gestureCycle.resetAll()
-    return { reactions: null, feedback: { accepted, lockAxis } }
+    return { reactions: null, control: { accepted, lockAxis } }
   },
 
   onSwipe(intent) {

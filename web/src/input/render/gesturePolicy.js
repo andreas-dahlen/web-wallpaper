@@ -1,7 +1,7 @@
 //gesturePolicy.js
 
 export function supports(type, target) {
-  return !!target?.reactions?.[type]
+  return !!target?.reaction?.[type]
 }
 
 export function shouldLockAxis(target) {
