@@ -56,25 +56,22 @@ export const domRegistry = {
   //   return { element: el, laneId, axis, swipeType }
   // },
 
-  findLaneByAxis(x, y, axis) {
-    const elements = document.elementsFromPoint(x, y)
+findLaneByAxis(x, y, inputAxis) {
+  const elements = document.elementsFromPoint(x, y)
 
-    const el = elements.find(el => {
-      const ds = el.dataset || {}
-      if (!ds.lane || !ds.direction || !ds.swipeType) return false
-      return ds.direction === axis || ds.direction === 'both'
-    })
+  for (const el of elements) {
+    const ds = el.dataset
+    if (!ds?.lane || !ds?.axis) continue
 
-    if (!el) return null
-
-    return {
-      element: el,
-      laneId: el.dataset.lane,
-      direction: el.dataset.direction,
-      swipeType: el.dataset.swipeType,
-      ...this.readFlags(el)
+    if (ds.axis === inputAxis || ds.axis === 'both') {
+      return {
+        element: el,
+        axis: ds.axis
+      }
     }
-  },
+  }
+  return null
+},
 
   // findActionAt(x, y) {
   //   const el = document.elementsFromPoint(x, y)

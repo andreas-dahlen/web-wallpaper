@@ -1,78 +1,73 @@
 //resolver.js
 
 import { domRegistry } from "../dom/domRegistry"
-import { descriptorBuilder } from "../render/descriptorBuild"
 import { supports, resolveAxis, shouldLockAxis } from "../render/gesturePolicy"
 
 export const resolve = {
 
     pressElement(intent) {
         const target = domRegistry.findElementAt(intent.delta.x, intent.delta.y)
-
         if (target && supports(intent.type, target)) {
-            return descriptorBuilder.buildPress({ intent, target })
-
-            // reaction: target.reaction || null 
+            return {
+                type: intent.type,
+                target: target }
         }
         return null
     },
 
     swipeElement(intent, facts) {
         const resolvedAxis = resolveAxis(intent.axis, facts.currentTarget)
-        if (!resolvedAxis) { return null }
-
+        if (!resolvedAxis) return null
         const lockAxis = shouldLockAxis(facts.currentTarget)
-        return descriptorBuilder.buildSwipeStart(intent, facts.currentTarget, resolvedAxis, lockAxis)
-        // reaction: facts.currentTarget.reaction,
-        // control: { accepted: true, lockAxis },
-        // meta: {
-        //     element: facts.currentTarget,
-        //     phaseType: intent.type,
-        //     axis: resolvedAxis
-        // }
+        return {
+            type: intent.type,
+            axis: resolvedAxis,
+            lockAxis: lockAxis
+        }
     },
 
     backupSwipeElement(intent, facts) {
         const newTarget = domRegistry.findLaneByAxis(intent.delta.x, intent.delta.y, intent.axis)
-        if (!newTarget) { return null }
-
+        if (!newTarget) return null
         const lockAxis = shouldLockAxis(newTarget)
-        let old
-        if (supports('pressCancel', facts.currentTarget)) {
-            old = facts.currentTarget.reaction
-        }
-        return descriptorBuilder.buildSwipeStart(intent, facts.currentTarget, newTarget.axis, lockAxis, old)
-        // reaction: [newTarget.reaction, old],
-        // control: { accepted: true, lockAxis },
-        // meta: {
-        //     element: newTarget,
-        //     phaseType: 'swipe-start'
-        // }
-
-    },
-
-    swipe(intent, facts) {
-        if (supports(intent.type, facts.currentTarget)) {
-            return descriptorBuilder.buildSwipeType(intent, facts.currentTarget)
-
-                // reaction: facts.currentTarget.reaction
-            
+        const pressCancel = supports('pressCancel', facts.currentTarget)
+        return {
+            type: intent.type,
+            target: newTarget.element,
+            axis: newTarget.axis,
+            lockAxis: lockAxis,
+            pressCancel: pressCancel
         }
     },
 
-    swipeEnd(intent, facts) {
+    canSwipe(intent, facts) {
         if (supports(intent.type, facts.currentTarget)) {
-            return descriptorBuilder.buildSwipeType(intent, facts.currentTarget)
-                // reaction: facts.currentTarget.reaction
-            
+            return { 
+                type: intent.type,
+                yes: true,
+                pressCancel: false
+            }
         }
+        return null
     },
 
-    pressRelease(intent, facts) {
+    canSwipeEnd(intent, facts) {
         if (supports(intent.type, facts.currentTarget)) {
-            return descriptorBuilder.buildSwipeType(intent, facts.currentTarget)
-                // reaction: facts.currentTarget.reaction
-            
+            return { 
+                type: intent.type,
+                yes: true 
+            }
         }
+        return null
+    },
+
+    canPressRelease(intent, facts) {
+        if (supports(intent.type, facts.currentTarget)) {
+            return { 
+                type: intent.type,
+                yes: true 
+            }
+        }
+        return null
     }
 }

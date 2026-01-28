@@ -6,25 +6,47 @@ export const cycleState = {
     //'press' | 'swipe-start' | 'swipe' | 'idle'
 
     //MIGHT INTEGRATE THE FOLLOWING + MORE?
-    mouseOver: false,   // renamed from selectedTarget
-    swipeAxis: 'both', //might integrate
+    // mouseOver: false,   // renamed from selectedTarget
+    axis: 'both',
+    lockAxis: false,
+    pressCancel: false,
 
     getFacts() {
         return {
             currentTarget: this.currentTarget,
             previousTarget: this.previousTarget,
             phaseType: this.phaseType,
-            mouseOver: this.mouseOver,
-            swipeAxis: this.swipeAxis
+
+            // mouseOver: this.mouseOver,
+
+            axis: this.axis,
+            lockAxis: this.lockAxis,
+            pressCancel: this.pressCancel
         }
+    },
+
+    setCycle(result) {
+        this.phaseType = result.type
+
+        if (result.target) {
+            this.previousTarget = this.currentTarget
+            this.currentTarget = result.target
+        }
+
+        if (result.axis !== undefined) this.axis = result.axis
+        if (result.lockAxis !== undefined) this.lockAxis = result.lockAxis
+        if (result.pressCancel !== undefined) this.pressCancel = result.pressCancel
     },
 
     resetState() {
         this.currentTarget = null
         this.previousTarget = null
         this.phaseType = 'idle'
-        this.mouseOver = false
-        this.swipeAxis = 'both'
+
+        // this.mouseOver = false
+        this.axis = 'both'
+        this.lockAxis = false
+        this.pressCancel = false
     },
 
     checkPressElegibility(type) {
@@ -42,6 +64,14 @@ export const cycleState = {
     checkPressReleaseElegibility(type) {
         return this.phaseType === 'press' && (!type || type === 'press-release')
     },
+    //intent, result
+
+
+
+
+
+
+
 
     activePress(solution) {
         if (this.currentTarget) {
@@ -60,7 +90,7 @@ export const cycleState = {
             return
         }
         this.phaseType = solution.type
-        //this.swipeAxis = solution.axis
+        //this.axis = solution.axis
     },
 
     activeSwipe(solution) {
