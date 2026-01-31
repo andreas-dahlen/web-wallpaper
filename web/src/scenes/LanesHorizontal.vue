@@ -14,19 +14,19 @@
     <SwipeCarousel
       lane="top"
       :scenes="topScenes"
-      direction="horizontal"
+      axis="horizontal"
     />
 
     <SwipeCarousel
       lane="mid"
       :scenes="midScenes"
-      direction="horizontal"
+      axis="horizontal"
     />
 
     <SwipeCarousel
       lane="bottom"
       :scenes="bottomScenes"
-      direction="horizontal"
+      axis="horizontal"
     />
   </div>
 </template>

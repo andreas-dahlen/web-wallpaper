@@ -8,7 +8,7 @@
       class="drag-item"
       :style="itemStyle"
       :data-lane="lane"
-      data-direction="both"
+      data-axis="both"
       data-swipe-type="drag"
       :data-react-swipe-commit="reactSwipeCommit ? true : null"
     >
@@ -19,7 +19,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { setDragPosition, getDragPosition } from '../state/gestureState'
+import { setDragPosition, getDragPosition } from '../input/state/gestureState'
 
 const dragEl = ref(null)
 const dragItem = ref(null)

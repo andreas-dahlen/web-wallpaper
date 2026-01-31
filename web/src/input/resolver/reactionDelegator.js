@@ -1,89 +1,74 @@
 //reactionDelegator.js
 
-import { descriptorBuilder } from '../render/descriptorBuild'
-import { cycleState } from '../state/cycleState'
 import { resolve } from './resolver'
+import { buildPayload } from '../render/buildPayload'
 
+const localMemory = {
+  currentTarget: null,
+  previousTarget: null,
+
+  get() {
+    return {
+      currentTarget: this.currentTarget,
+      previousTarget: this.previousTarget,
+    }
+  },
+  set(solution) {
+    if (solution.target) {
+      this.previousTarget = this.currentTarget
+      this.currentTarget = solution.target
+    }
+  },
+  reset() {
+    this.currentTarget = null
+    this.previousTarget = null
+  },
+  supportsIntent(intentType) {
+    return this.currentTarget?.reactions?.[intentType]
+  }
+}
 
 //COULD DO RESETSWIPE AND RESETPRESS INTEAD OF RESETSTATE
 export const reactionDelegate = {
+
   onPress(intent) {
-    if (!cycleState.checkPressElegibility(intent.type)) {
-      cycleState.resetState()
-      return null
-    }
-    const result = resolve.pressElement(intent)
-    if (!result) {
-      cycleState.resetState()
-      return null
-    }
-    cycleState.setCycle(result)
-    const resolvedFacts = cycleState.getFacts()
-    return descriptorBuilder.build(intent, resolvedFacts)
+    const solution = resolve.pressElement(intent)
+    if (!solution) return null
+    localMemory.set(solution)
+    return buildPayload(localMemory.get(), solution)
   },
 
   onSwipeStart(intent) {
-    if (!cycleState.checkSwipeStartElegibility(intent.type)) {
-      cycleState.resetState()
-      return null
-      //this also has accepted false implicit?
-    }
-
-    const facts = cycleState.getFacts()
-    const result = resolve.swipeElement(intent, facts) || resolve.backupSwipeElement(intent, facts)
-    if (!result) return null
-    //this also has accepted false implicit?
-
-    cycleState.setCycle(result)
-    const resolvedFacts = cycleState.getFacts()
-    return descriptorBuilder.build(intent, resolvedFacts)
+    const facts = localMemory.get()
+    const solution = resolve.swipeElement(intent, facts)
+    if (!solution) return null
+    localMemory.set(solution)
+    return buildPayload(localMemory.get(), solution)
   },
 
   onSwipe(intent) {
-    if (!cycleState.checkSwipeElegibility(intent.type)) {
-      cycleState.resetState()
-      return null
-    }
-    const facts = cycleState.getFacts()
-    const result = resolve.canSwipe(intent, facts)
-    if (!result) {
-      cycleState.resetState()
-      return null
-    }
-    cycleState.setCycle(result)
-    const resolvedFacts = cycleState.getFacts()
-    return descriptorBuilder.build(intent, resolvedFacts)
+    const facts = localMemory.get()
+    if (!localMemory.supportsIntent('swipe')) return null
+    const solution = resolve.canSwipe(intent, facts)
+    if (!solution) return null
+    return buildPayload(localMemory.get(), solution)
   },
 
   onSwipeEnd(intent) {
-    if (!cycleState.checkSwipeEndElegibility(intent.type)) {
-      cycleState.resetState()
-      return null
-    }
-    const facts = cycleState.getFacts()
-    const result = resolve.canSwipeEnd(intent, facts)
-    if (!result) {
-      cycleState.resetState()
-      return null
-    }
-    cycleState.setCycle(result)
-    const resolvedFacts = cycleState.getFacts()
-    return descriptorBuilder.build(intent, resolvedFacts)
+    const facts = localMemory.get()
+    if (!localMemory.supportsIntent('swipeEnd')) return null
+    const solution = resolve.canSwipeEnd(intent, facts)
+    if (!solution) return null
+    localMemory.reset()
+    return buildPayload(facts, solution)
   },
 
   onPressRelease(intent) {
-    if (!cycleState.checkPressReleaseElegibility(intent.type)) {
-      cycleState.resetState()
-      return null
-    }
-    const facts = cycleState.getFacts()
-    const result = resolve.canPressRelease(intent, facts)
-    if (!result) {
-      cycleState.resetState()
-      return null
-    }
-    cycleState.setCycle(result)
-    const resolvedFacts = cycleState.getFacts()
-    return descriptorBuilder.build(intent, resolvedFacts)
+    const facts = localMemory.get()
+    if (!localMemory.supportsIntent('pressRelease')) return null
+    const solution = resolve.canPressRelease(intent, facts)
+    if (!solution) return null
+    localMemory.reset()
+    return buildPayload(facts, solution)
   }
 }

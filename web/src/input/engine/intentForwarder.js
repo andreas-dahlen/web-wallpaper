@@ -3,64 +3,49 @@ import { renderer } from '../render/renderer'
 import { reactionDelegate } from '../resolver/reactionDelegator'
 import { log } from '../../debug/functions'
 
-function forward(descriptor) {
-  if (!descriptor) return
-  if (Array.isArray(descriptor)) {
-    for (const d of descriptor) forward(d)
-    return
+export function intentForward(intent) {
+  log('adapter', intent.type, intent)
+  const packet = delegate(intent)
+forwardPacket(packet)
+// console.log('PACKET!', 'TYPE: ', intent.type, packet)
+  return {
+    acceptedGesture: packet?.control?.acceptedGesture === true,
   }
-  if (!descriptor.type) {
-    console.warn('Invalid reaction descriptor', descriptor)
-    return
-  }
-  renderer.handleReaction(descriptor)
 }
 
-function forwardReactions(result) {
-  if (!result) return
-  // If this is an envelope, only forward actual reactions
-  if ('reactions' in result) {
-    if (!result.reactions) return
-    forward(result.reactions)
-    return
-  }
-  // Otherwise assume it's already a descriptor or array
-  forward(result)
-}
+function forwardPacket(packet) {
+  if (!packet) return
+  // log('adapter', packet)
+  const reactions = packet.reactions ?? []
 
-export const intentForward = {
-  onPress(intent) {
-    const result = reactionDelegate.onPress(intent)
-    forwardReactions(result)
-    log('adapter', '[POINTER-PRESSED]', intent)
-  },
-
-  onSwipeStart(intent) {
-    const result = reactionDelegate.onSwipeStart(intent)
-    forwardReactions(result)
-    log('adapter', '[SWIPE-START]', intent)
-
-    return {
-      accepted: !!result?.control?.accepted,
-      lockAxis: !!result?.control?.lockAxis
+  for (const reaction of reactions) {
+    if (!reaction?.type) {
+      console.warn('Invalid reaction descriptor', reaction, reaction.type)
+      continue
     }
-  },
+    renderer.handleReaction(reaction)
+  }
+}
 
-  onSwipe(intent) {
-    const result = reactionDelegate.onSwipe(intent)
-    forwardReactions(result)
-    log('adapter', '[SWIPE]', intent)
-  },
+function delegate(intent) {
+  switch (intent.type) {
+    case 'press':
+      return reactionDelegate.onPress(intent)
 
-  onSwipeEnd(intent) {
-    const result = reactionDelegate.onSwipeEnd(intent)
-    forwardReactions(result)
-    log('adapter', '[SWIPE-END]', intent)
-  },
+    case 'swipeStart':
+      return reactionDelegate.onSwipeStart(intent)
 
-  onPressRelease(intent) {
-    const result = reactionDelegate.onPressRelease(intent)
-    forwardReactions(result)
-    log('adapter', '[POINTER-RELEASED]', intent)
+    case 'swipe':
+      return reactionDelegate.onSwipe(intent)
+
+    case 'swipeEnd':
+      return reactionDelegate.onSwipeEnd(intent)
+
+    case 'pressRelease':
+      return reactionDelegate.onPressRelease(intent)
+
+    default:
+      console.warn('Unknown intent type', intent)
+      return null
   }
 }

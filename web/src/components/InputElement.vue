@@ -11,7 +11,7 @@
     :data-press="press ? true : null"
     :data-swipe="swipe ? true : null"
     :data-action="action || null"
-    :data-direction="direction || null"
+    :data-axis="axis || null"
     :data-swipe-type="swipeType || null"
 
     :data-react-press="reactPress ? true : null"
@@ -41,7 +41,7 @@ const {
   action, //not sure why this is needed... but yeah bind action to release or whatever i guess... 
   press, //accepts press?
   swipe, //accepts swipe?
-  direction, //vertical, horizontal, both
+  axis, //vertical, horizontal, both
   swipeType, // carousel, slider, drag
   reactPress, // what happens on press
   reactPressRelease, //what happens on release
@@ -56,7 +56,7 @@ const {
   action: String,
   press: { type: Boolean, default: false },
   swipe: { type: Boolean, default: false },
-  direction: { type: String, default: undefined },
+  axis: { type: String, default: undefined },
   swipeType: { type: String, default: undefined },
 
   reactPress: { type: Boolean, default: false },

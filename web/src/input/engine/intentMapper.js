@@ -1,5 +1,5 @@
 /**
- * intentEngine.js - Input intent state machine (JS)
+ * intentMapper.js - Input intent state machine (JS)
  *
  * Responsibilities:
  * - Accept raw input (down, move, up)
@@ -31,8 +31,6 @@ const state = {
     phase: 'IDLE',            // gesture lifecycle
     start: { x: 0, y: 0 },    // initial pointer down
     last: { x: 0, y: 0 },     // last pointer position
-    lockAxis: false,           // true if swipe locked
-    activeAxis: 'both',              // horizontal / vertical / both
     totalDelta: { x: 0, y: 0 } // accumulated delta
 }
 
@@ -53,13 +51,11 @@ function onDown(x, y) {
     state.start.y = y
     state.last.x = x
     state.last.y = y
-    state.lockAxis = false
-    state.activeAxis = 'both'
     state.totalDelta.x = 0
     state.totalDelta.y = 0
 
     // Inform adapter of press/target resolution
-    intentForward.onPress({
+    intentForward({
         type: 'press',
         delta: { x: x, y: y }
     })
@@ -80,46 +76,38 @@ function onMove(x, y) {
     if (state.phase === 'PENDING') {
         if (swipeThresholdCalc(biggest)) {
             const estimatedAxis = absX > absY ? 'horizontal' : 'vertical'
-            const { accepted, lockAxis } =
-                intentForward.onSwipeStart({
-                    type: 'swipe-start',
+            const { acceptedGesture } =
+                intentForward({
+                    type: 'swipeStart',
                     delta: { x: x, y: y },
                     axis: estimatedAxis
                 })
-
-            if (accepted) {
+            if (acceptedGesture) {
                 state.phase = 'SWIPING'
-                state.lockAxis = lockAxis
-                state.activeAxis = state.lockAxis ? estimatedAxis : 'both'
             } else {
-                // log('input', '[PENDING] Swipe not yet accepted', { x, y, proposedAxis })
+                return
             }
         }
     }
 
     // Track swipe delta
     if (state.phase === 'SWIPING') {
-
+        
         const deltaX = x - state.last.x
         const deltaY = y - state.last.y
-        if (state.activeAxis === 'horizontal') {
-            state.totalDelta.x += deltaX
-        } else if (state.activeAxis === 'vertical') {
-            state.totalDelta.y += deltaY
-        } else if (state.activeAxis === 'both') {
-            state.totalDelta.x += deltaX
-            state.totalDelta.y += deltaY
-        }
 
-        intentForward.onSwipe({
-            type: 'swipe',
-            axis: state.activeAxis,
-            delta: shapeDeltaForActiveAxis(state.activeAxis, state.totalDelta)
-        })
-        state.last.x = x
-        state.last.y = y
+        state.totalDelta.x += deltaX
+        state.totalDelta.y += deltaY
     }
+
+    intentForward({
+        type: 'swipe',
+        delta: state.totalDelta
+    })
+    state.last.x = x
+    state.last.y = y
 }
+
 
 function onUp(x, y) {
     if (state.phase !== 'SWIPING' && state.phase !== 'PENDING') {
@@ -128,15 +116,14 @@ function onUp(x, y) {
         return
     }
     if (state.phase === 'SWIPING')
-        intentForward.onSwipeEnd({
-            type: 'swipe-end',
-            axis: state.activeAxis,
-            delta: shapeDeltaForActiveAxis(state.activeAxis, state.totalDelta)
+        intentForward({
+            type: 'swipeEnd',
+            delta: state.totalDelta
         })
 
     else if (state.phase === 'PENDING') {
         // Pointer up without swipe → release
-        intentForward.onPressRelease({
+        intentForward({
             type: 'pressRelease',
             delta: { x: x, y: y }
         })
@@ -147,20 +134,10 @@ function onUp(x, y) {
 // Helper: reset all gesture state
 function resetState() {
     state.phase = 'IDLE'
-    state.lockAxis = false
-    state.activeAxis = 'both'
     state.start.x = 0
     state.start.y = 0
     state.last.x = 0
     state.last.y = 0
     state.totalDelta.x = 0
     state.totalDelta.y = 0
-}
-
-function shapeDeltaForActiveAxis(activeAxis, totalDelta) {
-    switch (activeAxis) {
-        case 'horizontal': return { x: totalDelta.x }
-        case 'vertical': return { y: totalDelta.y }
-        default: return { ...totalDelta }
-    }
 }

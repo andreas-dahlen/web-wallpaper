@@ -10,7 +10,7 @@
     <SwipeCarousel
       lane="wallpaper"
       :scenes="scenes"
-      direction="vertical"
+      axis="vertical"
     />
   </div>
 </template>

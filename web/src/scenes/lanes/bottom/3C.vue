@@ -3,7 +3,7 @@
     <SwipeDrag
       class="drag-container"
       lane="bottom-drag"
-      direction="both"
+      axis="both"
       :reactSwipeCommit="true"
     >
       <div class="drag-content">Drag me</div>

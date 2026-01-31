@@ -3,7 +3,7 @@
     <SwipeSlider
       class="swipe-slider"
       lane="slider1"
-      direction="horizontal"
+      axis="horizontal"
       :reactSwipeCommit="true"
     >
       <div class="slider-content">Slide Me!</div>

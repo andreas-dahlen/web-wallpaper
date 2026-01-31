@@ -46,7 +46,7 @@ export function computeSwipeDelta({ payload = {}, target = {}, base = {}, parent
       },
       absolute,
       dragKey,
-      direction: resolveDirection(payload.axis || target.laneAxis, Math.abs(delta.x) >= Math.abs(delta.y) ? delta.x : delta.y)
+      axis: resolveDirection(payload.axis || target.laneAxis, Math.abs(delta.x) >= Math.abs(delta.y) ? delta.x : delta.y)
     }
   }
 
@@ -68,9 +68,9 @@ export function computeSwipeDelta({ payload = {}, target = {}, base = {}, parent
   })
 
   const deltaValue = clampResult.clampedDelta * scaleFactor
-  const direction = resolveDirection(axisKey, deltaValue) || resolveDirection(axisKey, payload.delta)
+  const axis = resolveDirection(axisKey, deltaValue) || resolveDirection(axisKey, payload.delta)
 
-  const response = { delta: deltaValue, direction }
+  const response = { delta: deltaValue, axis }
   if (swipeType === 'slider') {
     response.normalized = clampResult.normalized
     response.normalizedPercent = clampResult.normalizedPercent

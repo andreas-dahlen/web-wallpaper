@@ -6,21 +6,24 @@
  * - Resolve elements and declared reactions
  * - Never mutates DOM, never triggers callbacks
  */
-// import { log } from '../../debug/functions'
 
 export const domRegistry = {
+  // ------------------------
+  // Core intent resolver
+  // ------------------------
+  /**
+   * Returns the top-most element declaring gesture intent at x, y
+   * Includes lane/action info and reaction booleans.
+   */
   findElementAt(x, y) {
-    const elements = document.elementsFromPoint(x, y)
-
-    const el = elements.find(el => {
+    const el = document.elementsFromPoint(x, y).find(el => {
       const ds = el.dataset || {}
-
       return (
         ds.lane !== undefined ||
         ds.action !== undefined ||
         ds.press !== undefined ||
         ds.swipe !== undefined ||
-        ds.select !== undefined ||
+        ds.swipeType !== undefined ||
         ds.reactPress !== undefined ||
         ds.reactPressRelease !== undefined ||
         ds.reactPressCancel !== undefined ||
@@ -33,102 +36,67 @@ export const domRegistry = {
       )
     })
 
-    if (!el) return null
-
-    return {
-      element: el,
-      ...this.readFlags(el)
-    }
+    return el ? this.readFlags(el) : null
   },
 
-  // findLaneAt(x, y) {
-  //   const el = document.elementsFromPoint(x, y)
-  //     .find(el => el.dataset?.lane)
+  // ------------------------
+  // Lane / axis helpers
+  // ------------------------
+  findLaneByAxis(x, y, inputAxis) {
+    const el = document.elementsFromPoint(x, y).find(el => {
+      const ds = el.dataset
+      return ds?.lane && ds?.axis && (ds.axis === inputAxis || ds.axis === 'both')
+    })
+    return el ? this.readFlags(el) : null
+  },
 
-  //   if (!el) return null
-
-  //   const laneId = el.dataset.lane
-  //   const axis = el.dataset.direction || null
-  //   const swipeType = el.dataset.swipeType || null
-
-  //   if (!laneId || !axis || !swipeType) return null
-
-  //   return { element: el, laneId, axis, swipeType }
-  // },
-
-findLaneByAxis(x, y, inputAxis) {
-  const elements = document.elementsFromPoint(x, y)
-
-  for (const el of elements) {
-    const ds = el.dataset
-    if (!ds?.lane || !ds?.axis) continue
-
-    if (ds.axis === inputAxis || ds.axis === 'both') {
-      return {
-        element: el,
-        axis: ds.axis
-      }
-    }
-  }
-  return null
-},
-
-  // findActionAt(x, y) {
-  //   const el = document.elementsFromPoint(x, y)
-  //     .find(el => el.dataset?.action)
-
-  //   if (!el) return null
-
-  //   return {
-  //     element: el,
-  //     actionId: el.dataset.action
-  //   }
-  // },
-
+  // ------------------------
+  // Core flag reader
+  // ------------------------
+  /**
+   * Reads a DOM element and returns a full data packet:
+   * element, lane/action info, press/swipe/select booleans, reaction map.
+   */
   readFlags(el) {
     const ds = el.dataset || {}
 
-    const isLane =
-      ds.lane !== undefined &&
-      ds.direction !== undefined &&
-      ds.swipeType !== undefined
+    const laneId = ds.lane || null
+    const axis = ds.axis || null
+    const swipeType = ds.swipeType || null
+    const actionId = ds.action || null
 
-    const swipeDeclared =
-      ds.swipe !== undefined ||
-      ds.reactSwipe !== undefined ||
-      ds.reactSwipeStart !== undefined ||
-      ds.reactSwipeCommit !== undefined ||
-      ds.reactSwipeRevert !== undefined ||
-      isLane
+    const laneValid = !laneId || (axis && swipeType)
 
-    const pressDeclared =
-      ds.press !== undefined ||
-      ds.reactPress !== undefined ||
-      ds.reactPressRelease !== undefined ||
-      ds.action !== undefined
+    // Derived booleans
+    const pressable = !!(ds.press !== undefined || ds.reactPress !== undefined || ds.reactPressRelease !== undefined || ds.action !== undefined)
+    const swipeable = !!(ds.swipe !== undefined || ds.reactSwipe !== undefined || ds.reactSwipeStart !== undefined || ds.reactSwipeCommit !== undefined || ds.reactSwipeRevert !== undefined || (laneId && laneValid))
+    const cancelable = !!(ds.reactPressCancel !== undefined || pressable || swipeable)
+    const selectable = !!(ds.reactSelected !== undefined || pressable || swipeable)
+    const deselectable = !!(ds.reactDeselected !== undefined || selectable)
 
-    const selectDeclared =
-      ds.reactSelected !== undefined ||
-      ds.reactDeselected !== undefined
+    const reactions = {
+      press: pressable,
+      pressRelease: pressable || ds.reactPressRelease !== undefined,
+      pressCancel: cancelable,
+      swipeStart: swipeable || ds.reactSwipeStart !== undefined,
+      swipe: swipeable || ds.reactSwipe !== undefined,
+      swipeCommit: swipeable || ds.reactSwipeCommit !== undefined,
+      swipeRevert: swipeable || ds.reactSwipeRevert !== undefined,
+      select: selectable,
+      deselect: deselectable
+    }
 
     return {
-      press: pressDeclared,
-      swipe: swipeDeclared,
-      select: selectDeclared,
-
-      reaction: {
-        press: pressDeclared,
-        pressRelease: pressDeclared || ds.reactPressRelease !== undefined,
-        pressCancel: ds.reactPressCancel !== undefined || pressDeclared || swipeDeclared,
-
-        swipeStart: swipeDeclared || ds.reactSwipeStart !== undefined,
-        swipe: swipeDeclared || ds.reactSwipe !== undefined,
-        swipeCommit: swipeDeclared || ds.reactSwipeCommit !== undefined,
-        swipeRevert: swipeDeclared || ds.reactSwipeRevert !== undefined,
-
-        select: selectDeclared,
-        deselect: selectDeclared
-      }
+      element: el,
+      laneId: laneValid ? laneId : null,
+      axis: laneValid ? axis : null,
+      swipeType: laneValid ? swipeType : null,
+      actionId,
+      pressable,
+      swipeable,
+      selectable,
+      deselectable,
+      reactions
     }
   }
 }

@@ -1,41 +1,56 @@
-export const descriptorBuilder = {
-  build(intent, result) {
-    const packet = {
-      reactions: [],
-      control: null
-    }
-
-    // 1. Derived side-effect: pressCancel
-    if (result.pressCancel && result.previousTarget) {
-      packet.reactions.push({
-        type: 'pressCancel',
-        element: result.previousTarget,
-        delta: intent.delta
-      })
-    }
-
-    // 2. Primary reaction
-    packet.reactions.push({
-      type: result.type,
-      element: result.element,
-      delta: intent.delta,
-      axis: result.axis,
-      laneId: result.laneId ?? null
-    })
-
-    // 3. Control channel
-    if (result.type === 'swipeStart') {
-      packet.control = {
-        accept: true,
-        lockAxis: result.lockAxis
-      }
-    }
-
-    return packet
+export function buildPayload(memory, result) {
+  const payload = {
+    reactions: buildReactions(memory, result),
+    control: buildControl(memory, result)
   }
+
+  // console.log('payload: ', payload)
+  return payload
 }
 
+function buildReactions(memory, result) {
+  const reactions = []
 
+  const previous = memory.previousTarget
+  const current = result?.target ?? memory.currentTarget
+  // console.log(previous, current)
+
+  if (!current) return reactions // no target, nothing to do
+
+  // 1. Derived side-effect: pressCancel
+  if (result?.pressCancel && previous) {
+    reactions.push({
+      type: 'pressCancel',
+      element: previous.element,
+      delta: result.delta ?? null
+    })
+  }
+
+  // 2. Primary reaction
+  reactions.push({
+    type: result?.type ?? 'unknown',
+    element: current.element ?? null,
+    delta: result?.delta ?? null,
+    axis: result?.axis ?? memory.axis ?? null,
+    laneId: current.laneId ?? null,
+    swipeType: current.swipeType ?? null
+  })
+
+  return reactions
+}
+
+function buildControl(memory, result) {
+  const current = result?.target ?? memory.currentTarget
+  if (!current) return null
+
+  if (current.reactions?.swipeStart) {
+    return { acceptedGesture: true }
+  }
+
+  return null
+}
+
+  
 
 //   buildPress(intent, target) {
 //     return {

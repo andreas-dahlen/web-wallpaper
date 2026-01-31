@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { clampNumber } from '../input/math/clampMath'
+import { clampNumber } from '../math/clampMath'
 
 /* -------------------------
    Central swipe state

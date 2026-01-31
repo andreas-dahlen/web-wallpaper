@@ -4,7 +4,7 @@
     v-bind="$attrs"
     class="slider-container"
     :data-lane="lane"
-    :data-direction="direction"
+    :data-axis="axis"
     data-swipe-type="slider"
     :data-react-swipe-commit="reactSwipeCommit ? true : null"
   >
@@ -17,18 +17,18 @@
 
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount, watchEffect } from 'vue'
-import { ensureLane, setLaneSize } from '../state/carouselState'
+import { ensureLane, setLaneSize } from '../input/state/carouselState'
 
 defineOptions({ name: 'SwipeSlider' })
 
 const props = defineProps({
   lane: { type: String, required: true },
-  direction: { type: String, default: 'horizontal' },
+  axis: { type: String, default: 'horizontal' },
   reactSwipeCommit: { type: Boolean, default: false },
 })
 
 const sliderEl = ref(null)
-const horizontal = computed(() => props.direction === 'horizontal')
+const horizontal = computed(() => props.axis === 'horizontal')
 const laneState = computed(() => ensureLane(props.lane))
 const laneOffset = computed(() => laneState.value.offset || 0)
 const dragging = computed(() => laneState.value.dragging)

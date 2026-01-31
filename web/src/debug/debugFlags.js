@@ -9,7 +9,7 @@ export const DEBUG = {
 
   swipe: false,
 
-  dom: true,
+  dom: false,
 
   input: false,
 
@@ -18,6 +18,8 @@ export const DEBUG = {
   drag: false,
 
   resolver: false,
+
+  delegator: false,
 
   init: 'always'
 }

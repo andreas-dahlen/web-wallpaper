@@ -8,7 +8,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { device, scale } from '../state/sizeState'
+import { device, scale } from '../input/state/sizeState'
 
 // Inline style for device frame using shared sizeState metrics
 const frameStyle = computed(() => ({

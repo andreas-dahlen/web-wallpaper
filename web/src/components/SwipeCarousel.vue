@@ -4,7 +4,7 @@
     class="carousel"
     :style="carouselStyle"
     :data-lane="lane"
-    :data-direction="direction"
+    :data-axis="axis"
     :data-swipe-type="'carousel'"
     :data-react-swipe-commit="reactSwipeCommit ? true : null"
   >
@@ -32,7 +32,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watchEffect, markRaw } from 'vue'
-import { ensureLane, setLaneCount, setLaneSize } from '../state/carouselState'
+import { ensureLane, setLaneCount, setLaneSize } from '../input/state/carouselState'
 import { APP_SETTINGS } from '../config/appSettings'
 
 const emit = defineEmits(['swipeCommit'])
@@ -67,11 +67,11 @@ onBeforeUnmount(() => {
 const props = defineProps({
   lane: { type: String, required: true },
   scenes: { type: Array, required: true },
-  direction: { type: String, default: 'horizontal' },
+  axis: { type: String, default: 'horizontal' },
   reactSwipeCommit: { type: Boolean, default: false }
 })
 
-const horizontal = computed(() => props.direction === 'horizontal')
+const horizontal = computed(() => props.axis === 'horizontal')
 const laneState = computed(() => ensureLane(props.lane))
 
 watchEffect(() => {

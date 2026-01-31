@@ -1,6 +1,6 @@
-import { APP_SETTINGS } from "../config/appSettings"
+import { APP_SETTINGS } from "../../config/appSettings"
 import { computed } from 'vue'
-import { log } from '../debug/functions'
+import { log } from '../../debug/functions'
 /* -------------------------
    Device info (works for web and APK)
 -------------------------- */
