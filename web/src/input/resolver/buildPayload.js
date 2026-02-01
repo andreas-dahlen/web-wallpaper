@@ -1,37 +1,36 @@
-export function buildPayload(memory, result) {
+export function buildPayload(result, type) {
   const payload = {
-    reactions: buildReactions(memory, result),
-    control: buildControl(memory, result)
+    reactions: buildReactions(result, type),
+    control: buildControl(result, type)
   }
 
-  // console.log('payload: ', payload)
+  // console.log('payload: ', payload, 'intent.type: ', type)
   return payload
 }
 
-function buildReactions(memory, result) {
+function buildReactions(result, type) {
   const reactions = []
 
-  const previous = memory.previousTarget
-  const current = result?.target ?? memory.currentTarget
+  const current = result?.target ?? null
   // console.log(previous, current)
 
   if (!current) return reactions // no target, nothing to do
 
   // 1. Derived side-effect: pressCancel
-  if (result?.pressCancel && previous) {
+  if (result?.pressCancel) {
     reactions.push({
       type: 'pressCancel',
-      element: previous.element,
+      element: result.pressCancel.element,
       delta: result.delta ?? null
     })
   }
 
   // 2. Primary reaction
   reactions.push({
-    type: result?.type ?? 'unknown',
+    type: type ?? null,
     element: current.element ?? null,
     delta: result?.delta ?? null,
-    axis: result?.axis ?? memory.axis ?? null,
+    axis: result?.axis ?? null,
     laneId: current.laneId ?? null,
     swipeType: current.swipeType ?? null
   })
@@ -39,14 +38,13 @@ function buildReactions(memory, result) {
   return reactions
 }
 
-function buildControl(memory, result) {
-  const current = result?.target ?? memory.currentTarget
+function buildControl(result, type) {
+  const current = result?.target
   if (!current) return null
 
-  if (current.reactions?.swipeStart) {
+  if (type === 'swipeStart') {
     return { acceptedGesture: true }
   }
-
   return null
 }
 

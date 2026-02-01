@@ -1,9 +1,9 @@
 //resolver.js
 
-import { policy } from '../render/gesturePolicy'
+import { policy } from './gesturePolicy'
 
 export const resolve = {
-    pressElement(intent) {
+    press(intent) {
         const target = policy.resolveTarget(intent)
         if (!target) return null
         return {
@@ -12,39 +12,43 @@ export const resolve = {
         }
     },
 
-    swipeElement(intent, facts) {
+    swipeStart(intent, facts) {
         const resolved = policy.resolveSwipeTarget(intent, facts)
         if (!resolved || !resolved.axis) return null
         return {
             target: resolved.target,
             delta: policy.resolveDeltaLock(intent.delta, resolved.axis),
             axis: resolved.axis,
-            pressCancel: resolved.pressCancel ?? false
+            pressCancel: resolved.pressCancel
+                ? facts.target
+                : null
         }
     },
 
-    canSwipe(intent, facts) {
-        if (policy.resolveSupports(intent.type, facts.currentTarget)) {
+    swipe(intent, facts) {
+        if (policy.resolveSupports(intent.type, facts.target)) {
             return {
+                target: facts.target,
                 delta: policy.resolveDeltaLock(intent.delta, facts.axis),
-                pressCancel: false,
             }
         }
         return null
     },
 
-    canSwipeEnd(intent, facts) {
-        if (policy.resolveSupports(intent.type, facts.currentTarget)) {
+    swipeEnd(intent, facts) {
+        if (policy.resolveSupports(intent.type, facts.target)) {
             return {
+                target: facts.target,
                 delta: policy.resolveDeltaLock(intent.delta, facts.axis)
             }
         }
         return null
     },
 
-    canPressRelease(intent, facts) {
-        if (policy.resolveSupports(intent.type, facts.currentTarget)) {
+    pressRelease(intent, facts) {
+        if (policy.resolveSupports(intent.type, facts.target)) {
             return {
+                target: facts.target,
                 delta: policy.resolveDeltaLock(intent.delta, facts.axis)
             }
         }

@@ -1,13 +1,13 @@
 // intentForwarder.js
-import { renderer } from '../render/renderer'
-import { reactionDelegate } from '../resolver/reactionDelegator'
+import { coordinate } from '../render/reactionCoordinator'
+import { intentDelegate } from '../resolver/intentDelegator'
 import { log } from '../../debug/functions'
 
 export function intentForward(intent) {
   log('adapter', intent.type, intent)
   const packet = delegate(intent)
 forwardPacket(packet)
-// console.log('PACKET!', 'TYPE: ', intent.type, packet)
+console.log('PACKET!', 'TYPE: ', intent.type, packet)
   return {
     acceptedGesture: packet?.control?.acceptedGesture === true,
   }
@@ -23,26 +23,27 @@ function forwardPacket(packet) {
       console.warn('Invalid reaction descriptor', reaction, reaction.type)
       continue
     }
-    renderer.handleReaction(reaction)
+    coordinate.handle(reaction)
   }
 }
 
 function delegate(intent) {
+  // console.log(intent.type)
   switch (intent.type) {
     case 'press':
-      return reactionDelegate.onPress(intent)
+      return intentDelegate.onPress(intent)
 
     case 'swipeStart':
-      return reactionDelegate.onSwipeStart(intent)
+      return intentDelegate.onSwipeStart(intent)
 
     case 'swipe':
-      return reactionDelegate.onSwipe(intent)
+      return intentDelegate.onSwipe(intent)
 
     case 'swipeEnd':
-      return reactionDelegate.onSwipeEnd(intent)
+      return intentDelegate.onSwipeEnd(intent)
 
     case 'pressRelease':
-      return reactionDelegate.onPressRelease(intent)
+      return intentDelegate.onPressRelease(intent)
 
     default:
       console.warn('Unknown intent type', intent)

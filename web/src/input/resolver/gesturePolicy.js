@@ -43,13 +43,13 @@ export const policy = {
   },
 
   resolveSwipeTarget(intent, facts) {
-    // Priority: currentTarget must support swipeStart AND the intent axis
-    if (facts.currentTarget) {
-      const axis = this.resolveAxis(intent.axis, facts.currentTarget)
-      if (this.resolveSupports('swipeStart', facts.currentTarget) && axis) {
-        console.log('origonal: ', facts.currentTarget)
+    // Priority: target must support swipeStart AND the intent axis
+    if (facts.target) {
+      const axis = this.resolveAxis(intent.axis, facts.target)
+      if (this.resolveSupports('swipeStart', facts.target) && axis) {
+        // console.log('origonal: ', facts.target)
         return {
-          target: facts.currentTarget,
+          target: facts.target,
           axis,
           pressCancel: false
         }
@@ -59,14 +59,13 @@ export const policy = {
     // Fallback: find lane by axis
     const newTarget = domRegistry.findLaneByAxis(intent.delta.x, intent.delta.y, intent.axis)
     if (newTarget) {
-      console.log('backup: ', newTarget)
+      // console.log('backup: ', newTarget)
       return {
         target: newTarget,
         axis: newTarget.axis, // might still be 'both'
-        pressCancel: this.resolveSupports('pressCancel', facts.currentTarget)
+        pressCancel: this.resolveSupports('pressCancel', facts.target)
       }
     }
-
     return null
   }
 }
