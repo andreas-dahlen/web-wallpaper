@@ -7,7 +7,8 @@ export const resolve = {
         const target = policy.resolveTarget(intent)
         if (!target) return null
         return {
-            target,
+            type: 'press',
+            target: target,
             delta: intent.delta
         }
     },
@@ -16,8 +17,9 @@ export const resolve = {
         const resolved = policy.resolveSwipeTarget(intent, facts)
         if (!resolved || !resolved.axis) return null
         return {
+            type: 'swipeStart',
             target: resolved.target,
-            delta: policy.resolveDeltaLock(intent.delta, resolved.axis),
+            delta: policy.resolveDelta(intent.delta, resolved.axis, resolved.swipeType),
             axis: resolved.axis,
             pressCancel: resolved.pressCancel
                 ? facts.target
@@ -28,8 +30,9 @@ export const resolve = {
     swipe(intent, facts) {
         if (policy.resolveSupports(intent.type, facts.target)) {
             return {
+                type: 'swipe',
                 target: facts.target,
-                delta: policy.resolveDeltaLock(intent.delta, facts.axis),
+                delta: policy.resolveDelta(intent.delta, facts.axis, facts.swipeType),
             }
         }
         return null
@@ -37,9 +40,11 @@ export const resolve = {
 
     swipeEnd(intent, facts) {
         if (policy.resolveSupports(intent.type, facts.target)) {
+            //facts.target.type = 'swipeCommit'
             return {
+                type: 'swipeCommit',
                 target: facts.target,
-                delta: policy.resolveDeltaLock(intent.delta, facts.axis)
+                delta: policy.resolveDelta(intent.delta, facts.axis, facts.swipeType)
             }
         }
         return null
@@ -48,8 +53,9 @@ export const resolve = {
     pressRelease(intent, facts) {
         if (policy.resolveSupports(intent.type, facts.target)) {
             return {
+                type: 'pressRelease',
                 target: facts.target,
-                delta: policy.resolveDeltaLock(intent.delta, facts.axis)
+                delta: policy.resolveDelta(intent.delta, facts.axis, facts.swipeType)
             }
         }
         return null

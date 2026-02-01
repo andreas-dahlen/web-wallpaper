@@ -7,29 +7,31 @@ export const policy = {
     return !!target?.reactions?.[type]
   },
 
-  resolveDeltaLock(delta, axis) {
-    if (!delta || !axis) return delta
-    if (axis === 'both') { return { x: delta.x, y: delta.y } }
-    if (axis === 'horizontal') { return { x: delta.x, y: 0 } }
-    if (axis === 'vertical') { return { x: 0, y: delta.y } }
+  resolveDelta(delta, axis, swipeType) {
+    if (!delta) return delta
+    if (swipeType === 'drag') {
+      return delta // keep {x,y}
+    }
+    if (swipeType === 'carousel' || swipeType === 'slider') {
+      if (axis === 'horizontal') return delta.x
+      if (axis === 'vertical') return delta.y
+    }
     return delta
   },
+
   /**
    * Returns: 'horizontal' | 'vertical' | 'both' | null
    */
   resolveAxis(intentAxis, target) {
     if (!target?.axis) return null
-
     // Target accepts both → use intent axis
     if (target.axis === 'both') {
       return intentAxis
     }
-
     // Target is strict → must match intent
     if (target.axis === intentAxis) {
       return intentAxis
     }
-
     // Axis not supported
     return null
   },
@@ -47,10 +49,10 @@ export const policy = {
     if (facts.target) {
       const axis = this.resolveAxis(intent.axis, facts.target)
       if (this.resolveSupports('swipeStart', facts.target) && axis) {
-        // console.log('origonal: ', facts.target)
         return {
           target: facts.target,
-          axis,
+          axis: axis,
+          swipeType: facts.swipeType,
           pressCancel: false
         }
       }
@@ -59,10 +61,10 @@ export const policy = {
     // Fallback: find lane by axis
     const newTarget = domRegistry.findLaneByAxis(intent.delta.x, intent.delta.y, intent.axis)
     if (newTarget) {
-      // console.log('backup: ', newTarget)
       return {
         target: newTarget,
         axis: newTarget.axis, // might still be 'both'
+        swipeType: newTarget.swipeType,
         pressCancel: this.resolveSupports('pressCancel', facts.target)
       }
     }

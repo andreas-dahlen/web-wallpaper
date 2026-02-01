@@ -5,10 +5,23 @@ import { buildPayload } from './buildPayload'
 
 const localMemory = {
   target: null,
+  axis: null,
+  swipeType: null,
 
-  get() { return { target: this.target } },
-  set(solution) { if (solution.target) this.target = solution.target },
-  reset() { this.target = null }
+  get() {
+    return { target: this.target, axis: this.axis, swipeType: this.swipeType }
+  },
+  set(target) {
+    if (!target || target === this.target) return
+    this.target = target
+    this.axis = target.axis ?? null
+    this.swipeType = target.swipeType ?? null
+  },
+  reset() {
+    this.target = null;
+    this.axis = null;
+    this.swipeType = null
+  }
 }
 
 //COULD DO RESETSWIPE AND RESETPRESS INTEAD OF RESETSTATE
@@ -17,8 +30,8 @@ export const intentDelegate = {
   onPress(intent) {
     const solution = resolve.press(intent)
     if (!solution) return null
-    localMemory.set(solution)
-    return buildPayload(solution, intent.type)
+    localMemory.set(solution.target)
+    return buildPayload(solution)
   },
 
   onSwipeStart(intent) {
@@ -26,16 +39,16 @@ export const intentDelegate = {
     const solution = resolve.swipeStart(intent, facts)
     if (!solution) return null
     if (!localMemory.target || solution.target !== localMemory.target) {
-      localMemory.set(solution)
+      localMemory.set(solution.target)
     }
-    return buildPayload(solution, intent.type)
+    return buildPayload(solution)
   },
 
   onSwipe(intent) {
     const facts = localMemory.get()
     const solution = resolve.swipe(intent, facts)
     if (!solution) return null
-    return buildPayload(solution, intent.type)
+    return buildPayload(solution)
   },
 
   onSwipeEnd(intent) {
@@ -43,7 +56,7 @@ export const intentDelegate = {
     const solution = resolve.swipeEnd(intent, facts)
     if (!solution) return null
     localMemory.reset()
-    return buildPayload(solution, intent.type)
+    return buildPayload(solution)
   },
 
   onPressRelease(intent) {
@@ -51,6 +64,6 @@ export const intentDelegate = {
     const solution = resolve.pressRelease(intent, facts)
     if (!solution) return null
     localMemory.reset()
-    return buildPayload(solution, intent.type)
+    return buildPayload(solution)
   }
 }

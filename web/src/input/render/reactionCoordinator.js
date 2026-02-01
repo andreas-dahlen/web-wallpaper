@@ -9,7 +9,7 @@
  * Expandable: later add gestureState, math, drag tracking, etc.
  */
 
-import { stateMutate } from '../state/stateMutator'
+import { enableDragging, clearPendingDir, applyLaneOffset, commitLane } from '../state/carouselState'
 import { dispatcher } from './dispatcher'
 
 /* -------------------------
@@ -19,24 +19,12 @@ export const coordinate = {
   handle(descriptor) {
     if (!descriptor) return
 
-    if (descriptor.delta) {
-      const { x, y } = descriptor.delta
-
-      if (x === 0 && y === 0) descriptor.delta = 0
-      else if (x !== 0 && y === 0) descriptor.delta = x
-      else if (x === 0 && y !== 0) descriptor.delta = y
-      // else leave {x, y} as-is
-    }
     if (!descriptor.swipeType) {
       dispatcher.handle(descriptor)
       return
     }
 
-    const swipeType = descriptor.swipeType
-    const type =
-      descriptor.type === 'swipeEnd'
-        ? 'swipeCommit'
-        : descriptor.type
+    const { type, swipeType } = descriptor
 
     const result = stateMutate[type]?.[swipeType]?.(descriptor)
 
@@ -44,46 +32,50 @@ export const coordinate = {
   }
 }
 
-//   handlePress(descriptor) {
-//     dispatcher.handle(descriptor)
-//   },
+const stateMutate = {
+  swipeStart: {
+    carousel(packet) {
+      enableDragging(packet.laneId)
+      clearPendingDir(packet.laneId)
+      return null
+    },
+    slider(packet) {
+      // call slider helpers here
+      return null
+    },
+    drag(packet) {
+      // call drag helpers here
+      return null
+    }
+  },
 
-//   handleSwipeStart(descriptor) {
-//     if (!descriptor.laneId) return
-//     //posibly sort by laneType..
-//     stateMutate.solveSwipeStart(descriptor)
-//     dispatcher.handle(descriptor)
-//   },
+  swipe: {
+    carousel(packet) {
+      applyLaneOffset(packet.laneId, packet.delta)
+      return null
+    },
+    slider(packet) {
+      // call slider helpers here
+      return null
+    },
+    drag(packet) {
+      // call drag helpers here
+      return null
+    }
+  },
 
-// handleSwipe(descriptor) {
-//   if (!descriptor.laneId) return
-
-//   let resolved = null
-
-//   switch (descriptor.swipeType) {
-//     case 'drag':
-//       resolved = stateMutate.solveDrag(descriptor)
-//       break
-//     case 'carousel':
-//       resolved = stateMutate.solveCarousel(descriptor)
-//       break
-//     case 'slider':
-//       resolved = stateMutate.solveSlider(descriptor)
-//       break
-//   }
-
-//   dispatcher.handle(resolved ?? descriptor)
-// },
-
-//   handleSwipeEnd(descriptor) {
-//     if (!descriptor.laneId) return
-//     descriptor.type = 'swipeCommit'
-//     if (descriptor.swipeType === 'carousel') {
-//       const solvedCarousel = stateMutate.solveCarousel(descriptor)
-//       dispatcher.handle(solvedCarousel)
-//       return
-//     } else {
-//       // all swipeEnd reactions are commits here
-//       dispatcher.handle(descriptor)
-//     }
-//   }
+  swipeCommit: {
+    carousel(packet) {
+      commitLane(packet.laneId, packet.delta)
+      return packet
+    },
+    slider(packet) {
+      // call slider commit helpers here
+      return packet
+    },
+    drag(packet) {
+      // call drag commit helpers here
+      return packet
+    }
+  }
+}

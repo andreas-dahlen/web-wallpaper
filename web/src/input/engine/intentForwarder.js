@@ -4,10 +4,10 @@ import { intentDelegate } from '../resolver/intentDelegator'
 import { log } from '../../debug/functions'
 
 export function intentForward(intent) {
-  log('adapter', intent.type, intent)
+  // log('adapter', intent.type, intent)
   const packet = delegate(intent)
 forwardPacket(packet)
-console.log('PACKET!', 'TYPE: ', intent.type, packet)
+// console.log('PACKET!', packet)
   return {
     acceptedGesture: packet?.control?.acceptedGesture === true,
   }
@@ -28,7 +28,6 @@ function forwardPacket(packet) {
 }
 
 function delegate(intent) {
-  // console.log(intent.type)
   switch (intent.type) {
     case 'press':
       return intentDelegate.onPress(intent)

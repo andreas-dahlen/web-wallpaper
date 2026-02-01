@@ -1,18 +1,17 @@
-export function buildPayload(result, type) {
-  const payload = {
-    reactions: buildReactions(result, type),
-    control: buildControl(result, type)
-  }
+//buildPayload.js
 
-  // console.log('payload: ', payload, 'intent.type: ', type)
+export function buildPayload(result) {
+  const payload = {
+    reactions: buildReactions(result),
+    control: buildControl(result)
+  }
   return payload
 }
 
-function buildReactions(result, type) {
+function buildReactions(result) {
   const reactions = []
 
   const current = result?.target ?? null
-  // console.log(previous, current)
 
   if (!current) return reactions // no target, nothing to do
 
@@ -27,7 +26,7 @@ function buildReactions(result, type) {
 
   // 2. Primary reaction
   reactions.push({
-    type: type ?? null,
+    type: result.type ?? null,
     element: current.element ?? null,
     delta: result?.delta ?? null,
     axis: result?.axis ?? null,
@@ -38,11 +37,11 @@ function buildReactions(result, type) {
   return reactions
 }
 
-function buildControl(result, type) {
+function buildControl(result) {
   const current = result?.target
   if (!current) return null
 
-  if (type === 'swipeStart') {
+  if (result.type === 'swipeStart') {
     return { acceptedGesture: true }
   }
   return null
