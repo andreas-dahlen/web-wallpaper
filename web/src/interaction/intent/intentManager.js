@@ -51,9 +51,9 @@ export const intentDelegate = {
     return buildPayload(solution)
   },
 
-  onSwipeEnd(intent) {
+  onSwipeCommit(intent) {
     const facts = localMemory.get()
-    const solution = resolve.swipeEnd(intent, facts)
+    const solution = resolve.swipeCommit(intent, facts)
     if (!solution) return null
     localMemory.reset()
     return buildPayload(solution)

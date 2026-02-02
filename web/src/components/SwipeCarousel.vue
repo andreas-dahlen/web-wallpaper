@@ -32,7 +32,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watchEffect, markRaw } from 'vue'
-import { ensureLane, setLaneCount, setLaneSize } from '../interaction/state/carouselState'
+import { ensureLane, setLaneCount, setLaneSize, finalizeLaneTransition } from '../interaction/state/carouselState'
 import { APP_SETTINGS } from '../config/appSettings'
 
 const emit = defineEmits(['swipeCommit'])
@@ -160,24 +160,7 @@ const carouselStyle = computed(() => ({
 -------------------------- */
 function onTransitionEnd(e) {
   if (e.propertyName !== 'transform') return
-
-  const lane = laneState.value
-  if (!lane.pendingDir) return
-
-  // Commit index based on pendingDir
-  switch (lane.pendingDir) {
-    case 'right':
-    case 'down':
-      lane.index = (lane.index - 1 + lane.count) % lane.count
-      break
-    case 'left':
-    case 'up':
-      lane.index = (lane.index + 1) % lane.count
-      break
-  }
-
-  lane.offset = 0
-  lane.pendingDir = null
+  finalizeLaneTransition(props.lane)
 }
 </script>
 

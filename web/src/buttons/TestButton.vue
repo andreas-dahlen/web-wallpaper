@@ -15,7 +15,7 @@
 </template>
 <!-- @swipe-start="onSwipeStart"
 @swipe="onSwipe"
-@swipe-end="onSwipeEnd" -->
+@swipe-commit="onSwipeCommit" -->
 
 <script setup>
 import { ref } from 'vue'
@@ -34,7 +34,7 @@ function onPressCancel() {
 }
 // const onSwipeStart = () => { swiping.value = true }
 // const onSwipe = () => {}
-// const onSwipeEnd = () => { swiping.value = false }
+// const onSwipeCommit = () => { swiping.value = false }
 </script>
 
 <style scoped>

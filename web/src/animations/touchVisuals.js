@@ -16,6 +16,6 @@ export function swipe(el, dir) {
   el.style.setProperty('--touch-bg', `var(--touch-swipe-${dir})`);
 }
 
-export function swipeEnd(el) {
+export function swipeCommit(el) {
   el.style.removeProperty('--touch-bg');
 }

@@ -7,7 +7,6 @@ export function intentForward(intent) {
   // log('adapter', intent.type, intent)
   const packet = delegate(intent)
 forwardPacket(packet)
-// console.log('PACKET!', packet)
   return {
     acceptedGesture: packet?.control?.acceptedGesture === true,
   }
@@ -38,8 +37,8 @@ function delegate(intent) {
     case 'swipe':
       return intentDelegate.onSwipe(intent)
 
-    case 'swipeEnd':
-      return intentDelegate.onSwipeEnd(intent)
+    case 'swipeCommit':
+      return intentDelegate.onSwipeCommit(intent)
 
     case 'pressRelease':
       return intentDelegate.onPressRelease(intent)

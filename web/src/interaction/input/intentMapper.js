@@ -117,7 +117,7 @@ function onUp(x, y) {
     }
     if (state.phase === 'SWIPING')
         intentForward({
-            type: 'swipeEnd',
+            type: 'swipeCommit',
             delta: state.totalDelta
         })
 

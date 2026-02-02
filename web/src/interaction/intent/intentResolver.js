@@ -7,7 +7,7 @@ export const resolve = {
         const target = policy.resolveTarget(intent)
         if (!target) return null
         return {
-            type: 'press',
+            type: intent.type,
             target: target,
             delta: intent.delta
         }
@@ -17,7 +17,7 @@ export const resolve = {
         const resolved = policy.resolveSwipeTarget(intent, facts)
         if (!resolved || !resolved.axis) return null
         return {
-            type: 'swipeStart',
+            type: intent.type,
             target: resolved.target,
             delta: policy.resolveDelta(intent.delta, resolved.axis, resolved.swipeType),
             axis: resolved.axis,
@@ -30,7 +30,7 @@ export const resolve = {
     swipe(intent, facts) {
         if (policy.resolveSupports(intent.type, facts.target)) {
             return {
-                type: 'swipe',
+                type: intent.type,
                 target: facts.target,
                 delta: policy.resolveDelta(intent.delta, facts.axis, facts.swipeType),
             }
@@ -38,11 +38,11 @@ export const resolve = {
         return null
     },
 
-    swipeEnd(intent, facts) {
+    swipeCommit(intent, facts) {
         if (policy.resolveSupports(intent.type, facts.target)) {
-            //facts.target.type = 'swipeCommit'
+
             return {
-                type: 'swipeCommit',
+                type: intent.type,
                 target: facts.target,
                 delta: policy.resolveDelta(intent.delta, facts.axis, facts.swipeType)
             }
@@ -53,7 +53,7 @@ export const resolve = {
     pressRelease(intent, facts) {
         if (policy.resolveSupports(intent.type, facts.target)) {
             return {
-                type: 'pressRelease',
+                type: intent.type,
                 target: facts.target,
                 delta: policy.resolveDelta(intent.delta, facts.axis, facts.swipeType)
             }

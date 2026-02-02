@@ -1,16 +1,27 @@
-// reactionCoordinator.js
+// reactionManager.js
 /**
- * reactionCoordinator.js
+ * reactionManager.js
  *
  * Coordinates reactions:
- * - Sorts and calls stateMutate
- * - Dispatches reactions to dispatcher
+ * - Routes descriptors to appropriate solvers
+ * - Dispatches ALL reactions (never suppresses)
  *
- * Expandable: later add gestureState, math, drag tracking, etc.
+ * Contract:
+ * - Solvers mutate state and may modify descriptors
+ * - Dispatch ALWAYS happens
  */
 
-import { enableDragging, clearPendingDir, applyLaneOffset, commitLane } from '../state/carouselState'
 import { dispatcher } from './dispatcher'
+import { carouselSolver } from './carouselSolver'
+
+/* -------------------------
+   Solver routing table
+-------------------------- */
+const solvers = {
+  carousel: carouselSolver
+  // slider: sliderSolver,
+  // drag: dragSolver,
+}
 
 /* -------------------------
    Core handler
@@ -19,63 +30,18 @@ export const coordinate = {
   handle(descriptor) {
     if (!descriptor) return
 
-    if (!descriptor.swipeType) {
-      dispatcher.handle(descriptor)
-      return
+    // Route to solver if swipeType exists
+    const solver = descriptor.swipeType ? solvers[descriptor.swipeType] : null
+    let result = descriptor
+
+    if (solver) {
+      const handler = solver[descriptor.type]
+      if (handler) {
+        result = handler(descriptor)
+      }
     }
 
-    const { type, swipeType } = descriptor
-
-    const result = stateMutate[type]?.[swipeType]?.(descriptor)
-
+    // Dispatch ALWAYS happens (use result or original descriptor)
     dispatcher.handle(result ?? descriptor)
-  }
-}
-
-const stateMutate = {
-  swipeStart: {
-    carousel(packet) {
-      enableDragging(packet.laneId)
-      clearPendingDir(packet.laneId)
-      return null
-    },
-    slider(packet) {
-      // call slider helpers here
-      return null
-    },
-    drag(packet) {
-      // call drag helpers here
-      return null
-    }
-  },
-
-  swipe: {
-    carousel(packet) {
-      applyLaneOffset(packet.laneId, packet.delta)
-      return null
-    },
-    slider(packet) {
-      // call slider helpers here
-      return null
-    },
-    drag(packet) {
-      // call drag helpers here
-      return null
-    }
-  },
-
-  swipeCommit: {
-    carousel(packet) {
-      commitLane(packet.laneId, packet.delta)
-      return packet
-    },
-    slider(packet) {
-      // call slider commit helpers here
-      return packet
-    },
-    drag(packet) {
-      // call drag commit helpers here
-      return packet
-    }
   }
 }

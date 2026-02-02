@@ -73,7 +73,6 @@ export function clearPendingDir(laneId) {
 }
 
 export function applyLaneOffset(laneId, offset) {
-  console.log(offset)
   ensureLane(laneId).offset = offset
 }
 
@@ -104,6 +103,32 @@ export function commitLaneSwipe(laneId, dir) {
       : dir === 'left' || dir === 'up'
         ? -lane.size
         : 0
+}
+
+/**
+ * Finalize lane after CSS transition completes.
+ * Called by renderer when transitionend fires.
+ * Updates index based on pendingDir and resets offset.
+ */
+export function finalizeLaneTransition(laneId) {
+  const lane = getLane(laneId)
+  if (!lane || !lane.pendingDir) return false
+
+  // Update index based on pendingDir
+  switch (lane.pendingDir) {
+    case 'right':
+    case 'down':
+      lane.index = (lane.index - 1 + lane.count) % lane.count
+      break
+    case 'left':
+    case 'up':
+      lane.index = (lane.index + 1) % lane.count
+      break
+  }
+
+  lane.offset = 0
+  lane.pendingDir = null
+  return true
 }
 
 /* -------------------------------------------------
