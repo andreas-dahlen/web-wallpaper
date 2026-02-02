@@ -19,7 +19,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { setDragPosition, getDragPosition } from '../input/state/gestureState'
+import { setDragPosition, getDragPosition } from '../interaction/state/gestureState'
 
 const dragEl = ref(null)
 const dragItem = ref(null)

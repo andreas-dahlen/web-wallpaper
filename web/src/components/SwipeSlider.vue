@@ -17,7 +17,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount, watchEffect } from 'vue'
-import { ensureLane, setLaneSize } from '../input/state/carouselState'
+import { ensureLane, setLaneSize } from '../interaction/state/carouselState'
 
 defineOptions({ name: 'SwipeSlider' })
 

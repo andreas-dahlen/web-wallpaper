@@ -7,7 +7,7 @@ import { APP_SETTINGS } from './config/appSettings'
 import { log } from './debug/functions'
 
 // Input router selects platform wiring for the intent engine
-import { initInputSystem } from './input/engine/inputRouter'
+import { initInputSystem } from './interaction/input/inputRouter'
 // import { exportCSS } from './config/exportSettings'
 
 log('init', APP_SETTINGS.platform)

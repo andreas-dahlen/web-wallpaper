@@ -32,7 +32,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watchEffect, markRaw } from 'vue'
-import { ensureLane, setLaneCount, setLaneSize } from '../input/state/carouselState'
+import { ensureLane, setLaneCount, setLaneSize } from '../interaction/state/carouselState'
 import { APP_SETTINGS } from '../config/appSettings'
 
 const emit = defineEmits(['swipeCommit'])

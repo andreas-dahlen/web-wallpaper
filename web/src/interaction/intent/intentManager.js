@@ -1,6 +1,6 @@
 //intentDelegator.js
 
-import { resolve } from './resolver'
+import { resolve } from './intentResolver'
 import { buildPayload } from './buildPayload'
 
 const localMemory = {

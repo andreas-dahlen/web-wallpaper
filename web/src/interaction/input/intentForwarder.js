@@ -1,6 +1,6 @@
 // intentForwarder.js
-import { coordinate } from '../render/reactionCoordinator'
-import { intentDelegate } from '../resolver/intentDelegator'
+import { coordinate } from '../reaction/reactionManager'
+import { intentDelegate } from '../intent/intentManager'
 import { log } from '../../debug/functions'
 
 export function intentForward(intent) {
