@@ -30,18 +30,16 @@ export const coordinate = {
   handle(descriptor) {
     if (!descriptor) return
 
-    // Route to solver if swipeType exists
-    const solver = descriptor.swipeType ? solvers[descriptor.swipeType] : null
     let result = descriptor
+    const swipeType = descriptor.swipeType
+    const type = descriptor.type
 
-    if (solver) {
-      const handler = solver[descriptor.type]
-      if (handler) {
-        result = handler(descriptor)
-      }
+    // Get the handler for this swipeType / action
+    const handler = solvers[swipeType]?.[type]
+
+    if (handler) {
+      result = handler(descriptor)
     }
-
-    // Dispatch ALWAYS happens (use result or original descriptor)
-    dispatcher.handle(result ?? descriptor)
+    dispatcher.handle(result)
   }
 }
