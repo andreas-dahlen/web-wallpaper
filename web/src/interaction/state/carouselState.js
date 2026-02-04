@@ -1,8 +1,12 @@
 import { reactive } from 'vue'
 import { clampNumber } from '../math/clampMath'
+import { getNextIndex } from '../reaction/swipePolicy'
 
 /* -------------------------------------------------
    Central carousel state
+   
+   This is a passive reactive store. All mutations
+   should flow through dispatcher actions.
 ------------------------------------------------- */
 
 export const carouselState = reactive({
@@ -18,10 +22,7 @@ export function ensureLane(laneId) {
     carouselState.lanes[laneId] = {
       index: 0,
       count: 0,
-
       offset: 0,
-      committedOffset: 0,
-
       size: 0,
       dragging: false,
       pendingDir: null
@@ -56,76 +57,57 @@ export function setLaneIndex(laneId, index) {
 }
 
 /* -------------------------------------------------
-   Coordinator-facing helpers
-   (NO math, NO policy)
+   Dispatcher Actions (single choke point for mutations)
+   
+   These are the only functions that should mutate
+   carousel state during gesture handling.
 ------------------------------------------------- */
 
-export function enableDragging(laneId) {
-  ensureLane(laneId).dragging = true
+/**
+ * Start dragging - called by dispatcher on carousel:dragStart
+ */
+export function startDrag(laneId) {
+  const lane = ensureLane(laneId)
+  lane.dragging = true
+  lane.pendingDir = null
 }
 
-export function disableDragging(laneId) {
-  ensureLane(laneId).dragging = false
-}
-
-export function clearPendingDir(laneId) {
-  ensureLane(laneId).pendingDir = null
-}
-
-export function applyLaneOffset(laneId, offset) {
+/**
+ * Apply offset during drag - called by dispatcher on carousel:offset
+ */
+export function applyOffset(laneId, offset) {
   ensureLane(laneId).offset = offset
 }
 
-export function commitLane(laneId, offset) {
+/**
+ * Commit swipe animation - called by dispatcher on carousel:commit
+ */
+export function commitSwipe(laneId, direction, offset) {
   const lane = ensureLane(laneId)
-  const value = offset ?? 0
+  lane.pendingDir = direction
+  lane.offset = offset
+  lane.dragging = false
+}
 
-  lane.committedOffset = value
-  lane.offset = value
+/**
+ * Revert to original position - called by dispatcher on carousel:revert
+ */
+export function revertSwipe(laneId) {
+  const lane = ensureLane(laneId)
+  lane.offset = 0
   lane.dragging = false
   lane.pendingDir = null
 }
 
-/* -------------------------------------------------
-   Optional animation intent (renderer-driven)
-------------------------------------------------- */
-
-export function commitLaneSwipe(laneId, dir) {
-  const lane = ensureLane(laneId)
-  if (!lane.size || !lane.count) return
-
-  lane.pendingDir = dir
-  lane.dragging = false
-
-  lane.offset =
-    dir === 'right' || dir === 'down'
-      ? lane.size
-      : dir === 'left' || dir === 'up'
-        ? -lane.size
-        : 0
-}
-
 /**
- * Finalize lane after CSS transition completes.
+ * Finalize transition after CSS animation completes.
  * Called by renderer when transitionend fires.
- * Updates index based on pendingDir and resets offset.
  */
 export function finalizeLaneTransition(laneId) {
   const lane = getLane(laneId)
   if (!lane || !lane.pendingDir) return false
 
-  // Update index based on pendingDir
-  switch (lane.pendingDir) {
-    case 'right':
-    case 'down':
-      lane.index = (lane.index - 1 + lane.count) % lane.count
-      break
-    case 'left':
-    case 'up':
-      lane.index = (lane.index + 1) % lane.count
-      break
-  }
-
+  lane.index = getNextIndex(lane.index, lane.pendingDir, lane.count)
   lane.offset = 0
   lane.pendingDir = null
   return true
@@ -139,23 +121,6 @@ export function getLaneOffset(laneId) {
   return getLane(laneId)?.offset ?? 0
 }
 
-export function getLaneCommittedOffset(laneId) {
-  return getLane(laneId)?.committedOffset ?? 0
-}
-
 export function getLaneSize(laneId) {
   return getLane(laneId)?.size ?? 0
-}
-
-export function getLaneBase(laneId) {
-  const lane = getLane(laneId)
-  if (!lane) {
-    return { committedOffset: 0, offset: 0, size: 0 }
-  }
-
-  return {
-    committedOffset: lane.committedOffset,
-    offset: lane.offset,
-    size: lane.size
-  }
 }
