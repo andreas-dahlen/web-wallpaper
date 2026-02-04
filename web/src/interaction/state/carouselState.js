@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 import { clampNumber } from '../math/clampMath'
-import { getNextIndex } from '../reaction/swipePolicy'
+import { getNextIndex } from '../reaction/policy/carouselPolicy'
 
 /* -------------------------------------------------
    Central carousel state
@@ -124,3 +124,4 @@ export function getLaneOffset(laneId) {
 export function getLaneSize(laneId) {
   return getLane(laneId)?.size ?? 0
 }
+

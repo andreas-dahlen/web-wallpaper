@@ -12,34 +12,33 @@
  */
 
 import { dispatcher } from './dispatcher'
-import { carouselSolver } from './carouselSolver'
+import { carouselSolver } from './solvers/carouselSolver'
+import { sliderSolver } from './solvers/sliderSolver'
+import { dragSolver } from './solvers/dragSolver'
 
 /* -------------------------
    Solver routing table
 -------------------------- */
 const solvers = {
-  carousel: carouselSolver
-  // slider: sliderSolver,
-  // drag: dragSolver,
+  carousel: carouselSolver,
+  slider: sliderSolver,
+  drag: dragSolver
 }
 
 /* -------------------------
    Core handler
 -------------------------- */
-export const coordinate = {
-  handle(descriptor) {
+export const manage = {
+  solveDescriptor(descriptor) {
     if (!descriptor) return
 
-    let result = descriptor
-    const swipeType = descriptor.swipeType
-    const type = descriptor.type
+    const { swipeType, type } = descriptor
+    const solverfn = solvers[swipeType]?.[type]
 
-    // Get the handler for this swipeType / action
-    const handler = solvers[swipeType]?.[type]
-
-    if (handler) {
-      result = handler(descriptor)
+    if (solverfn) {
+      const result = solverfn(descriptor)
+      Object.assign(descriptor, result)
     }
-    dispatcher.handle(result)
+    dispatcher.handle(descriptor)
   }
 }

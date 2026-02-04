@@ -1,5 +1,5 @@
 // intentForwarder.js
-import { coordinate } from '../reaction/reactionManager'
+import { manage } from '../reaction/reactionManager'
 import { intentDelegate } from '../intent/intentManager'
 import { log } from '../../debug/functions'
 
@@ -22,7 +22,7 @@ function forwardPacket(packet) {
       console.warn('Invalid reaction descriptor', reaction, reaction.type)
       continue
     }
-    coordinate.handle(reaction)
+    manage.solveDescriptor(reaction)
   }
 }
 

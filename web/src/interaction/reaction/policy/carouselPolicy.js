@@ -9,7 +9,7 @@
  * - Pure functions only
  */
 
-import { APP_SETTINGS } from '../../config/appSettings'
+import { APP_SETTINGS } from '../../../config/appSettings'
 
 /**
  * Clamp delta to lane boundaries

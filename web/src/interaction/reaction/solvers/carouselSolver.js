@@ -15,74 +15,50 @@ import {
   resolveDirection,
   shouldCommit,
   getCommitOffset
-} from './swipePolicy'
+} from '../policy/carouselPolicy'
 
 export const carouselSolver = {
   /**
    * Handle swipeStart - returns reaction to enable dragging
    */
-  swipeStart(descriptor) {
-    return {
-      ...descriptor,
-      reaction: {
-        type: 'carousel:dragStart',
-        laneId: descriptor.laneId
-      }
-    }
+  swipeStart(desc) {
+    desc.reaction = desc.type
+    return desc
   },
 
   /**
    * Handle swipe (drag) - clamp delta and return offset reaction
    */
-  swipe(descriptor) {
-    const { delta, laneId, laneSize } = descriptor
+  swipe(desc) {
+    const { delta, laneSize } = desc
     const clampedDelta = clampDelta(delta, laneSize)
 
-    return {
-      ...descriptor,
-      delta: clampedDelta,
-      reaction: {
-        type: 'carousel:offset',
-        laneId,
-        offset: clampedDelta
-      }
-    }
+    desc.reaction = desc.type
+    desc.delta = clampedDelta
+    return desc
+
   },
 
   /**
    * Handle swipeCommit - decide commit vs revert
    */
-  swipeCommit(descriptor) {
-    const { delta, axis, laneId, laneSize } = descriptor
+  swipeCommit(desc) {
+    const { delta, axis, laneSize } = desc
     const clampedDelta = clampDelta(delta, laneSize)
-    
+
     if (shouldCommit(clampedDelta, laneSize)) {
       const direction = resolveDirection(clampedDelta, axis)
       const targetOffset = getCommitOffset(direction, laneSize)
 
-      return {
-        ...descriptor,
-        delta: clampedDelta,
-        reaction: {
-          type: 'carousel:commit',
-          laneId,
-          direction,
-          offset: targetOffset
-        }
-      }
+      desc.reaction = desc.type
+      desc.direction = direction
+      desc.delta = targetOffset
+      return desc
     }
-    
     // Revert case
-    return {
-      ...descriptor,
-      type: 'swipeRevert',
-      delta: 0,
-      reaction: {
-        type: 'carousel:revert',
-        laneId,
-        offset: 0
-      }
-    }
+    desc.reaction = 'swipeRevert'
+    return desc
   }
 }
+
 
