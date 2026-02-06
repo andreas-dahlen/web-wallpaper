@@ -10,23 +10,7 @@
  * - Updates DOM attributes & dispatches events
  * - Does NOT contain decision logic
  */
-import {
-  startDrag as startCarouselDrag,
-  applyOffset as applyCarouselOffset,
-  commitSwipe as commitCarousel,
-  revertSwipe as revertCarousel
-} from '../state/carouselState'
-
-import {
-  setDragPosition,
-  getDragPosition
-} from '../state/dragState'
-
-import {
-  startDrag as startSliderDrag,
-  applyOffset as applySliderOffset,
-  commitSlider
-} from '../state/sliderState'
+import { state } from '../state/stateManager'
 
 /* -------------------------------------------------
    DOM helpers
@@ -48,62 +32,20 @@ function dispatchEvent(element, descriptor) {
 /* -------------------------------------------------
    Carousel domain reaction handlers
 ------------------------------------------------- */
-function handleCarouselReaction(desc) {
-  const { reaction, laneId, delta, direction } = desc
+function handleReaction(desc) {
+  const { reaction, swipeType } = desc
   switch (reaction) {
     case 'swipeStart':
-      startCarouselDrag(laneId)
+      state.swipeStart(swipeType, desc)
       break
     case 'swipe':
-      applyCarouselOffset(laneId, delta)
+      state.swipe(swipeType, desc)
       break
     case 'swipeCommit':
-      commitCarousel(laneId, direction, delta)
+      state.swipeCommit(swipeType, desc)
       break
     case 'swipeRevert':
-      revertCarousel(laneId)
-      break
-  }
-}
-
-/* -------------------------------------------------
-   Drag domain reaction handlers
-------------------------------------------------- */
-function handleDragReaction(desc) {
-  const { reaction, laneId, deltaX, deltaY } = desc
-  switch (reaction) {
-    case 'swipeStart':
-      // Drag start - no state change needed (position is persisted)
-      break
-    case 'swipe':
-      // Apply offset during drag - renderer reads delta directly from descriptor
-      break
-    case 'swipeCommit': {
-      // Persist final position
-      const current = getDragPosition(laneId)
-      setDragPosition(laneId, {
-        x: current.x + deltaX,
-        y: current.y + deltaY
-      })
-      break
-    }
-  }
-}
-
-/* -------------------------------------------------
-   Slider domain reaction handlers
-------------------------------------------------- */
-function handleSliderReaction(desc) {
-  const { reaction, laneId, delta } = desc
-  switch (reaction) {
-    case 'swipeStart':
-      startSliderDrag(laneId)
-      break
-    case 'swipe':
-      applySliderOffset(laneId, delta)
-      break
-    case 'swipeCommit':
-      commitSlider(laneId, delta)
+      state.swipeRevert(swipeType, desc)
       break
   }
 }
@@ -118,7 +60,7 @@ const typeHandlers = {
   swipeStart: (el) => setAttr(el, 'data-swiping', true),
   swipeCommit: (el) => setAttr(el, 'data-swiping', null),
   swipeRevert: (el) => setAttr(el, 'data-swiping', null),
-  swipe: () => {}
+  swipe: () => { }
 }
 
 /* -------------------------------------------------
@@ -130,17 +72,7 @@ export const dispatcher = {
 
     // 1️⃣ Apply domain reaction if present
     if (descriptor.reaction) {
-      switch (descriptor.swipeType) {
-        case 'carousel':
-          handleCarouselReaction(descriptor)
-          break
-        case 'drag':
-          handleDragReaction(descriptor)
-          break
-        case 'slider':
-          handleSliderReaction(descriptor)
-          break
-      }
+      handleReaction(descriptor)
     }
     // 2️⃣ Apply DOM / UI attributes
     typeHandlers[descriptor.type]?.(descriptor.element)

@@ -1,6 +1,5 @@
 //buildPayload.js
-
-import { getLaneSize } from "../state/carouselState"
+import { state } from "../state/stateManager"
 
 export function buildPayload(result) {
   const payload = {
@@ -25,7 +24,6 @@ function buildReactions(result) {
       delta: result.delta ?? null
     })
   }
-  console.log(result.target.laneId)
   // 2. Primary reaction
   reactions.push({
     type: result.type ?? null,
@@ -34,7 +32,9 @@ function buildReactions(result) {
     axis: result?.axis ?? null,
     laneId: current.laneId ?? null,
     swipeType: current.swipeType ?? null,
-    laneSize: getLaneSize(current.laneId) ?? null
+    laneSize: state.getSize(current.swipeType, current.laneId) ?? null,
+    min: state.getMin(current.swipeType, current.laneId) ?? null,
+    max: state.getMax(current.swipeType, current.laneId) ?? null
   })
 
   return reactions

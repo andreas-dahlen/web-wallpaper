@@ -32,7 +32,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watchEffect, markRaw } from 'vue'
-import { ensureLane, setLaneCount, setLaneSize, finalizeLaneTransition } from '../interaction/state/carouselState'
+import { state } from '../interaction/state/stateManager'
 import { APP_SETTINGS } from '../config/appSettings'
 
 const emit = defineEmits(['swipeCommit'])
@@ -44,7 +44,7 @@ function updateLaneSize() {
   if (!carouselEl.value) return
   const size = horizontal.value ? carouselEl.value.offsetWidth : carouselEl.value.offsetHeight
   laneSize.value = size
-  setLaneSize(props.lane, laneSize.value)
+  state.setSize('carousel', props.lane, laneSize.value)
 }
 
 let observer
@@ -60,6 +60,7 @@ onMounted(() => {
     })
   }
 })
+
 onBeforeUnmount(() => {
   observer.disconnect()
 })
@@ -72,10 +73,10 @@ const props = defineProps({
 })
 
 const horizontal = computed(() => props.axis === 'horizontal')
-const laneState = computed(() => ensureLane(props.lane))
+const laneState = computed(() => state.ensure('carousel', props.lane))
 
 watchEffect(() => {
-  setLaneCount(props.lane, props.scenes.length)
+  state.setCount('carousel', props.lane, props.scenes.length)
 })
 
 /* -------------------------
@@ -160,7 +161,7 @@ const carouselStyle = computed(() => ({
 -------------------------- */
 function onTransitionEnd(e) {
   if (e.propertyName !== 'transform') return
-  finalizeLaneTransition(props.lane)
+  state.finalTransition('carousel', props.lane)
 }
 </script>
 

@@ -17,7 +17,9 @@
 
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount, watchEffect } from 'vue'
-import { ensureLane, setLaneSize } from '../interaction/state/carouselState'
+import { state } from '../interaction/state/stateManager'
+
+const emit = defineEmits(['swipeCommit'])
 
 defineOptions({ name: 'SwipeSlider' })
 
@@ -27,13 +29,27 @@ const props = defineProps({
   reactSwipeCommit: { type: Boolean, default: false },
 })
 
+/* -------------------------
+   Refs / basics
+-------------------------- */
 const sliderEl = ref(null)
 const horizontal = computed(() => props.axis === 'horizontal')
-const laneState = computed(() => ensureLane(props.lane))
-const laneOffset = computed(() => laneState.value.offset || 0)
-const dragging = computed(() => laneState.value.dragging)
 
-watchEffect(() => ensureLane(props.lane))
+/* -------------------------
+   Slider state refs
+-------------------------- */
+const laneState = computed(() => state.ensure('slider', props.lane))
+const laneOffset = computed(() => laneState.value?.offset ?? 0)
+const dragging = computed(() => laneState.value?.dragging ?? false)
+const laneValue = computed(() => laneState.value?.value ?? 0)
+const laneMin = computed(() => state.getMin('slider', props.lane) ?? 0)
+const laneMax = computed(() => state.getMax('slider', props.lane) ?? 100)
+const laneSize = computed(() => state.getSize('slider', props.lane) ?? 0)
+
+/* -------------------------
+   Watch / ensure slider exists
+-------------------------- */
+watchEffect(() => state.ensure('slider', props.lane))
 
 /* -------------------------
    Resize / lane size
@@ -41,7 +57,7 @@ watchEffect(() => ensureLane(props.lane))
 function updateLaneSize() {
   if (!sliderEl.value) return
   const size = horizontal.value ? sliderEl.value.offsetWidth : sliderEl.value.offsetHeight
-  setLaneSize(props.lane, size)
+  state.setSize('slider', props.lane, size)
 }
 
 let observer
@@ -50,45 +66,39 @@ onMounted(() => {
   observer = new ResizeObserver(updateLaneSize)
   observer.observe(sliderEl.value)
 
-  sliderEl.value?.addEventListener('reaction', handleReaction)
+  sliderEl.value?.addEventListener('reaction', onReaction)
 })
 
 onBeforeUnmount(() => {
   observer?.disconnect()
-  sliderEl.value?.removeEventListener('reaction', handleReaction)
+  sliderEl.value?.removeEventListener('reaction', onReaction)
 })
 
 /* -------------------------
    Reaction handling
 -------------------------- */
-const reactionHandlers = {
-  swipeStart() {
-    // laneState.dragging already true via renderer
-  },
-  swipeCommit() {
-    // laneState.dragging will reset via renderer
-  },
-  swipeRevert() {
-    // laneState.dragging will reset via renderer
-  },
-}
-
-function handleReaction(e) {
-  const { type } = e.detail || {}
-  if (!type) return
-  if (reactionHandlers[type]) reactionHandlers[type](e.detail)
+function onReaction(e) {
+  if (!props.reactSwipeCommit) return
+  if (e.detail?.type !== 'swipeCommit') return
+  emit('swipeCommit', e.detail)
 }
 
 /* -------------------------
-   Styles
+   Computed thumb style
 -------------------------- */
-const thumbStyle = computed(() => ({
-  transform: horizontal.value
-    ? `translate3d(${laneOffset.value}px,0,0)`
-    : `translate3d(0,${laneOffset.value}px,0)`,
-  transition: dragging.value ? 'none' : 'transform 150ms ease-out',
-  willChange: 'transform',
-}))
+const thumbStyle = computed(() => {
+  // Map value to position
+  const posRatio = (laneValue.value - laneMin.value) / (laneMax.value - laneMin.value)
+  const pos = posRatio * laneSize.value + laneOffset.value
+
+  return {
+    transform: horizontal.value
+      ? `translate3d(${pos}px,0,0)`
+      : `translate3d(0,${pos}px,0)`,
+    transition: dragging.value ? 'none' : 'transform 150ms ease-out',
+    willChange: 'transform'
+  }
+})
 </script>
 
 <style scoped>
@@ -113,7 +123,7 @@ const thumbStyle = computed(() => ({
   width: 100%;
   height: 100%;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: left;
+  align-items: bottom;
 }
 </style>
