@@ -8,6 +8,14 @@
 
 This gesture engine implements a **unidirectional data pipeline** for handling touch/pointer interactions. The design is **intentionally over-structured** to enforce strict separation of concerns and prevent accidental coupling between layers.
 
+**mental model**: 
+
+- Input describes what happened
+- Intent describes where it happened
+- Policy describes how math works
+- Solver decides what it means
+- State decides what changes
+
 **The pipeline transforms input as follows:**
 ```
 Raw Input → Intent → Reaction Decision → State Mutation → Vue Render
@@ -257,7 +265,7 @@ el.dispatchEvent(new CustomEvent('reaction'))  // NO!
 #### Forbidden Knowledge
 - ❌ State (reactive or otherwise)
 - ❌ DOM
-- ❌ Side effects of any kind
+- ❌ Any observable side effects (state mutation, DOM, events).
 - ❌ Imports from state modules
 - ❌ Imports from Vue
 
@@ -299,7 +307,7 @@ element.style.transform = ...  // NO!
 - Use policy functions for pure math
 - Produce reaction payloads (what should happen)
 - Decide commit vs revert (carousel)
-- Convert pixel to logical deltas (slider)
+- Apply policy conversions (pixel → logical) to descriptors
 - Augment descriptors with computed values
 
 #### Allowed Knowledge
@@ -307,11 +315,19 @@ element.style.transform = ...  // NO!
 - Policy function results
 - Reaction type names
 
+#### Solvers may mutate descriptor fields only if:
+
+- The descriptor is frame-local
+- The mutation represents a resolved value (never raw input)
+- The descriptor is never reused after dispatch
+
 #### Forbidden Knowledge
 - ❌ Direct state access (`state.ensure()`, `sliderState.value`)
 - ❌ DOM access
 - ❌ Dispatching events
 - ❌ Vue reactivity
+- ❌ DO NOT store or cache mutated descriptors
+- ❌ DO NOT assume descriptor fields are stable across stages
 
 #### Correct Usage Example
 ```javascript
@@ -445,6 +461,8 @@ const el = document.querySelector(`[data-lane="${laneId}"]`)  // NO!
 - Listen for `reaction` events from dispatcher
 - Emit Vue events to parent components
 - Call `state.ensure()` and `state.setSize()` for initialization
+- Initialization is the only moment Vue may cause state creation.
+- After initialization, Vue is strictly read-only.
 
 #### Allowed Knowledge
 - Lane state (via computed properties)
@@ -498,7 +516,7 @@ Descriptors are the data packets that flow through the pipeline.
 - **Immutable at creation**: buildPayload creates a snapshot
 - **Augmented by solvers**: Solvers may add computed fields
 - **Disposable**: Each gesture event creates a new descriptor
-- **Never mutated in-place by later stages**: Clone if needed
+- **Never mutated in-place by later stages**: (except solvers under the solver mutation rules)
 
 ### Required Fields
 ```typescript
