@@ -20,11 +20,16 @@
  * @param {number} max - Maximum bound
  * @returns {number} Clamped delta
  */
-export function clampDelta(delta, min, max) {
-  if (min === undefined || max === undefined) return delta
-  return Math.max(min, Math.min(max, delta))
+export function pixelToLogical(delta, laneSize, min, max) {
+  if (!laneSize) return 0
+  return (delta / laneSize) * (max - min)
 }
 
+export function clampDelta(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+  
 /**
  * Resolve swipe direction from delta and axis
  * @param {number} delta - Swipe delta (clamped)

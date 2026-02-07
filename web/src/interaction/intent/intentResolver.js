@@ -1,6 +1,6 @@
 //resolver.js
 
-import { policy } from './intentPolicy'
+import { policy } from './intentHelpers'
 
 export const resolve = {
     press(intent) {

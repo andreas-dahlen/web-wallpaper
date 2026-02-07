@@ -34,7 +34,8 @@ function buildReactions(result) {
     swipeType: current.swipeType ?? null,
     laneSize: state.getSize(current.swipeType, current.laneId) ?? null,
     min: state.getMin(current.swipeType, current.laneId) ?? null,
-    max: state.getMax(current.swipeType, current.laneId) ?? null
+    max: state.getMax(current.swipeType, current.laneId) ?? null,
+    value: state.getValue(current.swipeType, current.laneId) ?? null,
   })
 
   return reactions

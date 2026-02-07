@@ -38,19 +38,25 @@ export const sliderStateFn = {
   getMax(laneId) {
     return sliderState.sliders[laneId]?.max ?? 100
   },
+  getValue(laneId) {
+    return sliderState.sliders[laneId]?.value ?? 0
+  },
   ensure(laneId) {
     if (!sliderState.sliders[laneId]) {
       sliderState.sliders[laneId] = {
-        value: 0,
-        offset: 0,
+        value: 0,       // logical position (0–100 or whatever)
+        offset: 0,      // optional for live dragging
         min: 0,
         max: 100,
         size: 0,
-        stepSize: 1,
-        dragging: false
       }
     }
     return sliderState.sliders[laneId]
+  },
+  setMinMax(laneId, min, max) {
+    const slider = this.ensure(laneId)
+    slider.min = min
+    slider.max = max
   },
   setSize(laneId, size) {
     this.ensure(laneId).size = size
@@ -78,14 +84,15 @@ export const sliderStateFn = {
 
   /**
    * Commit slider to new value - called by dispatcher on slider:swipeCommit
+   * Receives logical delta (already converted from pixels by solver)
    */
   swipeCommit(desc) {
     const slider = this.ensure(desc.laneId)
-    slider.value = Math.max(slider.min, Math.min(slider.max, slider.value + desc.delta))
+    // desc.delta is already in logical units (converted by solver)
+    slider.value = Math.min(slider.max, Math.max(slider.min, slider.value + desc.delta))
     slider.offset = 0
     slider.dragging = false
   }
-
 }
 
 /* -------------------------------------------------

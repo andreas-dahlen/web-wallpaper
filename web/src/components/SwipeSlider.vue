@@ -58,6 +58,7 @@ function updateLaneSize() {
   if (!sliderEl.value) return
   const size = horizontal.value ? sliderEl.value.offsetWidth : sliderEl.value.offsetHeight
   state.setSize('slider', props.lane, size)
+  // state.setMinMax('slider', props.lane, 0, size)
 }
 
 let observer

@@ -77,5 +77,5 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
-  intentMap.onUp(e.clientX, e.cluentY)
+  intentMap.onUp(e.clientX, e.clientY)
 }
