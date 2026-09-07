@@ -30,6 +30,9 @@
   "include": [
     "vite.config.ts",
     "vitest.config.ts",
+    "vitest.app.config.ts",
+    "vitest.react.config.ts",
+    "vitest.coverage.config.ts",
     "eslint.config.ts",
     "oxlint.config.ts",
     "tools/lint/**/*.ts",

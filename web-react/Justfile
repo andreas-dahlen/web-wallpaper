@@ -67,7 +67,7 @@ test project="" *args:
     fi
 
 test-all *args:
-    npm run test -- --silent=passed-only --reporter=dot {{args}}
+    npm run test -- --config=vitest.coverage.config.ts --silent=passed-only --reporter=dot {{args}}
 
 # List available Vitest projects.
 test-help:
@@ -75,9 +75,9 @@ test-help:
 
 coverage project="" *args:
     if [ -z "{{project}}" ]; then \
-        npm run test -- --project=react --project=app --silent=passed-only {{args}}; \
+        npm run test -- --project=react --project=app --silent=passed-only --coverage {{args}}; \
     else \
-        npm run test -- --project={{project}} --silent=passed-only {{args}}; \
+        npm run test -- --project={{project}} --silent=passed-only --coverage {{args}}; \
     fi
 
 coverage-all:
