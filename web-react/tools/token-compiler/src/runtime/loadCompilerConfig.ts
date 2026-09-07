@@ -7,7 +7,7 @@ import {
 } from 'jsonc-parser'
 
 import type { CompilerOptions } from '../types/run.types.ts'
-import { compilerConfigSchema } from '../configSchema.ts'
+import { compilerConfigSchema } from '../schema/configSchema.ts'
 
 export function loadCompilerConfig(projectRoot: string): CompilerOptions {
   const configPath = path.join(

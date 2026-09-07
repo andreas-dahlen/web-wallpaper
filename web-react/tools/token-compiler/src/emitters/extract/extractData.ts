@@ -8,11 +8,13 @@ import { assembleExtensionData, type ExtensionData } from './assemblers/assemble
 import type { ExtractResult } from '../../types/compiler.types.ts'
 import type { TokenCache } from '../../compiler/tracking/tokenCache.ts'
 import type { CompilerRun } from '../../compiler/tracking/compilerRun.ts'
+import { assembleJsonSchema, type SchemaData } from './assemblers/assembleJsonSchema.ts'
 
 
 export type EmitData = {
   presetFiles: PresetFileData[]
   tokenFiles: TokenGroupData[]
+  jsonSchema: SchemaData
   metadata: GroupMetadata[]
   extensionData: ExtensionData
   lspData: LspData
@@ -84,13 +86,16 @@ export function extractData(cache: TokenCache,
     config.outPath
   )
 
+  const jsonSchema = assembleJsonSchema(config.outPath)
+
   return {
     outputData: {
       presetFiles,
       tokenFiles,
       metadata,
       extensionData,
-      lspData
+      lspData,
+      jsonSchema
     },
     extractResult: {
       omittedPresetFiles: [...omittedPresetFiles]

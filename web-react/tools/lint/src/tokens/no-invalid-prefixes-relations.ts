@@ -73,7 +73,7 @@ const rule: Rule.RuleModule = {
           const allowed = getArrayProperty(variable.value, "allowed");
           const exclude = getArrayProperty(variable.value, "exclude");
           const values = getObjectProperty(variable.value, "values");
-          const totalAllowed = [...alwaysAllowed.values, ...allowed.values];
+          const totalAllowed = new Set([...alwaysAllowed.values, ...allowed.values]);
           // const variableName = variable.key
 
           if (!/^[a-z][a-zA-Z0-9]*$/.test(variable.name)) {
@@ -118,7 +118,7 @@ const rule: Rule.RuleModule = {
           for (const entry of values.entries) {
             const prefix = entry.key;
 
-            if (!totalAllowed.includes(prefix)) {
+            if (!totalAllowed.has(prefix)) {
               context.report({
                 loc: getValueLoc(entry.node),
                 messageId: "invalidValuePrefix",

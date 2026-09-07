@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import { viteSingleFile } from 'vite-plugin-singlefile'
-import path from 'path'
+import path from 'node:path'
 import svgr from "vite-plugin-svgr";
 import { tokenCompiler } from './tools/plugins/src/vite.token-compiler.ts';
 

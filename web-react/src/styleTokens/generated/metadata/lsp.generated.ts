@@ -60,19 +60,6 @@
 //--f-carousel-height: 100%;
 
 //},
-//label {
-//--final-label-col: 🔮 col: o → p → f:black;
-//--final-label-align: 🔮 align: o → p → f:center;
-//--final-label-position: 🔮 position: o → p → f:absolute;
-//--final-label-offset-x: 🔮 offsetX: o → p → f:var(--final-button-width);
-//--final-label-offset-y: 🔮 offsetY: o → p → f:var(--final-button-height);
-//--f-label-col: black;
-//--f-label-align: center;
-//--f-label-position: absolute;
-//--f-label-offset-x: var(--final-button-width);
-//--f-label-offset-y: var(--final-button-height);
-
-//},
 //layout {
 //--final-layout-display: 🔮 display: o → p → f:block;
 //--final-layout-flex-direction: 🔮 flexDirection: o → p → f:initial;

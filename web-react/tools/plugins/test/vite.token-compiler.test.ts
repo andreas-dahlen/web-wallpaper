@@ -32,7 +32,7 @@ const getBuildStart = () => {
   const hook = tokenCompiler().buildStart
 
   if (typeof hook !== 'function') {
-    throw new Error('Expected buildStart to be a function')
+    throw new TypeError('Expected buildStart to be a function')
   }
 
   return hook

@@ -8,9 +8,23 @@
 		"terminal.integrated.cwd": "${workspaceFolder}",
 		"scopesManager.localScopes": [
 			{
-				"id": "mtqg3l7p3d6q8",
-				"name": "test",
-				"patterns": [ ]
+				"id": "mtrkf31rbr42y",
+				"name": "tools",
+				"patterns": [
+					"web-react/tools/lint/**",
+					"web-react/tools/plugins/**",
+					"web-react/tools/token-compiler/**",
+					"web-react/tools/extensions/token-compiler-vscode/**",
+					"web-react/tools/extensions/project-lint/**",
+					"web-react/tools/extensions/css-variable-completion/**"
+				]
+			},
+			{
+				"id": "mtrkipng1asno",
+				"name": "app",
+				"patterns": [
+					"web-react/src/**"
+				]
 			}
 		],
 		"cssModulesIntellisense.diagnostics.classNotUsed.enabled": false

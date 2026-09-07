@@ -1,7 +1,7 @@
 import type { OxlintOverride } from 'oxlint'
 
 export const unusedVars: OxlintOverride = {
-  files: ['**/src/**/*.{ts,tsx}'],
+  files: ['**/*.{ts,tsx}'],
 
   rules: {
     'eslint/no-unused-vars': [

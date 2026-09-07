@@ -7,10 +7,11 @@
     "meta": false,
     "pathPatches": true,
     "presets": true,
-    "tokens": true
+    "tokens": true,
+    "schema": true
   },
   "logging": {
     "trace": false,
-    "emissions": "verbose" //summary | verbose | off
+    "emissions": "summary" //summary | verbose | off
   }
 }

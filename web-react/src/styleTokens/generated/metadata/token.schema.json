@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "component": {
+      "type": "string",
+      "description": "Component name: <component>.module.css"
+    },
+    "infix": {
+      "description": "ClassName and infix.",
+      "type": "string"
+    },
+    "alwaysAllowed": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "o",
+          "s",
+          "m",
+          "p",
+          "t",
+          "f"
+        ]
+      }
+    },
+    "vars": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "allowed": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "o",
+                "s",
+                "m",
+                "p",
+                "t",
+                "f"
+              ]
+            }
+          },
+          "exclude": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "o",
+                "s",
+                "m",
+                "p",
+                "t",
+                "f"
+              ]
+            }
+          },
+          "values": {
+            "type": "object",
+            "properties": {
+              "o": {
+                "type": "string"
+              },
+              "s": {
+                "type": "string"
+              },
+              "m": {
+                "type": "string"
+              },
+              "p": {
+                "type": "string"
+              },
+              "t": {
+                "type": "string"
+              },
+              "f": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "minProperties": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "minProperties": 1
+    }
+  },
+  "required": [
+    "component",
+    "vars"
+  ],
+  "additionalProperties": false
+}

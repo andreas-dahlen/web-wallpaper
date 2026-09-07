@@ -16,7 +16,7 @@ export const json: Linter.Config[] = [
           schemas: [
             {
               fileMatch: ['src/styleTokens/tokens/**/*.{json,jsonc}'],
-              schema: './src/styleTokens/schema/token.schema.json'
+              schema: './src/styleTokens/generated/metadata/token.schema.json'
             }
           ]
         }

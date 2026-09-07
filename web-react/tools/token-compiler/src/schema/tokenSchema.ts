@@ -9,7 +9,7 @@ const validPrefixSchema = z.enum([
   'f',
 ])
 
-const rawValuesSchema = z.object({
+export const rawValuesSchema = z.object({
   o: z.string().optional(),
   s: z.string().optional(),
   m: z.string().optional(),
@@ -27,15 +27,17 @@ export const rawVariableSchema = z.object({
   values: rawValuesSchema.optional(),
 }).strict()
 
+export const rawVarsSchema = z.record(
+  z.string(),
+  rawVariableSchema,
+).refine(
+  vars => Object.keys(vars).length > 0,
+)
+
 export const rawTokenSchema = z.object({
-  component: z.string(),
-  infix: z.string().optional(),
+  component: z.string().describe('Component name: <component>.module.css'),
+  infix: z.string().optional().describe('ClassName and infix.'),
   alwaysAllowed: z.array(validPrefixSchema).min(1).optional(),
 
-  vars: z.record(
-    z.string(),
-    rawVariableSchema,
-  ).refine(
-    vars => Object.keys(vars).length > 0,
-  ),
+  vars: rawVarsSchema
 }).strict()

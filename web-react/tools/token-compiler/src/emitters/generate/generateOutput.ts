@@ -25,7 +25,8 @@ export function generateOutput(data: EmitData, config: CompilerConfig): Generate
       ...(config.outputs.tokens ? formatTokenFiles(data.tokenFiles) : []),
       ...(config.outputs.meta ? [formatMetaFile(data.metadata)] : []),
       ...(config.outputs.lsp ? [formatLspFile(data.lspData)] : []),
-      ...(config.outputs.extension ? [formatExtensionFile(data.extensionData)] : [])
+      ...(config.outputs.extension ? [formatExtensionFile(data.extensionData)] : []),
+      ...(config.outputs.schema ? [data.jsonSchema] : [])
     ],
     patches: config.outputs.pathPatches ? formatPathPatches(data.metadata) : []
   }

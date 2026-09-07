@@ -1,5 +1,5 @@
 import type z from 'zod';
-import { compilerConfigSchema, compilerOutputsSchema } from '../configSchema.ts';
+import { compilerConfigSchema, compilerOutputsSchema } from '../schema/configSchema.ts';
 import type { TokenCompiler } from '../compiler/compilerService.ts';
 import type { FSWatcher } from 'chokidar';
 export type CompilerOptions = z.infer<typeof compilerConfigSchema>

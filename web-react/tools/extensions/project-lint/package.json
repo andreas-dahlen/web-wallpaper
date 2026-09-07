@@ -1,9 +1,9 @@
 {
   "publisher": "ad-web-launcher",
-  "name": "lint-on-start",
+  "name": "project-lint",
   "type": "module",
-  "displayName": "Lint on Start",
-  "description": "Lints the workspace on startup.",
+  "displayName": "Project Lint",
+  "description": "Run project-wide Oxlint and VS Code tasks manually or at startup.",
   "version": "0.0.1",
   "private": true,
   "engines": {
@@ -43,17 +43,27 @@
   "contributes": {
     "configuration": {
       "properties": {
-        "lintOnStart.oxlint": {
-          "type": "boolean",
-          "default": true,
-          "description": "runs Oxlint on startup."
-        },
-        "lintOnStart.projectRoot": {
+        "projectLint.projectRoot": {
           "type": "string",
           "default": ".",
           "description": "Path to the project root, relative to the workspace."
+        },
+        "projectLint.taskLabel": {
+          "type": "string",
+          "default": "Check: Project",
+          "description": "Label of the task to run alongside Oxlint when refreshing all Problems."
         }
       }
-    }
+    },
+    "commands": [
+      {
+        "command": "projectLint.refresh",
+        "title": "Project Lint: Refresh All Problems"
+      },
+      {
+        "command": "projectLint.refreshOxlint",
+        "title": "Project Lint: Refresh Oxlint"
+      }
+    ]
   }
 }

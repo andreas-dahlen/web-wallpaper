@@ -30,6 +30,7 @@ export function resolveConfig(rootDir: string, tokenFolder: string | undefined):
     pathPatches: config.outputs?.pathPatches ?? false,
     presets: config.outputs?.presets ?? false,
     tokens: config.outputs?.tokens ?? false,
+    schema: config.outputs?.schema ?? false
   }
 
   const logging = {

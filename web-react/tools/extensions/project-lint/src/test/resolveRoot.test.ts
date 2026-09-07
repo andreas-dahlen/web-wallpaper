@@ -15,6 +15,14 @@ const joinPathMock = vi.hoisted(() =>
   vi.fn(),
 )
 
+const getConfigurationMock = vi.hoisted(() =>
+  vi.fn(),
+)
+
+const getMock = vi.hoisted(() =>
+  vi.fn(),
+)
+
 vi.mock('vscode', () => ({
   Uri: {
     joinPath: joinPathMock,
@@ -26,28 +34,27 @@ vi.mock('vscode', () => ({
         ? workspaceFolders
         : undefined
     },
+
+    getConfiguration: getConfigurationMock,
   },
 }))
 
 import { resolveRoot } from '../helpers/resolveRoot.ts'
 
-describe('[Lint on Start] resolveRoot', () => {
+describe('[Project Lint] resolveRoot', () => {
   const appendLine = vi.fn()
 
   const output = {
     appendLine,
   } as unknown as vscode.OutputChannel
 
-  const get = vi.fn()
-
-  const settings = {
-    get,
-  } as unknown as vscode.WorkspaceConfiguration
-
   beforeEach(() => {
     vi.clearAllMocks()
 
-    get.mockReturnValue('web-react')
+    getMock.mockReturnValue('web-react')
+    getConfigurationMock.mockReturnValue({
+      get: getMock,
+    })
 
     workspaceFolders.length = 0
     workspaceFolders.push({
@@ -62,11 +69,15 @@ describe('[Lint on Start] resolveRoot', () => {
   })
 
   it('resolves projectRoot relative to the workspace folder', () => {
-    const result = resolveRoot(settings, output)
+    const result = resolveRoot(output)
 
     expect(result).toBe('/workspace/web-react')
 
-    expect(get).toHaveBeenCalledWith('projectRoot')
+    expect(getConfigurationMock)
+      .toHaveBeenCalledWith('projectLint')
+
+    expect(getMock)
+      .toHaveBeenCalledWith('projectRoot')
 
     expect(vscode.Uri.joinPath).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -77,9 +88,9 @@ describe('[Lint on Start] resolveRoot', () => {
   })
 
   it('supports nested projectRoot paths', () => {
-    get.mockReturnValue('tools/lint-project')
+    getMock.mockReturnValue('tools/lint-project')
 
-    resolveRoot(settings, output)
+    resolveRoot(output)
 
     expect(vscode.Uri.joinPath).toHaveBeenCalledWith(
       expect.anything(),
@@ -91,24 +102,25 @@ describe('[Lint on Start] resolveRoot', () => {
   it('throws when the workspace folder is missing', () => {
     workspaceFolders.length = 0
 
-    expect(() => resolveRoot(settings, output))
+    expect(() => resolveRoot(output))
       .toThrow('Workspace folder is missing')
 
     expect(appendLine).toHaveBeenCalledWith(
-      '[Lint on Start] ERROR: workspace folder is missing',
+      '[Project Lint] ERROR: workspace folder is missing',
     )
 
-    expect(get).not.toHaveBeenCalled()
+    expect(getConfigurationMock).not.toHaveBeenCalled()
+    expect(getMock).not.toHaveBeenCalled()
   })
 
   it('throws when projectRoot is missing', () => {
-    get.mockReturnValue(undefined)
+    getMock.mockReturnValue(undefined)
 
-    expect(() => resolveRoot(settings, output))
+    expect(() => resolveRoot(output))
       .toThrow('projectRoot setting is missing')
 
     expect(appendLine).toHaveBeenCalledWith(
-      '[Lint on Start] ERROR: projectRoot setting is missing',
+      '[Project Lint] ERROR: projectRoot setting is missing',
     )
 
     expect(vscode.Uri.joinPath).not.toHaveBeenCalled()

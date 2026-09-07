@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run Token Compiler",
+      "name": "Run project-lint",
       "type": "extensionHost",
       "request": "launch",
       "args": [

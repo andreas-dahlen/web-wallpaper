@@ -8,7 +8,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import unicorn from 'eslint-plugin-unicorn'
 
 export default defineConfig({
-  files: ['**/src/**/*.{ts,tsx}'],
+  files: ['**/*.{ts,tsx}'],
 
   extends: [
     js.configs.recommended,

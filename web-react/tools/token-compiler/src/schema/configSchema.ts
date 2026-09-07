@@ -7,6 +7,7 @@ export const compilerOutputsSchema = z.object({
   pathPatches: z.boolean().optional(),
   presets: z.boolean().optional(),
   tokens: z.boolean().optional(),
+  schema: z.boolean().optional()
 }).strict()
 
 export const compilerLoggingSchema = z.object({

@@ -9,6 +9,7 @@
     "align": { "values": { "f": "center" } },
     "position": { "values": { "f": "absolute" } },
     "offsetX": { "values": { "f": "var(--final-button-width)" } },
-    "offsetY": { "values": { "f": "var(--final-button-height)" } }
+    "offsetY": { "values": { "f": "var(--final-button-height)" } },
+    "test": { "values": { "i": "black" } }
   }
 }

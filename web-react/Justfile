@@ -127,10 +127,10 @@ install-cvc:
     cd tools/extensions/css-variable-completion && npm run package
     code --install-extension tools/extensions/css-variable-completion/css-variable-completion-0.0.1.vsix --force
 
-# Builds and installs lint-on-start.
-install-los:
-    cd tools/extensions/lint-on-start && npm run package
-    code --install-extension tools/extensions/lint-on-start/lint-on-start-0.0.1.vsix --force
+# Builds and installs project-lint.
+install-pl:
+    cd tools/extensions/project-lint && npm run package
+    code --install-extension tools/extensions/project-lint/project-lint-0.0.1.vsix --force
 
 # Builds compiler and installs the compiler extension.
 install-tokens:
@@ -139,7 +139,7 @@ install-tokens:
     code --install-extension tools/extensions/token-compiler-vscode/token-compiler-vscode-0.0.1.vsix --force
 
 # Builds and installs all tools.
-install-extensions: install-cvc install-los install-tokens
+install-extensions: install-cvc install-pl install-tokens
 
 # Runs the compiler in CLI. File emissions disabled.
 compiler:

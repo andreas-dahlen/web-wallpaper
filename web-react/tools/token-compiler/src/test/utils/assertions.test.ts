@@ -79,7 +79,8 @@ describe('[COMPILER]', () => {
           meta: false,
           pathPatches: false,
           presets: false,
-          tokens: false
+          tokens: false,
+          schema: false
         },
         logging: {
           trace: false,
@@ -105,7 +106,8 @@ describe('[COMPILER]', () => {
           meta: false,
           pathPatches: false,
           presets: false,
-          tokens: false
+          tokens: false,
+          schema: false
         },
         logging: {
           trace: false,

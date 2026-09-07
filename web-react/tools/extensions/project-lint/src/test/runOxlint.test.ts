@@ -62,7 +62,7 @@ vi.mock('vscode', () => ({
 
 import { runOxlint } from '../oxlint/runOxlint.ts'
 
-describe('[Lint on Start] runOxlint', () => {
+describe('[Project Lint] runOxlint', () => {
   const stdout = {
     on: vi.fn(),
   }

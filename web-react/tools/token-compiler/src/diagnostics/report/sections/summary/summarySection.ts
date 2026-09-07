@@ -14,7 +14,8 @@ export function summarySection(data: DiagnosticData, outputs: CompilerOutputs): 
     tokens,
     meta,
     lsp,
-    extension } = data.generatedFiles
+    extension,
+    schema } = data.generatedFiles
 
   const { css, jsonc } = data.generatedPatches
 
@@ -28,6 +29,8 @@ export function summarySection(data: DiagnosticData, outputs: CompilerOutputs): 
     title: `🔌 ${paint(`[Extension]`, colors.heading)}    (${paint(emitValueMsg(extension.written, outputs.extension), colors.value)})`
   }, {
     title: `🔮 ${paint(`[LSP]`, colors.heading)}          (${paint(emitValueMsg(lsp.written, outputs.lsp), colors.value)}) `
+  }, {
+    title: `📐 ${paint(`[JSON Schema]`, colors.heading)}  (${paint(emitValueMsg(schema.written, outputs.schema), colors.value)} ) `
   }, {
     title: `\n  🩹 ${paint(`[Css patches]`, colors.heading)}  (${paint(emitValueMsg(css.written, outputs.pathPatches), colors.value)})  `
   }, {

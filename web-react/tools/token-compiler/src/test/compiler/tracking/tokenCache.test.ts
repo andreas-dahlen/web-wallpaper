@@ -20,7 +20,8 @@ const config: CompilerConfig = {
     meta: false,
     pathPatches: false,
     presets: false,
-    tokens: false
+    tokens: false,
+    schema: false
   },
   logging: {
     trace: false,

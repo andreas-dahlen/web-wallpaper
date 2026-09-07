@@ -23,6 +23,10 @@ export function analyzeWriteResult(result: FileResult | undefined): GeneratedFil
     extension: {
       written: [],
       skipped: []
+    },
+    schema: {
+      written: [],
+      skipped: []
     }
   }
 
@@ -40,6 +44,8 @@ export function analyzeWriteResult(result: FileResult | undefined): GeneratedFil
       generatedFiles.lsp.written.push(file)
     } else if (file.endsWith("extension.generated.jsonc")) {
       generatedFiles.extension.written.push(file)
+    } else if (file.endsWith("generated.schema.json")) {
+      generatedFiles.schema.written.push(file)
     }
   }
 
@@ -54,6 +60,8 @@ export function analyzeWriteResult(result: FileResult | undefined): GeneratedFil
       generatedFiles.lsp.skipped.push(file)
     } else if (file.endsWith("extension.generated.jsonc")) {
       generatedFiles.extension.skipped.push(file)
+    } else if (file.endsWith("generated.schema.json")) {
+      generatedFiles.schema.skipped.push(file)
     }
   }
 

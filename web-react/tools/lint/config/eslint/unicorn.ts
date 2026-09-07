@@ -2,7 +2,7 @@ import type { Linter } from 'eslint'
 
 export const unicorn: Linter.Config[] = [
   {
-    files: ['**/src/**/*.{ts,tsx}'],
+    files: ['**/*.{ts,tsx}'],
     rules: {
       'unicorn/no-unused-properties': 'warn',
       'unicorn/filename-case': 'off',
@@ -34,7 +34,7 @@ export const unicorn: Linter.Config[] = [
     }
   },
   {
-    files: ['**/src/test/**/*.{ts,tsx}'],
+    files: ['**/test/**/*.{ts,tsx}'],
     rules: {
       'unicorn/no-useless-spread': 'off',
       'unicorn/prefer-early-return': 'off',
@@ -42,7 +42,7 @@ export const unicorn: Linter.Config[] = [
     }
   },
   {
-    files: ['**/src/**/*.{tsx,jsx,module.css,svg}'],
+    files: ['src/**/*.{tsx,jsx,module.css,svg}'],
     ignores: [
       "**/*.test.tsx",
       "**/main.tsx"
@@ -55,13 +55,29 @@ export const unicorn: Linter.Config[] = [
     }
   },
   {
-    files: ['**/src/**/*.{ts,js}'],
+    files: ['src/**/*.{ts,js}'],
     ignores: [
       "**/test/**/*.ts",
     ],
     rules: {
       'unicorn/filename-case': ['error', {
         case: 'camelCase',
+        checkDirectories: false
+      }]
+    }
+  },
+  {
+    files: ['tools/**/*.{ts,js}'],
+    ignores: [
+      "**/test/**/*.ts",
+    ],
+    rules: {
+      'unicorn/filename-case': ['error', {
+        cases: {
+          'camelCase': true
+          ,
+          'kebabCase': true
+        },
         checkDirectories: false
       }]
     }
